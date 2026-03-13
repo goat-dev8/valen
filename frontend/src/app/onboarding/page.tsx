@@ -43,7 +43,7 @@ function OnboardingContent() {
     {
       title: 'Connect Wallet',
       description: 'Log in with Privy and verify the owner wallet that can grant agent authority.',
-      href: '/dashboard/wallets',
+      href: '/dashboard/authority',
       complete: steps.find((step) => step.id === 'wallet')?.complete ?? false,
     },
     {
@@ -61,9 +61,9 @@ function OnboardingContent() {
         (steps.find((step) => step.id === 'mandate')?.complete ?? false),
     },
     {
-      title: 'Fund Agent',
-      description: 'Prepare USDC authority now; Phase F turns this into real budget vault funding.',
-      href: '/dashboard/wallets',
+      title: 'Fund Budget',
+      description: 'Top up USDC budget vault on Arbitrum Sepolia so governed payments can settle.',
+      href: '/dashboard/budgets',
       complete: false,
     },
   ];
