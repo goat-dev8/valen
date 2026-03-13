@@ -20,10 +20,26 @@ function readEnvLocal(key: string): string | undefined {
   return undefined;
 }
 
-const apiUrl =
-  process.env.NEXT_PUBLIC_API_URL ??
-  readEnvLocal('NEXT_PUBLIC_API_URL') ??
-  'http://localhost:3000';
+const RENDER_API_URL = 'https://valen-api-m3g4.onrender.com';
+
+function resolveRenderApiUrl(): string {
+  const value =
+    process.env.NEXT_PUBLIC_API_URL ??
+    readEnvLocal('NEXT_PUBLIC_API_URL') ??
+    process.env.NEXT_PUBLIC_BACKEND_URL ??
+    readEnvLocal('NEXT_PUBLIC_BACKEND_URL') ??
+    process.env.BACKEND_URL ??
+    readEnvLocal('BACKEND_URL') ??
+    RENDER_API_URL;
+
+  if (!value.startsWith(RENDER_API_URL)) {
+    throw new Error(`Frontend backend URL must target Render API: ${RENDER_API_URL}`);
+  }
+
+  return value;
+}
+
+const apiUrl = resolveRenderApiUrl();
 const privyAppId =
   process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? readEnvLocal('NEXT_PUBLIC_PRIVY_APP_ID') ?? '';
 
@@ -36,6 +52,21 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-select'],
+  },
+  webpack(config) {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@stripe/crypto': false,
+      '@farcaster/mini-app-solana': false,
+    };
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings ?? []),
+      {
+        module: /ox[\\/]_esm[\\/]tempo[\\/]internal[\\/]virtualMasterPool/,
+        message: /Critical dependency: the request of a dependency is an expression/,
+      },
+    ];
+    return config;
   },
   async rewrites() {
     return [
