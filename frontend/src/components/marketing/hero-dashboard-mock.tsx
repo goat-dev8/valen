@@ -1,185 +1,190 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import {
-  Activity,
   Bot,
   CheckCircle2,
-  ChevronRight,
-  LayoutDashboard,
+  CreditCard,
+  FileCheck,
+  Home,
   Scale,
-  Shield,
-  ShieldCheck,
-  XCircle,
+  Search,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import { useCountUp } from '@/hooks/use-count-up';
 
-const PIPELINE = [
-  { key: 'intent', label: 'Intent', status: 'done' },
-  { key: 'policy', label: 'Policy', status: 'done' },
-  { key: 'budget', label: 'Budget', status: 'active' },
-  { key: 'risk', label: 'Risk', status: 'idle' },
-  { key: 'proof', label: 'Proof', status: 'idle' },
-] as const;
-
-const EXECUTIONS = [
-  { id: '07736a69…', agent: 'valen', action: 'Transfer 0.001 USDC', status: 'approved' as const, chain: 'Sepolia' },
-  { id: '1b9d…a02', agent: 'valen', action: 'x402 micropayment', status: 'pending' as const, chain: 'Sepolia' },
-  { id: '9b1c…7e2', agent: 'valen', action: 'Transfer TSLA · refused', status: 'blocked' as const, chain: 'RH Testnet' },
-  { id: '4e88…91f', agent: 'valen', action: 'Policy v2 published', status: 'approved' as const, chain: 'Sepolia' },
-];
-
-const SPARKLINE = [38, 52, 44, 68, 58, 72, 64, 78, 70, 84, 76, 88];
-
 const NAV = [
-  { icon: LayoutDashboard, active: true },
-  { icon: Bot, active: false },
-  { icon: Shield, active: false },
-  { icon: Scale, active: false },
-  { icon: Activity, active: false },
+  { section: 'Overview', items: [{ label: 'Home', icon: Home, active: true }] },
+  { section: 'Agents', items: [{ label: 'Agents', icon: Bot, active: false }] },
+  {
+    section: 'Actions',
+    items: [
+      { label: 'Intent', icon: Zap, active: false },
+      { label: 'Payments', icon: CreditCard, active: false },
+    ],
+  },
+  { section: 'Proofs', items: [{ label: 'Proofs', icon: FileCheck, active: false }] },
+  { section: 'Control', items: [{ label: 'Policies', icon: Scale, active: false }] },
 ];
 
-export function HeroDashboardMock() {
-  const agents = useCountUp(24, 1200);
-  const intents = useCountUp(1847, 1600);
-  const passRate = useCountUp(964, 1400);
-  const pending = useCountUp(3, 1000);
-  const [activeRow, setActiveRow] = useState(0);
+const AGENTS = [
+  { name: 'valen', status: 'Active', tone: 'active' as const },
+  { name: 'ZENITH', status: 'Active', tone: 'active' as const },
+  { name: 'NeuraXchange', status: 'Setup pending', tone: 'pending' as const },
+];
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveRow((prev) => (prev + 1) % EXECUTIONS.length);
-    }, 2800);
-    return () => clearInterval(timer);
-  }, []);
+const CHIPS = ['Pay 1 USDC', 'Create treasury agent', 'Show latest proofs', 'Transfer 1 TSLA to wallet'];
+
+/** Command Center preview — mirrors the live dashboard hero (image2) */
+export function HeroDashboardMock() {
+  const budget = useCountUp(649, 1400);
+  const spent = useCountUp(51, 1200);
+  const passRate = useCountUp(40, 1000);
+  const agents = useCountUp(8, 900);
 
   return (
     <div className="hero-dashboard-mock">
-      <div className="hero-dashboard-chrome">
-        <div className="hero-dashboard-dots">
-          <span className="hero-dashboard-dot hero-dashboard-dot-red" />
-          <span className="hero-dashboard-dot hero-dashboard-dot-yellow" />
-          <span className="hero-dashboard-dot hero-dashboard-dot-green" />
-        </div>
-        <div className="hero-dashboard-chrome-title">
-          <span className="hero-dashboard-live">
-            <span className="hero-dashboard-live-ping" />
-            Live
-          </span>
-          Compliance &amp; Risk · Home
-        </div>
-        <span className="hero-dashboard-chain-pill">Arbitrum Sepolia</span>
-      </div>
-
-      <div className="hero-dashboard-body">
-        <aside className="hero-dashboard-sidebar" aria-hidden="true">
-          {NAV.map(({ icon: Icon, active }, i) => (
-            <span
-              key={i}
-              className={`hero-dashboard-nav-item ${active ? 'hero-dashboard-nav-item-active' : ''}`}
-            >
-              <Icon className="h-4 w-4" />
-            </span>
-          ))}
-        </aside>
-
-        <div className="hero-dashboard-main">
-          <div className="hero-dashboard-stats">
-            <div className="hero-dashboard-stat">
-              <div className="hero-dashboard-stat-top">
-                <span className="hero-dashboard-stat-label">Active Agents</span>
-                <Bot className="h-4 w-4 text-[#007dfc]" />
-              </div>
-              <span key={agents} className="hero-dashboard-stat-value">{agents}</span>
-              <span className="hero-dashboard-stat-meta hero-dashboard-stat-meta-up">+3 this week</span>
-            </div>
-            <div className="hero-dashboard-stat">
-              <div className="hero-dashboard-stat-top">
-                <span className="hero-dashboard-stat-label">Intents Evaluated</span>
-                <Activity className="h-4 w-4 text-[#007dfc]" />
-              </div>
-              <span key={intents} className="hero-dashboard-stat-value">{intents.toLocaleString()}</span>
-              <span className="hero-dashboard-stat-meta">Last 24 hours</span>
-            </div>
-            <div className="hero-dashboard-stat hero-dashboard-stat-accent">
-              <div className="hero-dashboard-stat-top">
-                <span className="hero-dashboard-stat-label">Pass Rate</span>
-                <ShieldCheck className="h-4 w-4 text-white/90" />
-              </div>
-              <span key={passRate} className="hero-dashboard-stat-value hero-dashboard-stat-value-light">
-                {(passRate / 10).toFixed(1)}%
-              </span>
-              <span className="hero-dashboard-stat-meta hero-dashboard-stat-meta-light">Fail-closed gate</span>
-            </div>
-            <div className="hero-dashboard-stat">
-              <div className="hero-dashboard-stat-top">
-                <span className="hero-dashboard-stat-label">Pending Approvals</span>
-                <CheckCircle2 className="h-4 w-4 text-[#007dfc]" />
-              </div>
-              <span key={pending} className="hero-dashboard-stat-value">{pending}</span>
-              <span className="hero-dashboard-stat-meta hero-dashboard-stat-meta-warn">Needs review</span>
-            </div>
+      <div className="hero-dashboard-app">
+        <aside className="hero-dashboard-app-sidebar" aria-hidden="true">
+          <div className="hero-dashboard-app-brand">
+            <Image src="/valen-logo.svg" alt="" width={22} height={22} className="hero-dashboard-app-logo" />
+            <span className="hero-dashboard-app-wordmark">VALEN</span>
           </div>
 
-          <div className="hero-dashboard-panels">
-            <div className="hero-dashboard-panel hero-dashboard-panel-pipeline">
-              <div className="hero-dashboard-panel-head">
-                <h3>Intent Pipeline</h3>
-                <span className="hero-dashboard-panel-tag">#8f2a…c41</span>
-              </div>
-              <div className="hero-dashboard-pipeline-track">
-                <div className="hero-dashboard-pipeline-progress" />
-                {PIPELINE.map((step, i) => (
-                  <div
-                    key={step.key}
-                    className={`hero-dashboard-pipeline-node hero-dashboard-pipeline-node-${step.status}`}
-                    style={{ animationDelay: `${i * 0.15}s` }}
-                  >
-                    <span className="hero-dashboard-pipeline-dot" />
-                    <span className="hero-dashboard-pipeline-label">{step.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="hero-dashboard-sparkline" aria-hidden="true">
-                {SPARKLINE.map((h, i) => (
+          <nav className="hero-dashboard-app-nav">
+            {NAV.map(({ section, items }) => (
+              <div key={section} className="hero-dashboard-app-nav-group">
+                <p className="hero-dashboard-app-nav-label">{section}</p>
+                {items.map(({ label, icon: Icon, active }) => (
                   <span
-                    key={i}
-                    className="hero-dashboard-spark-bar"
-                    style={{ height: `${h}%`, animationDelay: `${i * 0.08}s` }}
-                  />
+                    key={label}
+                    className={`hero-dashboard-app-nav-item ${active ? 'hero-dashboard-app-nav-item-active' : ''}`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </span>
                 ))}
+              </div>
+            ))}
+          </nav>
+
+          <div className="hero-dashboard-app-wallet">
+            <span className="hero-dashboard-app-wallet-addr">0xD208…171A</span>
+            <div className="hero-dashboard-app-wallet-chains">
+              <Image src="/arbitrum-logo.png" alt="" width={16} height={16} />
+              <Image src="/robinhood.svg" alt="" width={16} height={16} />
+            </div>
+          </div>
+        </aside>
+
+        <div className="hero-dashboard-app-main">
+          <div className="hero-dashboard-app-topbar">
+            <span className="hero-dashboard-app-crumb">MY ORGANIZATION / Home</span>
+            <span className="hero-dashboard-app-search">
+              <Search className="h-3.5 w-3.5" />
+              Search pages &amp; actions
+            </span>
+            <span className="hero-dashboard-app-topbar-actions">
+              <span className="hero-dashboard-app-topbar-btn">Proofs</span>
+              <span className="hero-dashboard-app-avatar">U</span>
+            </span>
+          </div>
+
+          <div className="hero-dashboard-app-content">
+            <div className="hero-dashboard-app-header">
+              <div>
+                <h3 className="hero-dashboard-app-title">Command Center</h3>
+                <p className="hero-dashboard-app-subtitle">
+                  Governed autonomous agents — every action ends with a public proof.
+                </p>
+              </div>
+              <div className="hero-dashboard-app-header-actions">
+                <span className="hero-dashboard-app-btn-outline">Outcome Ledger</span>
+                <span className="hero-dashboard-app-btn-outline">Agent Studio</span>
+                <span className="hero-dashboard-app-btn-primary">Latest proof</span>
               </div>
             </div>
 
-            <div className="hero-dashboard-panel hero-dashboard-panel-feed">
-              <div className="hero-dashboard-panel-head">
-                <h3>Recent Executions</h3>
-                <span className="hero-dashboard-panel-link">
-                  View all <ChevronRight className="h-3.5 w-3.5" />
-                </span>
-              </div>
-              <div className="hero-dashboard-feed">
-                {EXECUTIONS.map((row, i) => (
-                  <div
-                    key={row.id}
-                    className={`hero-dashboard-feed-row ${i === activeRow ? 'hero-dashboard-feed-row-active' : ''}`}
+            <div className="hero-dashboard-app-kpis">
+              {[
+                { label: 'USDC Budget', value: `${(budget / 100).toFixed(2)} USDC` },
+                { label: 'Success Rate', value: `${passRate}%` },
+                { label: 'USDC Spent', value: `${(spent / 100).toFixed(2)} USDC`, positive: true },
+                { label: 'Active Agents', value: String(agents) },
+              ].map((kpi) => (
+                <div key={kpi.label} className="hero-dashboard-app-kpi">
+                  <span className="hero-dashboard-app-kpi-label">{kpi.label}</span>
+                  <span
+                    className={`hero-dashboard-app-kpi-value ${kpi.positive ? 'hero-dashboard-app-kpi-value-positive' : ''}`}
                   >
-                    <div className="hero-dashboard-feed-main">
-                      <span className="hero-dashboard-feed-agent">{row.agent}</span>
-                      <span className="hero-dashboard-feed-action">{row.action}</span>
-                    </div>
-                    <div className="hero-dashboard-feed-meta">
-                      <span className="hero-dashboard-feed-chain">{row.chain}</span>
-                      <span className={`hero-dashboard-feed-status hero-dashboard-feed-status-${row.status}`}>
-                        {row.status === 'approved' && <CheckCircle2 className="h-3 w-3" />}
-                        {row.status === 'blocked' && <XCircle className="h-3 w-3" />}
-                        {row.status === 'pending' && <Activity className="h-3 w-3" />}
-                        {row.status}
-                      </span>
-                    </div>
-                    {i === activeRow && <span className="hero-dashboard-feed-shimmer" aria-hidden="true" />}
+                    {kpi.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="hero-dashboard-app-banner">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              <div>
+                <p className="hero-dashboard-app-banner-title">Setup complete</p>
+                <p className="hero-dashboard-app-banner-desc">Your governed agent stack is ready.</p>
+              </div>
+            </div>
+
+            <div className="hero-dashboard-app-grid">
+              <div className="hero-dashboard-app-panel">
+                <div className="hero-dashboard-app-panel-head">
+                  <div>
+                    <h4>Your Agents</h4>
+                    <p>8 agents under governed finance control</p>
                   </div>
-                ))}
+                  <span className="hero-dashboard-app-btn-primary hero-dashboard-app-btn-sm">+ Studio</span>
+                </div>
+                <ul className="hero-dashboard-app-agent-list">
+                  {AGENTS.map((agent) => (
+                    <li key={agent.name} className="hero-dashboard-app-agent-row">
+                      <span className="hero-dashboard-app-agent-name">{agent.name}</span>
+                      <span
+                        className={`hero-dashboard-app-agent-badge hero-dashboard-app-agent-badge-${agent.tone}`}
+                      >
+                        {agent.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="hero-dashboard-app-panel hero-dashboard-app-panel-command">
+                <div className="hero-dashboard-app-panel-head">
+                  <div>
+                    <p className="hero-dashboard-app-command-label">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      VALEN Command Agent
+                    </p>
+                    <p className="hero-dashboard-app-command-desc">
+                      Conversational governed operations — plan, preview, execute, and prove.
+                    </p>
+                  </div>
+                </div>
+                <div className="hero-dashboard-app-chat">
+                  <p>
+                    I am VALEN Command Agent. Tell me what to pay, transfer, prove, or configure — I will plan the
+                    governed action, run policy gates, and route you to settlement and proof.
+                  </p>
+                </div>
+                <div className="hero-dashboard-app-input-row">
+                  <span className="hero-dashboard-app-input">Pay 1 USDC, transfer TSLA…</span>
+                  <span className="hero-dashboard-app-btn-outline hero-dashboard-app-btn-sm">Plan</span>
+                  <span className="hero-dashboard-app-btn-primary hero-dashboard-app-btn-sm">Execute →</span>
+                </div>
+                <div className="hero-dashboard-app-chips">
+                  {CHIPS.map((chip) => (
+                    <span key={chip} className="hero-dashboard-app-chip">
+                      {chip}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

@@ -1,12 +1,13 @@
 'use client';
 
-import Link from 'next/link';
-import { ArrowUpRight } from 'lucide-react';
 import { GridWallpaper } from '@/components/marketing/grid-wallpaper';
 import { SectionBadge } from '@/components/marketing/section-badge';
+import { RadialOrbitalTimeline } from '@/components/ui/radial-orbital-timeline';
 import { useScrollReveal } from '@/hooks/use-scroll-reveal';
-import { LANDING_MODULES } from '@/lib/landing-content';
+import { buildModuleTimelineData } from '@/lib/module-timeline-data';
 import { cn } from '@/lib/utils';
+
+const MODULE_TIMELINE = buildModuleTimelineData();
 
 export function ModulesSection() {
   const { ref, visible } = useScrollReveal();
@@ -25,35 +26,7 @@ export function ModulesSection() {
             </p>
           </div>
 
-          <div className="modules-grid">
-            {LANDING_MODULES.map((mod, i) => {
-              const Icon = mod.icon;
-              return (
-                <Link
-                  key={mod.id}
-                  href={mod.route}
-                  className="landing-module-card"
-                  style={{
-                    transitionDelay: visible ? `${i * 0.07}s` : '0s',
-                    ['--module-accent' as string]: mod.accent,
-                  }}
-                >
-                  <div className="landing-module-card__glow" aria-hidden="true" />
-                  <div className="landing-module-card__top">
-                    <span className="landing-module-card__icon">
-                      <Icon className="h-[18px] w-[18px]" aria-hidden />
-                    </span>
-                    <span className="landing-module-card__tag">{mod.tag}</span>
-                  </div>
-                  <h3 className="landing-module-card__title">{mod.title}</h3>
-                  <p className="landing-module-card__desc">{mod.description}</p>
-                  <span className="landing-module-card__link">
-                    Explore <ArrowUpRight className="h-3.5 w-3.5" />
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+          <RadialOrbitalTimeline timelineData={MODULE_TIMELINE} />
         </div>
       </div>
     </section>

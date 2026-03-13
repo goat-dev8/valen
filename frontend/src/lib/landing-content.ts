@@ -112,6 +112,34 @@ export const LANDING_MODULES: {
   },
 ];
 
+export const STANDARDS_FEATURES = [
+  {
+    icon: 'shield' as const,
+    label: 'ERC-8226 mandates',
+    detail: 'EIP-712 scoped authority before any agent can act',
+  },
+  {
+    icon: 'fingerprint' as const,
+    label: 'ERC-8004 identity',
+    detail: 'Public agent profiles linked to every proof outcome',
+  },
+  {
+    icon: 'credit-card' as const,
+    label: 'x402 payments',
+    detail: 'Governed HTTP 402 micropayments with budget pre-check',
+  },
+  {
+    icon: 'zap' as const,
+    label: 'Stylus engines',
+    detail: 'Compliance, risk, eligibility, and policy on Arbitrum',
+  },
+  {
+    icon: 'layers' as const,
+    label: 'Dual-chain settlement',
+    detail: 'Arbitrum Sepolia USDC + Robinhood testnet RWAs',
+  },
+];
+
 export const JOURNEY_STEPS = [
   {
     step: '01',

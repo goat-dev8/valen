@@ -59,16 +59,15 @@ export function HeroSection() {
             </div>
 
             <h1 className="hero-headline">
-              <span className="hero-headline-line fade-up fade-up-delay-1">Compliance, risk &amp; permission</span>
+              <span className="hero-headline-line fade-up fade-up-delay-1">Where agents meet permission.</span>
               <span className="hero-headline-line fade-up fade-up-delay-2">
-                for{' '}
-                <span className="hero-headline-mark text-frame-underline">agentic finance</span>.
+                <span className="hero-headline-mark text-frame-underline">Every action, proven.</span>
               </span>
             </h1>
 
-            <p className="fade-up fade-up-delay-3 mx-auto max-w-[560px] text-lg leading-7 text-[#31485f]">
-              Infrastructure between autonomous AI agents and on-chain execution. Scoped mandates, Stylus engine
-              evaluation, budget caps, and a public proof for every outcome — settled or refused.
+            <p className="fade-up fade-up-delay-3 mx-auto max-w-[500px] text-lg leading-7 text-[#31485f]">
+              The governed command layer for agentic finance — scope authority, run policy gates, and publish proof
+              for every settlement or refusal.
             </p>
 
             <div className="fade-up fade-up-delay-4 flex flex-wrap justify-center gap-[15px]">
