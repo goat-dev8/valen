@@ -1,53 +1,111 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, CheckCircle, Circle } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { keccak256, toHex } from 'viem';
 import { PageHeader } from '@/components/app/page-header';
-import { useAgents, useCreateExecution } from '@/hooks/use-valen-api';
+import { ChainBadge } from '@/components/app/chain-badge';
+import { useAgents, useCreateExecution, useMandates } from '@/hooks/use-valen-api';
+import { INTENT_TEMPLATES, intentTemplateById } from '@/lib/intent-templates';
+import { formatApiErrorMessage } from '@/lib/utils';
 
 export default function SubmitIntentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: agents, isLoading: agentsLoading } = useAgents({ limit: 100, status: 'active' });
+  const { data: mandates } = useMandates();
   const createMutation = useCreateExecution();
   const [error, setError] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState(INTENT_TEMPLATES[0].id);
+  const [agentId, setAgentId] = useState(searchParams.get('agentId') ?? '');
+  const [amount, setAmount] = useState(intentTemplateById(templateId).amount);
+  const [targetAddress, setTargetAddress] = useState(intentTemplateById(templateId).targetAddress);
+  const selectedTemplate = intentTemplateById(templateId);
+  const selectedAgent = agents?.items.find((agent) => agent.id === agentId) ?? agents?.items[0];
+  const activeMandates = useMemo(
+    () =>
+      (mandates ?? []).filter((mandate) => {
+        const actionAllowed =
+          mandate.allowedActions.includes(selectedTemplate.actionType) ||
+          mandate.allowedActions.includes('*') ||
+          (selectedTemplate.id === 'robinhood-demo' && mandate.allowedActions.includes('demo_trade'));
+        const targetAllowed = mandate.allowedTargets.includes('*') || mandate.allowedTargets.includes(targetAddress);
+        return (
+          mandate.status === 'active' &&
+          mandate.agentId === selectedAgent?.id &&
+          mandate.allowedChains.includes(selectedTemplate.targetChainId) &&
+          actionAllowed &&
+          targetAllowed
+        );
+      }),
+    [mandates, selectedAgent?.id, selectedTemplate, targetAddress],
+  );
+  const selectedMandate = activeMandates[0];
+  const submitBlockedReason = !selectedAgent
+    ? 'Select an active agent.'
+    : !selectedAgent.defaultPolicyId
+      ? 'Selected agent needs an assigned policy.'
+      : !selectedMandate
+        ? 'No active mandate matches this agent, chain, action, and target.'
+        : null;
+  const approvalExplanation = selectedMandate?.approvalThreshold
+    ? `This intent may require approval when ${selectedMandate.approvalThreshold}.`
+    : 'This intent can proceed automatically if compliance, eligibility, risk, and policy checks pass.';
+
+  const handleTemplateChange = (value: string) => {
+    const nextTemplate = intentTemplateById(value);
+    setTemplateId(value);
+    setAmount(nextTemplate.amount);
+    setTargetAddress(nextTemplate.targetAddress);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    if (submitBlockedReason || !selectedAgent || !selectedMandate) {
+      setError(submitBlockedReason ?? 'Intent is not ready to submit.');
+      return;
+    }
     const formData = new FormData(e.currentTarget);
-    const agentId = formData.get('agentId') as string;
-    const actionType = formData.get('actionType') as string;
-    const targetChainId = Number(formData.get('targetChainId'));
-    const targetAddress = formData.get('targetAddress') as string;
-    const amount = formData.get('amount') as string;
+    const assetAddress = String(formData.get('assetAddress') || '') || undefined;
 
     const payload = JSON.stringify({
-      actionType,
-      targetChainId,
+      templateId,
+      actionType: selectedTemplate.actionType,
+      targetChainId: selectedTemplate.targetChainId,
       targetAddress,
       amount: amount || null,
+      assetAddress: assetAddress ?? null,
+      mandateId: selectedMandate.id,
       submittedAt: new Date().toISOString(),
     });
     const payloadHash = keccak256(toHex(payload));
-    const idempotencyKey = `dashboard-${agentId.slice(0, 8)}-${Date.now()}`;
+    const idempotencyKey = `dashboard-${selectedAgent.id.slice(0, 8)}-${Date.now()}`;
 
     try {
       const result = await createMutation.mutateAsync({
-        agentId,
+        agentId: selectedAgent.id,
         idempotencyKey,
-        actionType,
-        targetChainId,
+        actionType: selectedTemplate.actionType,
+        targetChainId: selectedTemplate.targetChainId,
         targetAddress,
+        assetAddress,
         amount: amount || undefined,
+        mandateId: selectedMandate.id,
         payloadHash,
-        metadata: { source: 'dashboard', payloadPreview: payload },
+        metadata: {
+          source: 'dashboard-intent-builder',
+          templateId,
+          mandateId: selectedMandate.id,
+          payloadPreview: payload,
+          approvalExplanation,
+        },
       });
       router.push(`/dashboard/executions/${result.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit intent');
+      setError(formatApiErrorMessage(err, 'Failed to submit intent'));
     }
   };
 
@@ -58,9 +116,10 @@ export default function SubmitIntentPage() {
         Back to Executions
       </Link>
 
-      <PageHeader title="Submit Intent" description="Submit an agent intent for compliance, risk, policy, and on-chain settlement via Render API" />
+      <PageHeader title="Intent Builder" description="Build a mandate-aware intent before it enters compliance, risk, policy, and settlement." />
 
-      <div className="app-card max-w-2xl">
+      <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="app-card">
         {agentsLoading ? (
           <p className="text-sm text-[#64748b]">Loading agents...</p>
         ) : !agents?.items.length ? (
@@ -70,46 +129,90 @@ export default function SubmitIntentPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
           <div className="app-form-group">
+            <label htmlFor="template">Template</label>
+            <select id="template" className="app-input" value={templateId} onChange={(e) => handleTemplateChange(e.target.value)}>
+              {INTENT_TEMPLATES.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="app-form-group">
             <label htmlFor="agent">Agent</label>
-            <select id="agent" name="agentId" className="app-input" required>
+            <select id="agent" name="agentId" className="app-input" value={selectedAgent?.id ?? agentId} onChange={(e) => setAgentId(e.target.value)} required>
               {agents?.items.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
           </div>
-          <div className="app-form-group">
-            <label htmlFor="action">Action Type</label>
-            <select id="action" name="actionType" className="app-input" required>
-              <option value="transfer">Transfer</option>
-              <option value="swap">Swap</option>
-              <option value="contract_call">Contract Call</option>
-              <option value="rebalance">Rebalance</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="app-form-group">
-              <label htmlFor="chain">Chain</label>
-              <select id="chain" name="targetChainId" className="app-input" required>
-                <option value={421614}>Arbitrum Sepolia</option>
-                <option value={46630}>Robinhood Testnet</option>
-              </select>
+              <label>Chain</label>
+              <div className="rounded-xl border border-[#eef0f3] px-3 py-2">
+                <ChainBadge chainId={selectedTemplate.targetChainId} />
+              </div>
             </div>
             <div className="app-form-group">
               <label htmlFor="amount">Amount</label>
-              <input id="amount" name="amount" type="text" placeholder="0.00" className="app-input" />
+              <input id="amount" name="amount" type="text" value={amount} onChange={(e) => setAmount(e.target.value)} className="app-input" />
             </div>
           </div>
           <div className="app-form-group">
             <label htmlFor="target">Target Address</label>
-            <input id="target" name="targetAddress" type="text" placeholder="0x..." className="app-input font-mono" required />
+            <input id="target" name="targetAddress" type="text" value={targetAddress} onChange={(e) => setTargetAddress(e.target.value)} className="app-input font-mono" required />
+          </div>
+          <div className="app-form-group">
+            <label htmlFor="assetAddress">Asset</label>
+            <input id="assetAddress" name="assetAddress" type="text" defaultValue={selectedTemplate.assetAddress ?? ''} placeholder="native or token address" className="app-input" />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <button type="submit" className="app-btn app-btn-primary" disabled={createMutation.isPending}>
+          {submitBlockedReason && <p className="text-sm font-medium text-amber-700">{submitBlockedReason}</p>}
+          <button type="submit" className="app-btn app-btn-primary" disabled={createMutation.isPending || Boolean(submitBlockedReason)}>
             {createMutation.isPending ? 'Submitting...' : 'Submit for Evaluation'}
           </button>
           </form>
         )}
+        </div>
+
+        <div className="space-y-5">
+          <div className="app-card">
+            <h3 className="app-card-title">Intent Preview</h3>
+            <p className="mt-2 text-sm text-[#64748b]">{selectedTemplate.description}</p>
+            <div className="mt-4 space-y-3">
+              {[
+                ['Action', selectedTemplate.actionType],
+                ['Target', targetAddress],
+                ['Amount', amount || 'Not set'],
+                ['Mandate', selectedMandate?.id ?? 'No matching mandate'],
+              ].map(([label, value]) => (
+                <div key={label} className="wallet-row">
+                  <span>{label}</span>
+                  <strong className="break-all">{value}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="app-card">
+            <h3 className="app-card-title">Readiness</h3>
+            <div className="mt-4 space-y-3">
+              {[
+                ['Active agent', Boolean(selectedAgent)],
+                ['Assigned policy', Boolean(selectedAgent?.defaultPolicyId)],
+                ['Matching mandate', Boolean(selectedMandate)],
+              ].map(([label, complete]) => (
+                <div key={String(label)} className="flex items-center gap-3 rounded-2xl border border-[#eef0f3] p-3">
+                  {complete ? <CheckCircle className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5 text-[#94a3b8]" />}
+                  <span className="text-sm font-medium text-[#012b54]">{label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm leading-6 text-[#64748b]">
+              {approvalExplanation}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
