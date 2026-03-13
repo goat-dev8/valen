@@ -33,7 +33,9 @@ export default function PoliciesPage() {
               <tbody>
                 {data?.map((p) => (
                   <tr key={p.id}>
-                    <td className="font-medium text-[#012b54]">{p.name}</td>
+                    <td className="font-medium text-[#012b54]">
+                      <Link href={`/dashboard/policies/${p.id}`} className="app-link">{p.name}</Link>
+                    </td>
                     <td>
                       <span className={`app-badge capitalize ${p.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-700'}`}>
                         {p.status}

@@ -1,6 +1,8 @@
-import { apiRequest } from '@/lib/api-client';
+import { ApiClientError, apiRequest } from '@/lib/api-client';
 import type {
   AgentDto,
+  AgentWalletDto,
+  ApiKeyDto,
   ApprovalInput,
   AuditLogDto,
   ComplianceCheckDto,
@@ -20,6 +22,37 @@ import type {
   WebhookDto,
 } from '@/types/api';
 
+export class OperatorFetchError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+    this.name = 'OperatorFetchError';
+  }
+}
+
+export async function operatorFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const normalized = path.startsWith('/') ? path.slice(1) : path;
+  const response = await fetch(`/api/operator/${normalized}`, {
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...init?.headers,
+    },
+    cache: 'no-store',
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.message === 'string' ? data.message : `Operator request failed (${response.status})`;
+    throw new OperatorFetchError(message, response.status);
+  }
+
+  return data as T;
+}
+
 function orgPath(orgId: string, suffix: string) {
   return `/v1/organizations/${orgId}${suffix}`;
 }
@@ -32,6 +65,8 @@ export const api = {
   },
 
   organizations: {
+    create: (token: string, body: { name: string; slug: string; defaultChainId?: number }) =>
+      apiRequest<OrganizationDto>('/v1/organizations', { method: 'POST', body, token }),
     get: (token: string, orgId: string) =>
       apiRequest<OrganizationDto>(orgPath(orgId, ''), { token }),
     update: (token: string, orgId: string, body: UpdateOrganizationInput) =>
@@ -41,8 +76,37 @@ export const api = {
   agents: {
     list: (token: string, orgId: string, params?: { status?: string; page?: number; limit?: number }) =>
       apiRequest<PaginatedResult<AgentDto>>(orgPath(orgId, '/agents'), { token, params }),
+    create: (
+      token: string,
+      orgId: string,
+      body: { name: string; description?: string; agentType: string; defaultPolicyId?: string },
+    ) => apiRequest<AgentDto>(orgPath(orgId, '/agents'), { method: 'POST', body, token }),
+    activate: (token: string, orgId: string, agentId: string) =>
+      apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}/activate`), { method: 'POST', body: {}, token }),
     get: (token: string, orgId: string, agentId: string) =>
       apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}`), { token }),
+    update: (
+      token: string,
+      orgId: string,
+      agentId: string,
+      body: { name?: string; description?: string; defaultPolicyId?: string },
+    ) => apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}`), { method: 'PATCH', body, token }),
+    suspend: (token: string, orgId: string, agentId: string, reason: string) =>
+      apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}/suspend`), { method: 'POST', body: { reason }, token }),
+    revoke: (token: string, orgId: string, agentId: string, reason: string) =>
+      apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}/revoke`), { method: 'POST', body: { reason }, token }),
+    linkWallet: (
+      token: string,
+      orgId: string,
+      agentId: string,
+      body: { chainId: number; walletAddress: string; walletType: string; isPrimary: boolean },
+    ) => apiRequest<AgentWalletDto>(orgPath(orgId, `/agents/${agentId}/wallets`), { method: 'POST', body, token }),
+    createApiKey: (
+      token: string,
+      orgId: string,
+      agentId: string,
+      body: { name: string; scopes: string[]; expiresAt?: string },
+    ) => apiRequest<ApiKeyDto>(orgPath(orgId, `/agents/${agentId}/api-keys`), { method: 'POST', body, token }),
   },
 
   policies: {
@@ -50,6 +114,8 @@ export const api = {
       apiRequest<PolicyDto[]>(orgPath(orgId, '/policies'), { token, params }),
     get: (token: string, orgId: string, policyId: string) =>
       apiRequest<PolicyDetailDto>(orgPath(orgId, `/policies/${policyId}`), { token }),
+    create: (token: string, orgId: string, body: { name: string; description?: string }) =>
+      apiRequest<PolicyDto>(orgPath(orgId, '/policies'), { method: 'POST', body, token }),
   },
 
   executions: {
@@ -66,6 +132,12 @@ export const api = {
       apiRequest<ExecutionDto>(orgPath(orgId, `/executions/${executionId}/approve`), {
         method: 'POST',
         body,
+        token,
+      }),
+    cancel: (token: string, orgId: string, executionId: string, reason: string) =>
+      apiRequest<ExecutionDto>(orgPath(orgId, `/executions/${executionId}/cancel`), {
+        method: 'POST',
+        body: { reason },
         token,
       }),
     timeline: (token: string, orgId: string, executionId: string) =>
@@ -114,16 +186,35 @@ export const api = {
   team: {
     list: (token: string, orgId: string, params?: { page?: number; limit?: number }) =>
       apiRequest<PaginatedResult<TeamMemberDto>>(orgPath(orgId, '/team'), { token, params }),
+    invite: (token: string, orgId: string, body: { email: string; role: string }) =>
+      apiRequest<TeamMemberDto>(orgPath(orgId, '/team/invitations'), { method: 'POST', body, token }),
+    updateMember: (
+      token: string,
+      orgId: string,
+      memberId: string,
+      body: { role?: string; status?: string },
+    ) => apiRequest<TeamMemberDto>(orgPath(orgId, `/team/${memberId}`), { method: 'PATCH', body, token }),
   },
 
   webhooks: {
     list: (token: string, orgId: string) =>
       apiRequest<WebhookDto[]>(orgPath(orgId, '/webhooks'), { token }),
+    create: (token: string, orgId: string, body: { name: string; url: string; subscribedEvents: string[] }) =>
+      apiRequest<WebhookDto>(orgPath(orgId, '/webhooks'), { method: 'POST', body, token }),
+    update: (
+      token: string,
+      orgId: string,
+      webhookId: string,
+      body: { name?: string; url?: string; subscribedEvents?: string[]; status?: string },
+    ) => apiRequest<WebhookDto>(orgPath(orgId, `/webhooks/${webhookId}`), { method: 'PATCH', body, token }),
+    delete: (token: string, orgId: string, webhookId: string) =>
+      apiRequest<WebhookDto>(orgPath(orgId, `/webhooks/${webhookId}`), { method: 'DELETE', token }),
     test: (token: string, orgId: string, webhookId: string) =>
-      apiRequest<{ success: boolean; message: string }>(orgPath(orgId, `/webhooks/${webhookId}/test`), {
-        method: 'POST',
-        body: {},
-        token,
-      }),
+      apiRequest<{ deliveryId: string; status: string; statusCode: number | null }>(
+        orgPath(orgId, `/webhooks/${webhookId}/test`),
+        { method: 'POST', body: {}, token },
+      ),
   },
 };
+
+export { ApiClientError };

@@ -2,43 +2,87 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Check, X } from 'lucide-react';
+import { ArrowLeft, Check, ExternalLink, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
+import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { RiskBadge, StatusBadge } from '@/components/app/status-badge';
 import {
+  useAgent,
   useApproveExecution,
+  useCancelExecution,
   useExecution,
   useExecutionCompliance,
   useExecutionRisk,
   useExecutionSettlement,
   useExecutionTimeline,
+  useRetrySettlement,
 } from '@/hooks/use-valen-api';
-import { chainName } from '@/lib/constants';
+import { explorerAddressUrl, explorerTxUrl } from '@/lib/explorer';
+
+const SETTLEMENT_AUDIT_EVENTS = new Set([
+  'execution.attested',
+  'settlement.submit',
+  'settlement.approve',
+  'settlement.executed',
+  'settlement.failed',
+]);
 
 export default function ExecutionDetailPage() {
   const params = useParams();
   const executionId = params.executionId as string;
   const { data: ex, isLoading, error } = useExecution(executionId);
+  const { data: agent } = useAgent(ex?.agentId ?? '');
   const { data: compliance } = useExecutionCompliance(executionId);
   const { data: risk } = useExecutionRisk(executionId);
   const { data: settlement } = useExecutionSettlement(executionId);
   const { data: timeline } = useExecutionTimeline(executionId);
   const approveMutation = useApproveExecution();
+  const cancelMutation = useCancelExecution();
+  const retryMutation = useRetrySettlement();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [approvalReason, setApprovalReason] = useState('');
 
   const handleApproval = async (decision: 'approved' | 'rejected') => {
     setActionError(null);
     try {
       await approveMutation.mutateAsync({
         executionId,
-        body: { decision, reason: decision === 'approved' ? 'Approved via dashboard' : 'Rejected via dashboard' },
+        body: {
+          decision,
+          reason: approvalReason.trim() || (decision === 'approved' ? 'Approved via dashboard' : 'Rejected via dashboard'),
+        },
       });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Action failed');
     }
   };
+
+  const handleCancel = async () => {
+    const reason = window.prompt('Reason for cancelling this execution:');
+    if (!reason?.trim()) return;
+    setActionError(null);
+    try {
+      await cancelMutation.mutateAsync({ executionId, reason: reason.trim() });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Cancel failed');
+    }
+  };
+
+  const handleRetrySettlement = async () => {
+    if (!settlement) return;
+    const reason = window.prompt('Reason for retrying settlement:');
+    if (!reason?.trim()) return;
+    setActionError(null);
+    try {
+      await retryMutation.mutateAsync({ settlementId: settlement.id, reason: reason.trim() });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Retry failed');
+    }
+  };
+
+  const canCancel = ex && !['executed', 'failed', 'cancelled'].includes(ex.status);
 
   return (
     <div className="space-y-6">
@@ -50,10 +94,18 @@ export default function ExecutionDetailPage() {
       <QueryState isLoading={isLoading} error={error} isEmpty={!ex}>
         {ex && (
           <>
-            <PageHeader title={`Execution ${ex.id.slice(0, 8)}...`} description={`${ex.actionType} · ${chainName(ex.targetChainId)}`}>
+            <PageHeader title={`Execution ${ex.id.slice(0, 8)}...`} description={`${ex.actionType} intent`}>
+              <ChainBadge chainId={ex.targetChainId} />
               <StatusBadge status={ex.status} />
               {ex.status === 'approval_required' && (
                 <>
+                  <input
+                    type="text"
+                    value={approvalReason}
+                    onChange={(e) => setApprovalReason(e.target.value)}
+                    placeholder="Approval reason"
+                    className="app-input max-w-xs"
+                  />
                   <button type="button" className="app-btn app-btn-success" onClick={() => handleApproval('approved')} disabled={approveMutation.isPending}>
                     <Check className="h-4 w-4" />
                     Approve
@@ -63,6 +115,11 @@ export default function ExecutionDetailPage() {
                     Deny
                   </button>
                 </>
+              )}
+              {canCancel && (
+                <button type="button" className="app-btn app-btn-outline" onClick={handleCancel} disabled={cancelMutation.isPending}>
+                  Cancel
+                </button>
               )}
             </PageHeader>
 
@@ -78,14 +135,18 @@ export default function ExecutionDetailPage() {
                     {timeline.map((step, i) => (
                       <div key={step.id} className="flex gap-4">
                         <div className="flex flex-col items-center">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600">
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
+                            SETTLEMENT_AUDIT_EVENTS.has(step.eventName)
+                              ? 'bg-emerald-100 text-emerald-600'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}>
                             {i + 1}
                           </div>
                           {i < timeline.length - 1 && <div className="min-h-[24px] w-px flex-1 bg-[#eef0f3]" />}
                         </div>
                         <div className="pb-6">
                           <p className="font-medium text-[#012b54]">{step.eventName}</p>
-                          <p className="font-mono text-xs text-[#64748b]">{step.eventHash.slice(0, 16)}...</p>
+                          <p className="font-mono text-xs text-[#64748b]">{step.eventHash}</p>
                           <p className="text-sm text-[#64748b]">{new Date(step.createdAt).toLocaleString()}</p>
                         </div>
                       </div>
@@ -98,48 +159,94 @@ export default function ExecutionDetailPage() {
                 <div className="app-card">
                   <h3 className="app-card-title mb-3">Intent Details</h3>
                   <dl className="app-detail-list">
-                    <div><dt>Agent</dt><dd className="font-mono text-xs">{ex.agentId.slice(0, 12)}...</dd></div>
-                    <div><dt>Target</dt><dd className="font-mono text-xs">{ex.targetAddress ?? '—'}</dd></div>
-                    <div><dt>Payload Hash</dt><dd className="font-mono text-xs">{ex.requestPayloadHash.slice(0, 16)}...</dd></div>
-                    <div><dt>Idempotency</dt><dd className="font-mono text-xs">{ex.idempotencyKey.slice(0, 16)}...</dd></div>
+                    <div><dt>Agent</dt><dd>{agent?.name ?? ex.agentId.slice(0, 12)}...</dd></div>
+                    <div><dt>Chain</dt><dd><ChainBadge chainId={ex.targetChainId} /></dd></div>
+                    <div><dt>Target</dt><dd className="font-mono text-xs break-all">{ex.targetAddress ?? '—'}</dd></div>
+                    <div><dt>Payload Hash</dt><dd className="font-mono text-xs break-all">{ex.requestPayloadHash}</dd></div>
+                    <div><dt>Idempotency</dt><dd className="font-mono text-xs break-all">{ex.idempotencyKey}</dd></div>
                   </dl>
                 </div>
 
-                {compliance && compliance.length > 0 && (
-                  <div className="app-card">
-                    <h3 className="app-card-title mb-3">Compliance</h3>
-                    {compliance.map((c) => (
+                <div className="app-card">
+                  <h3 className="app-card-title mb-3">Compliance</h3>
+                  {!compliance?.length ? (
+                    <p className="text-sm text-[#64748b]">No compliance checks yet.</p>
+                  ) : (
+                    compliance.map((c) => (
                       <div key={c.id} className="mb-2">
                         <span className="app-badge bg-emerald-50 text-emerald-600 capitalize">{c.status}</span>
                         <p className="mt-1 text-sm text-[#64748b]">{c.provider} · {c.reasonCode}</p>
+                        {c.checkedAt && <p className="text-xs text-[#64748b]">{new Date(c.checkedAt).toLocaleString()}</p>}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    ))
+                  )}
+                </div>
 
-                {risk && (
-                  <div className="app-card">
-                    <h3 className="app-card-title mb-3">Risk Score</h3>
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl font-bold text-[#012b54]">{risk.score}</span>
-                      <RiskBadge tier={risk.tier} />
-                    </div>
-                    {risk.requiresApproval && (
-                      <p className="mt-2 text-sm text-amber-600">Requires human approval</p>
-                    )}
-                  </div>
-                )}
+                <div className="app-card">
+                  <h3 className="app-card-title mb-3">Risk Score</h3>
+                  {!risk ? (
+                    <p className="text-sm text-[#64748b]">Risk not calculated yet.</p>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl font-bold text-[#012b54]">{risk.score}</span>
+                        <RiskBadge tier={risk.tier} />
+                      </div>
+                      {risk.requiresApproval && (
+                        <p className="mt-2 text-sm text-amber-600">Requires human approval</p>
+                      )}
+                    </>
+                  )}
+                </div>
 
-                {settlement && (
-                  <div className="app-card">
-                    <h3 className="app-card-title mb-3">Settlement</h3>
-                    <dl className="app-detail-list">
-                      <div><dt>Status</dt><dd className="capitalize">{settlement.status}</dd></div>
-                      <div><dt>Tx Hash</dt><dd className="font-mono text-xs">{settlement.txHash ?? '—'}</dd></div>
-                      <div><dt>Contract</dt><dd className="font-mono text-xs">{settlement.contractAddress.slice(0, 12)}...</dd></div>
-                    </dl>
-                  </div>
-                )}
+                <div className="app-card">
+                  <h3 className="app-card-title mb-3">Settlement</h3>
+                  {!settlement ? (
+                    <p className="text-sm text-[#64748b]">No settlement record yet.</p>
+                  ) : (
+                    <>
+                      <dl className="app-detail-list">
+                        <div><dt>Status</dt><dd className="capitalize">{settlement.status}</dd></div>
+                        <div>
+                          <dt>Tx Hash</dt>
+                          <dd>
+                            {settlement.txHash ? (
+                              <a
+                                href={explorerTxUrl(settlement.chainId, settlement.txHash)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="app-link inline-flex items-center gap-1 font-mono text-xs"
+                              >
+                                {settlement.txHash.slice(0, 16)}...
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : '—'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Contract</dt>
+                          <dd>
+                            <a
+                              href={explorerAddressUrl(settlement.chainId, settlement.contractAddress)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="app-link inline-flex items-center gap-1 font-mono text-xs"
+                            >
+                              {settlement.contractAddress.slice(0, 12)}...
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </dd>
+                        </div>
+                      </dl>
+                      {['failed', 'reverted'].includes(settlement.status) && (
+                        <button type="button" className="app-btn app-btn-outline mt-3" onClick={handleRetrySettlement} disabled={retryMutation.isPending}>
+                          <RefreshCw className="h-4 w-4" />
+                          Retry Settlement
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </>

@@ -62,6 +62,26 @@ export type AgentDto = {
   updatedAt: string;
 };
 
+export type AgentWalletDto = {
+  id: string;
+  chainId: number;
+  walletAddress: string;
+  walletType: string;
+  isPrimary: boolean;
+  status: string;
+};
+
+export type ApiKeyDto = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  status: string;
+  expiresAt: string | null;
+  createdAt: string;
+  oneTimeSecret?: string;
+};
+
 export type PolicyDto = {
   id: string;
   organizationId: string;

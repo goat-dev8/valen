@@ -4,6 +4,7 @@ import {
   Get,
   Headers,
   Post,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -13,6 +14,7 @@ import { MeResponseDto } from './dto/me-response.dto';
 import { PrivyAuthGuard } from '../../common/guards/privy-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
+import { ErrorCodes } from '../../common/constants/error-codes.constant';
 
 @ApiTags('auth')
 @Controller('v1/auth')
@@ -20,14 +22,19 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('sync')
-  @UseGuards(PrivyAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Sync Privy user profile' })
+  @ApiOperation({ summary: 'Sync Privy user profile (creates user on first login)' })
   async sync(
     @Headers('authorization') authorization: string,
     @Body() dto: AuthSyncDto,
   ): Promise<MeResponseDto> {
-    const token = authorization.replace('Bearer ', '');
+    if (!authorization?.startsWith('Bearer ')) {
+      throw new UnauthorizedException({
+        code: ErrorCodes.UNAUTHORIZED,
+        message: 'Missing Bearer token',
+      });
+    }
+    const token = authorization.slice(7);
     return this.authService.sync(token, dto);
   }
 }

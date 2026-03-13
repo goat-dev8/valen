@@ -51,6 +51,8 @@ export class AgentsService {
       createdByUserId: user.id,
     });
 
+    const active = await this.agentsRepository.update(agent.id, { status: 'active' });
+
     await this.auditLogsRepository.append({
       organizationId,
       actorType: 'user',
@@ -61,7 +63,7 @@ export class AgentsService {
       eventHash: hashPayload({ agentId: agent.id }),
     });
 
-    return this.toDto(agent);
+    return this.toDto(active ?? agent);
   }
 
   async list(
@@ -152,6 +154,41 @@ export class AgentsService {
       eventHash: hashPayload({ agentId, dto }),
     });
 
+    return this.toDto(updated!);
+  }
+
+  async activate(
+    organizationId: string,
+    agentId: string,
+    user: AuthenticatedUser,
+  ): Promise<AgentResponseDto> {
+    const agent = await this.agentsRepository.findByOrgAndId(organizationId, agentId);
+    if (!agent) {
+      throw new NotFoundException({
+        code: ErrorCodes.NOT_FOUND,
+        message: 'Agent not found',
+      });
+    }
+    if (agent.status === 'active') {
+      return this.toDto(agent);
+    }
+    if (agent.status === 'revoked') {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Cannot activate revoked agent',
+      });
+    }
+
+    const updated = await this.agentsRepository.update(agentId, { status: 'active' });
+    await this.auditLogsRepository.append({
+      organizationId,
+      actorType: 'user',
+      actorId: user.id,
+      action: 'agent.activated',
+      entityType: 'agent',
+      entityId: agentId,
+      eventHash: hashPayload({ agentId }),
+    });
     return this.toDto(updated!);
   }
 

@@ -1,14 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Bell, Moon, Search, Palette, MessageSquare, ShoppingCart, LogOut } from 'lucide-react';
+import { Bell, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/org-context';
+import { useExecutions } from '@/hooks/use-valen-api';
 
 export function AppHeader({ title }: { title?: string }) {
   const router = useRouter();
   const { me, logout } = useAuth();
   const { organization } = useOrganization();
+  const { data: pendingApprovals } = useExecutions({ status: 'approval_required', limit: 1 });
 
   const handleLogout = () => {
     logout();
@@ -23,36 +25,24 @@ export function AppHeader({ title }: { title?: string }) {
     .slice(0, 2)
     .toUpperCase();
   const role = me?.organizations.find((o) => o.id === organization?.id)?.role?.replace(/_/g, ' ') ?? 'Member';
+  const approvalCount = pendingApprovals?.total ?? 0;
+
   return (
     <header className="app-header">
-      <div className="app-header-search">
-        <Search className="h-4 w-4 text-[#94a3b8]" />
-        <input type="text" placeholder="Search executions, agents, policies..." className="app-search-input" />
-        <kbd className="app-search-kbd">⌘K</kbd>
+      <div className="hidden md:block">
+        <p className="text-sm font-medium text-[#012b54]">{organization?.name ?? 'VALEN'}</p>
+        <p className="text-xs text-[#64748b]">
+          {organization?.defaultChainId === 46630 ? 'Robinhood Testnet' : 'Arbitrum Sepolia'} · Render API
+        </p>
       </div>
 
       <div className="app-header-actions">
-        <button type="button" className="app-header-icon" aria-label="Language">
-          <span className="text-sm">🇬🇧</span>
-        </button>
-        <button type="button" className="app-header-icon" aria-label="Dark mode">
-          <Moon className="h-[18px] w-[18px]" />
-        </button>
-        <button type="button" className="app-header-icon" aria-label="Theme">
-          <Palette className="h-[18px] w-[18px]" />
-        </button>
-        <button type="button" className="app-header-icon relative" aria-label="Cart">
-          <ShoppingCart className="h-[18px] w-[18px]" />
-          <span className="app-header-badge">1</span>
-        </button>
-        <button type="button" className="app-header-icon relative" aria-label="Messages">
-          <MessageSquare className="h-[18px] w-[18px]" />
-          <span className="app-header-badge">10</span>
-        </button>
-        <button type="button" className="app-header-icon relative" aria-label="Notifications">
-          <Bell className="h-[18px] w-[18px]" />
-          <span className="app-header-dot" />
-        </button>
+        {approvalCount > 0 && (
+          <button type="button" className="app-header-icon relative" aria-label="Pending approvals" onClick={() => router.push('/dashboard/approvals')}>
+            <Bell className="h-[18px] w-[18px]" />
+            <span className="app-header-badge">{approvalCount}</span>
+          </button>
+        )}
 
         <button type="button" onClick={handleLogout} className="app-header-icon" aria-label="Logout">
           <LogOut className="h-[18px] w-[18px]" />

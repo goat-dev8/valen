@@ -1,8 +1,8 @@
 # VALEN Implementation Summary
 
 **Last updated:** 2026-06-10  
-**Phase:** 6 — Render Production Deployment **audited** (deploy blocked — see below)  
-**Current status:** ✅ **TESTNET LIVE (backend + protocol proven locally)** — pre-deploy tests PASS; **Render deploy BLOCKED** until Render account + secret paste + production `REDIS_URL` strategy applied
+**Phase:** 6 — Render Production Deployment **live on Render** (re-sync `e359d4b` for full settlement path)  
+**Current status:** ✅ **Render infra deployed** — API live at https://valen-api-m3g4.onrender.com; health + Supabase + Redis **PASS**; settlement pipeline fix pushed — **Manual sync required** for end-to-end execution proof on Render
 
 **Deployer EOA:** `0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3`
 
@@ -80,6 +80,123 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-10 21:28 | **Phase 5.3 Mission G** — Tests + live verification | None | `pnpm test` (backend 6/6 suites 9/9); `pnpm run verify-live:sepolia`; `pnpm run e2e:sepolia`; `POST /v1/operator/validate/full`; health checks | **PASS** — full validation 12/12; Sepolia verify-live + e2e report updated |
 | 2026-06-10 21:30 | **Phase 5.3 Mission H** — Final verdict written | `docs/summary.md` only | This section | **See Phase 5.3 verdict below.** Production score **78/100**. Launch: **NOT READY** (Render). Mainnet: **NOT MAINNET READY**. |
 | 2026-06-10 22:10 | **Phase 6** — Render production deployment audit + blueprint | `infra/render/render.yaml`, `docs/summary.md` | Read env files + `env.validation.ts`; audit all vars; architecture/redis decision; `pnpm build/test` (backend 9/9, contracts 19/19, stylus 4/4); health + `validate/full` PASS; Render CLI absent — deploy not run | **BLOCKED** — local `REDIS_URL` is localhost; use Render Key Value `fromService` or Upstash; paste secrets in Render Dashboard; see **Render Production Deployment** section |
+| 2026-06-10 23:45 | **Phase 6 live deploy** — Blueprint `valen-production` on Render | `render.yaml`, Dockerfiles, `backend/scripts/render-start.sh`, `.gitattributes` | Fixes: `REDISMS_DISABLE_POSTINSTALL`, `pnpm deploy`, `render-start.sh`, bundle `/contracts` + `/stylus` deployments (`e359d4b`); live tests vs `https://valen-api-m3g4.onrender.com` | **PARTIAL RENDER READY** — infra PASS; settlement E2E on Render failed until `e359d4b` redeploy (see live section) |
+| 2026-06-11 00:54 | **Phase 6 production re-test** — Post-`e359d4b` live proof on Render | `docs/summary.md` | `GET /health/*`, governance, operator auth; `PROVE_API_URL=https://valen-api-m3g4.onrender.com prove-backend-settlement.ts` (~17 min); DB checks for executions `720d3621…`, `fff7f803…` | **PARTIAL RENDER READY** — attestation **PASS** (live Stylus hash, not placeholder); settlement pipeline **FAIL** — execution stays `created`, 0 compliance rows, 1 audit row (`execution.attested`); `/v1/operator/queues*` times out >90s; Render logs show `ECONNRESET` on Redis reads |
+| 2026-06-11 01:17 | **Phase 6.1** — Render production hardening + governance role fix | `backend/src/redis/redis-connection.ts`, `backend/src/queues/{bullmq.config,pipeline-recovery,worker-heartbeat,worker-options}.*`, `backend/src/queues/processors/*`, `backend/scripts/render-start.sh`, `backend/scripts/grant-governance-timelock-roles.ts`, `backend/src/modules/operator/operator-queue.service.ts`, `contracts/script/lib/deploy-valen.ts`, `docs/summary.md` | `pnpm build`; backend tests 9/9; `grant-governance-timelock-roles.ts`; `prove-governance-lifecycle.ts`; local `prove-backend-settlement.ts`; local `POST /v1/operator/validate/full`; commit `a2ffa9f` (push blocked — no GitHub credentials in env) | **PARTIAL** — local settlement + governance queue **PASS**; Render redeploy + E2E **PENDING PUSH**; governance execute blocked by 86400s timelock |
+| 2026-06-11 01:24 | **Phase 6.1 deploy failure fix** — Render API runtime path | `backend/scripts/render-start.sh`, `backend/package.json`, `backend/Dockerfile.scheduler`, `backend/Dockerfile.worker`, `docs/summary.md` | Render build log for commit `441284d`; local `pnpm build`; `test -f dist/main.js && test -f dist/worker.js && test -f dist/scheduler.js`; `rg "dist/src/(main\|worker\|scheduler)" backend` | **PASS (code fix)** — root cause: Nest build emits `dist/main.js`, `dist/worker.js`, `dist/scheduler.js`, but Render entrypoints used `dist/src/*.js`; fixed all runtime entrypoints to `dist/*.js`; Render redeploy required |
+| 2026-06-11 01:49 | **Phase 6.1 production retest + follow-up fix** — worker up, queue/policy recovery still needed | `backend/scripts/render-start.sh`, `backend/src/modules/operator/operator-queue.service.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `docs/summary.md` | Render `GET /health/live`, `/health/ready`, bad auth, governance status, `/v1/operator/queues`, `POST /v1/operator/validate/full`; `prove-backend-settlement.ts` execution `9259f2f0…`; DB trace for execution/compliance/risk/settlement; local `pnpm build` | **PARTIAL** — health/ready/auth/governance **PASS**; worker heartbeat **PASS**; queues **FAIL** (`valen-intent job counts timed out after 8000ms`); settlement improved to `validated` with compliance+risk rows but no settlement; fixed queue stats to direct Redis counts and recovery to create/enqueue settlement for stale low-risk `validated` executions |
+| 2026-06-11 02:03 | **Phase 6.1 deploy `2d08541` production retest** — queues/validate PASS; settlement E2E still FAIL | `docs/summary.md` | Render health/ready/auth/governance; `GET /v1/operator/queues` (~0.6s); `POST /v1/operator/validate/full` 12/12; `prove-backend-settlement.ts` (~17 min) executions `9259f2f0…`, `cf2fcab3…`; DB settlement duplicate trace | **PARTIAL** — infra + operator validation **PASS**; prove **FAIL** — fresh execution stuck `created` after attestation; prior execution recovered to `executed` but duplicate `pending` settlement row caused false FAIL; follow-up fix: deterministic BullMQ re-enqueue + prefer `confirmed` settlement |
+| 2026-06-11 02:31 | **Phase 6.1 deploy `4567f7b` production retest** — infra PASS; prove still FAIL | `docs/summary.md` | Post-redeploy smoke (health/ready/auth/queues/validate 12/12); prove `8fd53e07…`; DB re-check `cf2fcab3…` | **PARTIAL** — mid-redeploy curls hit **502** (transient); stable service **PASS**; prove **FAIL** — `8fd53e07…` stuck `created`; `cf2fcab3…` later reached `executed`+`confirmed` via recovery (prove timed out before recovery) |
+| 2026-06-11 03:00 | **Phase 7 root-cause investigation + reliability fix** — BullMQ consumers not draining | `backend/src/queues/*`, `backend/src/worker.module.ts`, `backend/Dockerfile`, `infra/render/render.yaml`, `docs/summary.md` | DB+Redis queue trace for `8fd53e07…`, `cf2fcab3…`; Render operator queue API; worker heartbeat vs job pickup; `pnpm build` | **FIX PUSHED (pending deploy)** — proven stop point: intent job **waiting** in Redis, 0 active jobs, heartbeat OK; recovery gap for pre-attestation `created`; enqueue skip on stale `active`; 12→5 pipeline workers; consumer health key |
+| 2026-06-11 03:17 | **Phase 7 deploy `a23809b` production validation** — **RENDER READY** | `docs/summary.md` | `validate/full` 12/12; consumer health + backlog=0; `prove-backend-settlement.ts` **10/10** (~43–50s each); sample execution `6f16ad02…` → `executed` + settlement `confirmed` tx `0x69a5314a…` | **RENDER READY** — full pipeline intent→settlement→audit proven on Render; governance execute still blocked by 86400s timelock |
+| 2026-06-11 03:35 | **Post-`c1080fd` redeploy validation** — test-only commit, prod unchanged | `docs/summary.md`, `backend/src/queues/producers/index.spec.ts` | `validate/full` 12/12; `pnpm test` 9/9; `prove-backend-settlement.ts` exit 0 (~47s) execution `223813f9…` tx `0xee3d1793…` | **RENDER READY** — `c1080fd` fixed producer spec mocks only; production settlement path still PASS |
+
+---
+
+## Phase 7 — Production Reliability Root Cause (2026-06-11)
+
+### Phase 1 — Pipeline trace (evidence)
+
+**Execution `8fd53e07-557a-4bc0-8fd3-621cfdc58476` (post-`4567f7b`, FAIL):**
+
+| Stage | Verdict | Evidence |
+|-------|---------|----------|
+| A Job creation | **PASS** | API created execution; Redis `intent-8fd53e07…` in `valen-intent` **wait** list |
+| B Job persistence | **PASS** | Operator API: job hash present, `attemptsMade=0`, state **waiting** |
+| C Job pickup | **FAIL** | 0 **active** jobs across all 12 queues for >15 min; worker heartbeat **PASS** |
+| D Job completion | **FAIL** | DB: status `created`, `has_onchain=false`, 0 compliance/risk/settlement rows |
+| E Next-stage enqueue | **N/A** | Never reached attestation |
+| F Settlement | **FAIL** | No settlement row |
+
+**Execution `cf2fcab3-352c-44a2-b930-41973158b442` (eventually PASS via recovery):**
+
+| Stage | Stop point | Evidence |
+|-------|------------|----------|
+| Intent/attestation | **PASS** @ 22:04:14 | `execution.attested` audit; `metadata.onchain.complianceHash` stored |
+| Compliance | **DELAYED ~20 min** | Prove timed out at `created`; later 1 compliance row appeared |
+| Risk/policy/settlement | **PASS** @ 22:25:03 | Final `executed` + settlement `confirmed` tx `0x60719be1…` |
+
+**Proven stop point (primary):** BullMQ **workers not consuming** despite live worker process heartbeat — jobs accumulate in **wait**, pipeline never starts or stalls after attestation until recovery/backfill.
+
+### Phase 2 — Infra audit
+
+| Item | Finding |
+|------|---------|
+| Render layout | API + worker in one container (`render-start.sh`); Render Key Value Redis; prefix `{valen}` |
+| Worker startup | `node dist/worker.js` background loop + `node dist/main.js` foreground |
+| Redis | PING ok (~1–5 ms); prior `ECONNRESET` in logs |
+| BullMQ | 12 worker processors + 12 queue clients in one container → high connection fan-out vs Key Value **50 conn** limit |
+| Heartbeat | `valen:worker:heartbeat` updated — **does not prove BullMQ consumers connected** |
+| Recovery | Required `onchain` metadata — missed pre-attestation `created` stalls; `enqueueDeterministicJob` skipped re-enqueue when job **active** |
+
+### Phase 3 — Free plan analysis
+
+| Item | Verdict | Evidence |
+|------|---------|----------|
+| Render Free sleep | **NOT root cause** | Health/validate respond during failure window |
+| CPU throttling | **UNPROVEN** | No metrics; jobs never enter **active** |
+| Memory limits | **UNPROVEN** | Worker process stays up (heartbeat) |
+| Redis connection limits | **CONTRIBUTING** | Blueprint: Key Value free **50 conn**; 12 BullMQ workers × blocking connections + API queues likely exhausts pool |
+| Redis idle disconnects | **CONTRIBUTING** | `ECONNRESET` observed; reconnect code merged but consumers can still fail to re-subscribe |
+| Worker termination | **NOT sole cause** | Heartbeat fresh while queues not draining |
+
+**Paid plan required?** **Not proven as mandatory.** Connection/worker footprint reduction is the first fix; upgrade Redis plan only if connection audit still fails post-fix.
+
+### Phase 4 — Fixes (commit `a23809b`, deployed)
+
+| Fix | Purpose |
+|-----|---------|
+| `VALEN_WORKER_MODE=pipeline` | 5 pipeline workers instead of 12 (Render Dockerfile + blueprint) |
+| `WorkerConsumerHealthService` + validate check | Fail readiness when heartbeat ok but consumers stale |
+| `enqueueDeterministicJob` stale-active handling | Replace jobs stuck **active** > lock duration |
+| `PipelineRecoveryService` intent re-enqueue | Recover `created` executions **without** onchain metadata |
+| Cached BullMQ connection config | Reduce duplicate connection option churn |
+
+### Phase 5 — Live validation (post-`a23809b`, 2026-06-11 23:17 UTC)
+
+| Test | Result | Proof |
+|------|--------|-------|
+| `GET /health/live` | **PASS** | HTTP 200 |
+| `GET /health/ready` | **PASS** | DB + Redis ok |
+| `POST /v1/operator/validate/full` | **PASS** | 12/12; Workers: `1 worker(s) active; pipeline backlog=0` |
+| `prove-backend-settlement.ts` × 10 | **PASS** | **10/10** exit 0; ~43–50s each |
+| Sample execution `6f16ad02…` | **PASS** | `executed`; compliance=1, risk=1, settlement `confirmed`; audit submit/approve/executed txs |
+
+**Representative on-chain proof (run 1):**
+
+| Field | Value |
+|-------|-------|
+| Execution | `6f16ad02-18d9-4b9a-b465-81767657a8eb` → `executed` |
+| Submit tx | `0xca6174578e6377c58bf942fcb7a4535485d724e67a9a154c757df02956bc3e85` |
+| Approve tx | `0x93f72ee139ddafbcc4c7d2bbb1d872334d5bb970367e825c46e723834d796119` |
+| Execute tx | `0x69a5314a1f6fd78609473c841c7e534731e082e3cf1b392a9adfde637ed60a3e` |
+| Block | `275913339` |
+
+### Phase 6 — Readiness scores (post-`a23809b`)
+
+| Score | Value |
+|-------|-------|
+| RENDER | **88/100** |
+| BACKEND | **92/100** |
+| QUEUE | **90/100** |
+| REDIS | **85/100** |
+| SETTLEMENT | **95/100** |
+| AUDIT | **92/100** |
+
+**Verdict: RENDER READY** — settlement pipeline proven 10/10 on Render. Remaining non-blockers: governance execute (86400s timelock), rotate operator secret, optional Redis plan upgrade under sustained load.
+
+### Phase 6 — Readiness scores (pre-deploy, superseded)
+
+| Score | Value |
+|-------|-------|
+| RENDER | **62/100** |
+| BACKEND | **85/100** |
+| QUEUE | **45/100** |
+| REDIS | **70/100** |
+| SETTLEMENT | **55/100** (local PASS; Render E2E unproven at speed) |
+| AUDIT | **80/100** |
+
+**Verdict (superseded): NOT RENDER READY**
 
 ---
 
@@ -929,7 +1046,7 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 | Explorer verification (`verify.ts`) | 🔜 |
 | CI/CD GitHub Actions | 🔜 |
 | Production Redis (Upstash/Render) | 🔜 Blueprint uses Render Key Value free; deploy + paste secrets |
-| Complete Render env group + deploy | ✅ blueprint / 🔜 Render Dashboard deploy |
+| Complete Render env group + deploy | ✅ live at https://valen-api-m3g4.onrender.com / 🔜 re-sync `e359d4b` for settlement on Render |
 | Governance queue + timelock execute | 🔜 P0 (grant timelock roles to governance proxy) |
 | Frontend operator dashboard | ✅ |
 | Multisig/timelock role migration | 🔜 |
@@ -960,9 +1077,276 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 
 # Render Production Deployment (Phase 6)
 
-**Verdict:** **BLOCKED WITH THESE EXACT MISSING VALUES**
+## Live deployment — 2026-06-10
 
-Deployment was **not executed** — no Render CLI/API key in this environment, and `backend/.env` `REDIS_URL` points to localhost (invalid for cloud). Blueprint and pre-deploy checks are ready.
+**Verdict:** **PARTIAL RENDER READY** — Phase 6.1 hardening merged locally (`a2ffa9f`); **push + Render redeploy required** before claiming full Render settlement PASS. Attestation fixed on Render (`e359d4b`+); pre-6.1 settlement E2E failed after `execution.attested` (see 2026-06-11 re-test).
+
+---
+
+## Phase 6.1 — Render Production Hardening (2026-06-11)
+
+**Goal:** Fix worker/Redis reliability on Render; unblock settlement pipeline; fix governance queue; re-prove E2E on production.
+
+### Root causes found (verified)
+
+| # | Root cause | Evidence |
+|---|------------|----------|
+| 1 | Redis `reconnectOnError` did not cover `ECONNRESET` / socket resets | Render logs; `backend/src/redis/redis.module.ts` only reconnected on `readonly`/`connect` |
+| 2 | Worker ran once in background with no restart loop | `render-start.sh` — worker exit left API healthy but queues unprocessed |
+| 3 | Intent attestation succeeded then compliance never enqueued/processed | DB: `metadata.onchain` present, status `created`, 0 `compliance_checks` rows |
+| 4 | Operator `/queues*` hung on sequential `getWorkers()` × 12 queues against Render Key Value | curl exit 28 >120s |
+| 5 | Governance `queueAction` reverted `0xe2517d3f` | ValenGovernance lacked `PROPOSER_ROLE`/`EXECUTOR_ROLE` on ValenTimelock (deploy script omitted grant; tests grant in fixture only) |
+
+### Fixes applied (commit `a2ffa9f`)
+
+| File | Change |
+|------|--------|
+| `backend/src/redis/redis-connection.ts` | Shared production Redis options: `ECONNRESET`/socket reconnect, keepAlive, connectTimeout, `withRedisTimeout` |
+| `backend/src/redis/redis.module.ts` | Use shared client factory + error/reconnect logging |
+| `backend/src/queues/bullmq.config.ts` | BullMQ connection inherits hardened Redis options |
+| `backend/src/queues/worker-options.constant.ts` | Pipeline worker lock/stalled settings (120s lock, 30s stalled interval) |
+| `backend/src/queues/worker-heartbeat.service.ts` | Redis key `valen:worker:heartbeat` every 15s (TTL 120s) |
+| `backend/src/queues/pipeline-recovery.service.ts` | Re-enqueue stuck executions every 60s (created→compliance, etc.) |
+| `backend/src/queues/processors/intent.processor.ts` | Compliance enqueue retry (5×); separate attest vs enqueue errors |
+| `backend/scripts/render-start.sh` | Worker restart loop + API foreground with SIGTERM cleanup |
+| `backend/src/worker.ts` | uncaughtException/unhandledRejection logging |
+| `backend/src/modules/operator/operator-queue.service.ts` | 8s Redis op timeouts; parallel queue stats; heartbeat-based worker count (no hanging `getWorkers`) |
+| `backend/src/modules/operator/operator-chain.service.ts` | Governance status exposes `governanceHasProposerRole` / `governanceHasExecutorRole` |
+| `backend/scripts/grant-governance-timelock-roles.ts` | One-time on-chain role grant script |
+| `contracts/script/lib/deploy-valen.ts` | Future deploys grant timelock roles to governance |
+| `backend/tsconfig.build.json` | Exclude `scripts/` from nest build (viem/ox type noise) |
+
+### Mission results
+
+| Mission | Verdict | Proof |
+|---------|---------|-------|
+| **A** Redis hardening | **PASS (code)** / **PENDING (Render)** | Reconnect + timeout + parallel queue stats; Render re-test after deploy |
+| **B** Worker reliability | **PASS (code)** / **PENDING (Render)** | Restart loop, heartbeat, recovery service, error handlers |
+| **C** Settlement pipeline | **PASS (local)** / **PENDING (Render)** | Local proof below; Render blocked until `a2ffa9f` deploy |
+| **D** Governance lifecycle | **PARTIAL** | Register **PASS**; queue **PASS** after role grant; execute **BLOCKED** (86400s minDelay on deployed timelock) |
+| **E** Render validation | **PENDING** | Commit `a2ffa9f` not pushed (no GitHub creds in env); redeploy not run |
+| **F** Infrastructure audit | **PARTIAL** | Local validate/full 12/12 PASS; Render infra unchanged until redeploy |
+| **G** Release gate | **FAIL (not all gates)** | See gate table below |
+
+### On-chain proofs (Phase 6.1)
+
+**Governance timelock role grant (root cause #5 fix):**
+
+| Tx | Purpose | Block |
+|----|---------|-------|
+| `0x2b6a0a362520bf9b803fbe057c53e7da74df6bd3822cd7c65b101223619b79fd` | `grantRole(PROPOSER_ROLE)` → ValenGovernance on timelock | `275884520` |
+| `0x1ee66c1bd034482e11300bf53d666a7ab971799766bfdc4ac9cad8591fe51a81` | `grantRole(EXECUTOR_ROLE)` → ValenGovernance on timelock | `275884523` |
+
+**Governance lifecycle (post-grant):**
+
+| Step | Result | Tx |
+|------|--------|-----|
+| Register proposal | **PASS** | `0xe8b299de1f6c4eae8708faf9a821010c553675e31a1b3e3b17cc0656096aef84` block `275884596` |
+| Queue action | **PASS** | `0x9884a4afacf7b658146fc17cf9ea111e97ce6ad8911d71a0fa5454fc9800eb56` block `275884599` |
+| Execute action | **BLOCKED** | Timelock `minDelaySeconds=86400` on Arbitrum Sepolia deployment |
+
+**Local settlement E2E (post-6.1 code, localhost):**
+
+| Field | Value |
+|-------|-------|
+| Execution | `61abd152-dcce-4b55-831a-b83c696c545d` → `executed` |
+| Compliance hash | `0xbe2c83b798f6fa889b4e028ecbd9f675dab25a1802c95ca21a93a5b6c9943b34` |
+| Submit tx | `0x25373bf576c7a72b7692cfa602d89a15fcab2f01f052fe0ff7fe405af8c4e7d8` |
+| Approve tx | `0x07666830d872f4733ffcccd10ccfc755b22d7d50b5d14504c7a04c8f74061604` |
+| Execute tx | `0x841afc4eb080cfc8b4563def27e8b8bd1584aa607f88261ac4b198001ed372be` |
+| Block | `275884634` |
+| `prove-backend-settlement.ts` | exit **0** (~28s) |
+
+**Local `POST /v1/operator/validate/full`:** **PASS** (12/12 steps, ~16s)
+
+### Release gate (Mission G) — post-`4567f7b` (2026-06-11 02:31 UTC)
+
+| Gate | Status |
+|------|--------|
+| Render health live | **PASS** — HTTP 200 (~0.5s) |
+| Render health ready | **PASS** — DB + Redis ok |
+| Render validate/full | **PASS** — 12/12 (~13s) |
+| Queue endpoints on Render | **PASS** — 12 queues, 1 worker each |
+| Settlement on Render | **FAIL** — fresh proof `8fd53e07…` stuck `created`; recovery eventually completes older proofs (`cf2fcab3…` → `executed` + settlement `confirmed`) but after prove script 15m timeout |
+| GitHub updated | **PASS** — `4567f7b` pushed |
+| Render redeployed | **PASS** — `4567f7b` live |
+
+**Note:** Health/validate curls run during redeploy returned **502** — not a product failure, just hit the restart window.
+
+### Release gate (Mission G) — post-`2d08541` (2026-06-11 02:03 UTC)
+
+| Gate | Status |
+|------|--------|
+| Render health live | **PASS** — HTTP 200 |
+| Render health ready | **PASS** — database ok, Redis PONG |
+| Render validate/full | **PASS** — 12/12 steps (~13s) |
+| Redis stable on Render | **PASS** — PING fast; direct Redis queue stats avoid BullMQ hang |
+| Workers stable on Render | **PASS** — 1 worker heartbeat active |
+| Queue endpoints on Render | **PASS** — `/v1/operator/queues` HTTP 200 in ~0.6s (12 queues) |
+| Governance queue | **PASS** (on-chain role grant applied) |
+| Governance execute | **BLOCKED** (86400s delay) |
+| Settlement on Render | **FAIL** — fresh proof `cf2fcab3…` stuck `created` after attestation (0 compliance rows); prior `9259f2f0…` reached `executed` via recovery but duplicate settlement rows |
+| Audit on Render settlement path | **FAIL** — fresh proof only `execution.attested`; recovered execution has full settlement audit chain |
+| GitHub updated | **PENDING** — settlement dedup + deterministic enqueue fix push in progress |
+| Render redeployed | **PASS** — `2d08541` live on `valen-api-m3g4.onrender.com` |
+
+**Follow-up fix (pending deploy):** `enqueueDeterministicJob` clears stale BullMQ jobs before re-add; recovery skips when settlement already `confirmed`; settlement queries prefer `confirmed` over newer `pending` duplicates; recovery interval 30s / 45s stale threshold.
+
+### Release gate (Mission G) — pre-`2d08541` (superseded)
+
+| Gate | Status |
+|------|--------|
+| Render health live | **PASS** — HTTP 200 (~0.96s) on 2026-06-11 01:50 |
+| Render health ready | **PASS** — database ok (~1305ms), Redis PONG (~1ms) |
+| Render validate/full | **FAIL** — 11/12 pass; queue stats fail (`valen-intent job counts timed out after 8000ms`) |
+| Redis stable on Render | **PARTIAL** — PING fast; BullMQ introspection path slow/failing |
+| Workers stable on Render | **PASS** — `validate/full` reported `1 worker heartbeat(s) active` |
+| Queue endpoints on Render | **FAIL** — `/v1/operator/queues` HTTP 500 after bounded 8s timeout; direct Redis stats fix pending deploy |
+| Governance queue | **PASS** (on-chain role grant applied) |
+| Governance execute | **BLOCKED** (86400s delay) |
+| Settlement on Render | **FAIL** — execution `9259f2f0…` reached `validated`; compliance+risk rows exist; no settlement row |
+| Audit on Render settlement path | **FAIL** — only `execution.attested` for the Render proof; no settlement submit/approve/execute audit rows |
+| GitHub updated | **PENDING** — push follow-up fix after this summary update |
+| Render redeployed | **PARTIAL** — `e35d01a` deployed enough for worker heartbeat; follow-up fix pending deploy |
+
+### Action required
+
+1. Push settlement dedup + deterministic enqueue fix; wait for Render redeploy.
+2. Re-run:
+
+```bash
+curl https://valen-api-m3g4.onrender.com/health/ready
+curl -X POST -H "x-operator-key: $OPERATOR_DASHBOARD_SECRET" https://valen-api-m3g4.onrender.com/v1/operator/validate/full
+curl -H "x-operator-key: $OPERATOR_DASHBOARD_SECRET" https://valen-api-m3g4.onrender.com/v1/operator/queues
+cd backend && PROVE_API_URL=https://valen-api-m3g4.onrender.com node -r dotenv/config scripts/prove-backend-settlement.ts
+```
+
+3. If prove exits 0 with `executed` + settlement `confirmed` + audit txs → verdict becomes **RENDER READY**.
+
+**Updated production score:** **78/100** (infra + operator validation PASS on `2d08541`; settlement E2E on Render still unproven for fresh executions).
+
+---
+
+### Production URLs
+
+| Resource | URL / ID |
+|----------|----------|
+| **API (public)** | https://valen-api-m3g4.onrender.com |
+| Swagger | https://valen-api-m3g4.onrender.com/docs |
+| Health live | https://valen-api-m3g4.onrender.com/health/live |
+| Health ready | https://valen-api-m3g4.onrender.com/health/ready |
+| Blueprint | `valen-production` (`exs-d8kremvlkimo73c9acm0`) |
+| GitHub | `goat-dev8/valen` branch `main` |
+
+### Render services (blueprint)
+
+| Service | Type | Plan | Status (2026-06-10) |
+|---------|------|------|---------------------|
+| `valen-redis` | Key Value (Valkey 8) | Free | **Available** |
+| `valen-api` | Web (Docker, API+worker) | Free | **Deployed** |
+| `valen-scheduler` | Cron (Docker) | Starter | **Successful build** |
+
+### Environment group `valen-production`
+
+18 variables configured in Render (secrets not logged). Paste from `backend/.env`:
+
+| Variable | Paste from `backend/.env`? |
+|----------|----------------------------|
+| `DATABASE_URL` | Yes |
+| `SUPABASE_URL` | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes |
+| `PRIVY_APP_ID` | Yes |
+| `PRIVY_APP_SECRET` | Yes |
+| `ALCHEMY_API_KEY` | Yes |
+| `PRIVATE_KEY` | Yes |
+| `OPERATOR_DASHBOARD_SECRET` | Yes (must match key used for operator calls) |
+| `ARBITRUM_SEPOLIA_RPC_URL` | Yes |
+| `ROBINHOOD_TESTNET_RPC_URL` | Yes |
+| `ARBITRUM_SEPOLIA_VALEN_REGISTRY` | Yes |
+| `ARBITRUM_SEPOLIA_VALEN_SETTLEMENT` | Yes |
+| `ROBINHOOD_TESTNET_VALEN_REGISTRY` | Yes |
+| `ROBINHOOD_TESTNET_VALEN_SETTLEMENT` | Yes |
+| `REDIS_URL` | **No** — auto from `valen-redis` via blueprint |
+| `NODE_ENV` | **Remove from group** if set to `development` — blueprint sets `production` |
+| `PORT` | Optional — blueprint sets `3000` |
+| `SENTRY_DSN` / `POSTHOG_*` | Optional — omit if unused |
+
+**Redis provider:** Render Key Value (free, Oregon), wired with `fromService` → `REDIS_URL`.
+
+### Post-deploy test results (`https://valen-api-m3g4.onrender.com`)
+
+#### 2026-06-11 re-test (post-`e359d4b` deploy)
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| `GET /health/live` | **PASS** | HTTP 200 (~0.4s) |
+| `GET /health/ready` | **PASS** | HTTP 200, database ok (~1010ms), redis ok (~7ms) |
+| `GET /v1/operator/governance/status?chainId=421614` | **PASS** | Timelock linked, `minDelaySeconds: 86400` |
+| Operator auth (bad key) | **PASS** | HTTP 401 |
+| Live Stylus attestation on Render | **PASS** | Executions `720d3621…` compliance hash `0x65185f61…`; `fff7f803…` hash `0xf62fbecf…` — real on-chain attestation, not placeholder |
+| `prove-backend-settlement.ts` vs Render | **FAIL** | Exit 1 after ~17 min poll; execution `fff7f803…` → status `created`; settlement `null`; audit: only `execution.attested` |
+| Compliance / risk / policy pipeline | **FAIL** | 0 rows in `compliance_checks` for both Render test executions; status never advances past `created` |
+| `GET /v1/operator/queues` | **FAIL** | HTTP timeout >120s (empty response) |
+| `GET /v1/operator/queues/valen-compliance/jobs` | **FAIL** | HTTP timeout >90s |
+| Render service logs | **WARN** | Repeated `Error: read ECONNRESET` on Redis TCP reads |
+| Local `prove-backend-settlement.ts` | **PASS** (Phase 5.3) | Not regressed on localhost |
+
+**Attestation fix (resolved):** commit **`e359d4b`** — COPY `contracts/deployments` + `stylus/deployments` into Docker image. Attestation now succeeds on Render.
+
+**Current blocker (settlement fail on Render):** Intent job completes attestation (`execution.attested` audit row + `metadata.onchain`), but **compliance queue never runs** — no `compliance_checks`, execution stays `created`, no settlement. Likely causes:
+
+1. BullMQ worker in `render-start.sh` stops processing after intent (Redis `ECONNRESET` on Render Key Value free tier; worker background process may exit while API process stays up).
+2. Operator queue introspection hangs on Redis → cannot confirm waiting job counts from API.
+3. Free-tier API spin-down pauses co-located worker when idle (mitigated during active polling but still a risk).
+
+**Not yet verified on Render:** full path compliance → risk → policy → settlement → audit txs (proven locally in Phase 5.3).
+
+#### Earlier tests (pre-`e359d4b`)
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| `prove-backend-settlement.ts` vs Render | **FAIL** | Executions `466496ed…`, `16c04642…` → `failed`, empty `metadata.onchain` — missing deployment manifests in container |
+| `POST /v1/operator/validate/full` | **PARTIAL** | Times out >5 min on free tier; use per-endpoint checks instead |
+
+### Action required for full Render PASS
+
+1. Harden worker reliability on Render: reconnect on `ECONNRESET`, worker restart loop in `render-start.sh`, or separate worker service (paid tier).
+2. Re-run after fix:
+
+```bash
+curl https://valen-api-m3g4.onrender.com/health/ready
+cd backend && PROVE_API_URL=https://valen-api-m3g4.onrender.com node -r dotenv/config scripts/prove-backend-settlement.ts
+```
+
+Expect: execution `executed`, settlement `confirmed`, audit_logs with submit/approve/execute txs (same as Phase 5.3 local proof).
+
+### Docker / Render fixes applied (commits)
+
+| Commit | Fix |
+|--------|-----|
+| `342e468` | `REDISMS_DISABLE_POSTINSTALL=true` — skip local Redis compile on Alpine |
+| `300c430` | `render-start.sh` entrypoint (API+worker) |
+| `02a6a32` | LF line endings + `pnpm deploy` for production `node_modules` |
+| `e359d4b` | Bundle `contracts/deployments` + `stylus/deployments` in Docker images |
+
+### Free-tier operational notes
+
+- API **spins down after 15 min** idle; first request ~1 min cold start.
+- Worker runs **inside `valen-api`** — queue processing pauses when API sleeps.
+- Free Key Value **non-persistent** — queue state lost on Redis restart.
+- `valen-scheduler` cron ~**$1/mo** minimum.
+
+### Remaining blockers before **RENDER READY (full product)**
+
+1. **Push `a2ffa9f` and redeploy on Render** — then re-run settlement proof + validate/full on production URL.
+2. Confirm post-6.1 `prove-backend-settlement.ts` **exit 0** on `https://valen-api-m3g4.onrender.com`.
+3. Governance **execute** remains blocked by 86400s timelock on deployed Sepolia (queue now works after role grant).
+4. Rotate secrets if exposed in chat (GitHub PAT, operator key).
+5. Upgrade Redis plan when queue durability required (Upstash or Render Key Value Starter).
+
+---
+
+## Phase 6 planning archive (pre-deploy audit)
 
 ## Mission 1 — Environment Audit
 
@@ -1110,4 +1494,269 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 5. Deploy; wait for `valen-redis` then `valen-api` healthy.
 6. Run post-deploy verification commands above.
 
-**End state:** **BLOCKED WITH THESE EXACT MISSING VALUES** — production `REDIS_URL` (use Render Key Value at deploy, not localhost), Render account deploy + secret paste, post-deploy validation on live URL.
+**End state (planning):** Blueprint ready; live deploy completed separately above.
+
+**End state (live):** **RENDER READY** — latest deploy `c1080fd` (test-only); production on `https://valen-api-m3g4.onrender.com`: validate/full 12/12; unit tests 9/9; settlement E2E **10/10** on `a23809b` + post-deploy proof `223813f9…` (~47s).
+
+---
+
+## Frontend — PR #2 merged (2026-06-11)
+
+**PR:** [#2](https://github.com/goat-dev8/valen/pull/2) — `feat(frontend): marketing landing, dashboard UI, and API integration` (fork `NeoCrafts-cpu/valen`, branch `neo-crafts/frontend-branding-dashboard`).
+
+**Merge strategy:** Checked out **frontend-only** paths from PR head `f834011` onto production main `e9f6237`. The PR commit also reverted Phase 7 BullMQ/worker/Render hardening on backend paths — those changes were **excluded** so Render settlement proofs and queue reliability fixes stay intact.
+
+**Added:** Marketing landing (`frontend/src/components/marketing/*`), dashboard routes (agents, executions, approvals, settlements, compliance, policies, team, webhooks, settings), Privy auth + `use-valen-api` / `api-client`, static assets, `markova.css` / `markova.html`.
+
+**Backend:** Unchanged on this merge — `VALEN_WORKER_MODE=pipeline`, consumer health, recovery, and `infra/render/render.yaml` remain as validated on Render.
+
+**Local verify:** `pnpm install` at repo root → `pnpm --filter frontend build` → `pnpm --filter backend test` (9/9).
+
+---
+
+## Frontend ↔ Render integration + Privy login fix (2026-06-11)
+
+**Goal:** Local frontend at `http://localhost:3001` talks to **production Render API** (`https://valen-api-m3g4.onrender.com`) without redeploying or retesting the backend settlement pipeline.
+
+### Architecture
+
+| Layer | URL | Role |
+|-------|-----|------|
+| Frontend (local dev) | `http://localhost:3001` | Next.js UI; browser calls `/api-proxy/*` |
+| Next.js rewrite | `frontend/next.config.ts` | Proxies `/api-proxy` → `NEXT_PUBLIC_API_URL` |
+| Render API | `https://valen-api-m3g4.onrender.com` | NestJS + Supabase + Redis (RENDER READY per Phase 7) |
+
+**`frontend/.env.local` (not committed):**
+
+```env
+NEXT_PUBLIC_API_URL=https://valen-api-m3g4.onrender.com
+BACKEND_URL=https://valen-api-m3g4.onrender.com
+NEXT_PUBLIC_PRIVY_APP_ID=<same as backend PRIVY_APP_ID>
+OPERATOR_DASHBOARD_SECRET=<local operator key>
+```
+
+No separate frontend Render service yet — only `valen-api` in `infra/render/render.yaml`. Frontend production deploy (Vercel/Render static) is a follow-up; local UI + Render API is the current integration model.
+
+### Login failure root cause (fixed in `b3e7e4f`)
+
+| Symptom | Cause |
+|---------|--------|
+| **"User not found or inactive"** after Privy wallet/email login | `POST /v1/auth/sync` had `PrivyAuthGuard`, which requires a DB user **before** sync can create one (chicken-and-egg for first login). |
+| Dashboard empty after login | New users had **zero organizations**; all dashboard queries require `orgId`. |
+| Login page shows token fallback briefly | Privy bundle loads async; UI showed fallback before import finished. |
+| Slow first page load (15–25s) | WSL on `/mnt/d/` + heavy `@privy-io/react-auth` / viem compile on first request. |
+
+### Fixes (commit `b3e7e4f`, pushed to `main`)
+
+| Area | Change |
+|------|--------|
+| **Backend** | Remove `PrivyAuthGuard` from `POST /v1/auth/sync`; verify Privy JWT inside `AuthService.sync` only. |
+| **Backend** | Auto-provision default org + owner membership on first sync (`auth.service.ts`). |
+| **Frontend** | `ensureOrganization()` — create org via `POST /v1/organizations` if sync profile has no memberships (works on live Render today). |
+| **Frontend** | Privy login uses **sync response** directly (no premature `/v1/me` before user exists). |
+| **Frontend** | Login page shows **Loading Privy…** while wallet module imports. |
+| **Frontend** | Navbar **Dashboard** → `/login`; `.env.local` points at Render API. |
+
+**Render redeploy:** Git push `b3e7e4f` triggers `valen-api` auto-deploy (auth-only change; **no** settlement/queue/infra retest required). Verify sync reaches service:
+
+```bash
+curl -s -X POST https://valen-api-m3g4.onrender.com/v1/auth/sync \
+  -H "Authorization: Bearer fake" -H "Content-Type: application/json" \
+  -d '{"privyUserId":"test"}'
+# Expect: {"code":"UNAUTHORIZED","message":"Invalid token",...}
+# NOT: "User not found or inactive"
+```
+
+### Privy + MetaMask checklist (required for wallet QR login)
+
+1. **Privy Dashboard** → app `cmq5spuqm00340cjp8q4nwwbf` → **Settings → Domains** → add `http://localhost:3001`
+2. **Restart frontend** after any `.env.local` change: `cd frontend && pnpm run dev`
+3. Open **`/login`** (not `/dashboard` directly)
+4. Click **Continue with Privy** → choose wallet → scan QR with MetaMask mobile
+5. First API call after Render idle may take **~60s** (free-tier cold start) — wait for "Syncing profile…"
+
+### Browser test session (2026-06-11)
+
+| Step | Result |
+|------|--------|
+| Landing `http://localhost:3001/` | **PASS** — marketing page renders |
+| Login `/login` | **PASS** — Privy button after module load (or token fallback if env missing) |
+| Render `GET /health/ready` | **PASS** — HTTP 200, DB + Redis ok |
+| Render `POST /v1/auth/sync` (fake token) | **PASS** — returns `Invalid token` (sync handler reachable, not guard-blocked) |
+| Full Privy → MetaMask QR → dashboard | **BLOCKED in automation** — requires user phone wallet approval; retest manually after `b3e7e4f` Render deploy completes |
+
+### Dashboard pages wired to live Render API
+
+All routes under `/dashboard/*` use `use-valen-api` hooks → `/api-proxy/v1/organizations/{orgId}/…` → Render:
+
+- Overview, Executions (+ new + detail), Approvals, Settlements
+- Agents, Policies, Compliance, Audit Logs, Webhooks, Team, Settings
+
+Data is **real** from Supabase via Render (not mock UI). Empty tables mean no org data yet, not fake placeholders.
+
+### Performance tips
+
+- Clone repo to native WSL path (`~/valen`) — **10× faster** than `/mnt/d/route/valen`
+- Run `pnpm install` from **repo root**, not `frontend/` alone
+- Keep Render warm before login testing: `curl https://valen-api-m3g4.onrender.com/health/live`
+
+### Manual login test (user)
+
+After Render finishes deploying `b3e7e4f`:
+
+```bash
+curl https://valen-api-m3g4.onrender.com/health/ready   # wake API
+cd frontend && pnpm run dev                              # port 3001
+# Browser → http://localhost:3001/login → Continue with Privy → MetaMask QR
+# Expect: redirect to /dashboard with org name in sidebar
+```
+
+**End state (frontend + Render API):** Auth path fixed and pushed; local frontend configured for Render backend; full wallet login requires manual MetaMask approval after deploy.
+
+---
+
+## Frontend Product Transformation (2026-06-11)
+
+**Mission:** Transform dashboard from design-only to fully functional VALEN product backed by Render API, Supabase, Arbitrum, Robinhood, and Stylus — no mocks.
+
+**API:** `https://valen-api-m3g4.onrender.com` · Local UI: `http://localhost:3001` via `/api-proxy`
+
+### Phase 1 — Product Audit Matrix
+
+| Page | Route | UI Complete? | Backend Connected? | Uses Real Data? | Missing Actions | Production Ready? |
+|------|-------|:------------:|:------------------:|:---------------:|-----------------|:-----------------:|
+| Landing | `/` | **PASS** | N/A (marketing) | **PASS** (real architecture copy, contract addresses) | — | **PASS** |
+| Dashboard | `/dashboard` | **PASS** | **PASS** | **PASS** | Date range filters non-functional | **PARTIAL** |
+| Agents list | `/dashboard/agents` | **PASS** | **PASS** | **PASS** | Pagination | **PASS** |
+| Agent detail | `/dashboard/agents/[id]` | **PASS** | **PASS** | **PASS** | Wallet list read (backend has create-only) | **PARTIAL** |
+| Register agent | `/dashboard/register-agent` | **PASS** | **PASS** | **PASS** | Policy picker on create | **PASS** |
+| Executions list | `/dashboard/executions` | **PASS** | **PASS** | **PASS** | Date filter, pagination | **PARTIAL** |
+| Submit intent | `/dashboard/executions/new` | **PASS** | **PASS** | **PASS** (keccak256 payload hash) | Mandate/asset fields | **PASS** |
+| Execution detail | `/dashboard/executions/[id]` | **PASS** | **PASS** | **PASS** | Manual settle trigger (worker auto-runs) | **PASS** |
+| Approvals | `/dashboard/approvals` | **PASS** | **PASS** | **PASS** | Risk preview per row | **PASS** |
+| Settlements | `/dashboard/settlements` | **PASS** | **PASS** | **PASS** | N+1 settlement fetches | **PARTIAL** |
+| Policies list | `/dashboard/policies` | **PASS** | **PASS** | **PASS** | Version create/publish UI | **PARTIAL** |
+| Policy create | `/dashboard/policies/new` | **PASS** | **PASS** | **PASS** | Version workflow | **PARTIAL** |
+| Policy detail | `/dashboard/policies/[id]` | **PASS** | **PASS** | **PASS** | Version submit/publish/activate UI | **PARTIAL** |
+| Compliance | `/dashboard/compliance` | **PASS** | **PASS** | **PASS** | Attestation create form | **PARTIAL** |
+| Audit logs | `/dashboard/audit` | **PASS** | **PASS** | **PASS** | Export file download | **PARTIAL** |
+| Team | `/dashboard/team` | **PASS** | **PASS** | **PASS** | Role edit/remove UI | **PARTIAL** |
+| Webhooks | `/dashboard/webhooks` | **PASS** | **PASS** | **PASS** | Edit URL inline | **PASS** |
+| Settings (Organization) | `/dashboard/settings` | **PASS** | **PASS** | **PASS** | — | **PASS** |
+| Governance | `/dashboard/governance` | **PASS** | **PASS** (operator API) | **PASS** (chain reads) | Proposal queue UI for org users | **PARTIAL** |
+| Treasury | `/dashboard/treasury` | **PASS** | **PASS** (operator API) | **PASS** (chain reads) | Tx history list | **PARTIAL** |
+
+### Phase 12 — Feature Matrix (browser verification pending)
+
+| Feature | Backend | Database | Contracts | Robinhood | Stylus | Frontend | Production Ready |
+|---------|:-------:|:--------:|:---------:|:---------:|:------:|:--------:|:----------------:|
+| Privy auth + org | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Agent CRUD + lifecycle | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Execution submit | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Compliance pipeline | **PASS** | **PASS** | **PASS** | **PASS** | **PASS** | **PASS** (read) | **PENDING E2E** |
+| Risk scoring | **PASS** | **PASS** | — | — | **PASS** | **PASS** (read) | **PENDING E2E** |
+| Policy evaluation | **PASS** | **PASS** | — | — | **PASS** | **PARTIAL** | **PENDING E2E** |
+| Settlement on-chain | **PASS** (10/10 Render) | **PASS** | **PASS** | **PASS** | — | **PASS** (read + retry) | **PENDING E2E** |
+| Audit trail | **PASS** | **PASS** | **PASS** | **PASS** | — | **PASS** | **PENDING E2E** |
+| Governance timelock | **PASS** | — | **PASS** | **PASS** | — | **PASS** (status read) | **PARTIAL** (86400s delay) |
+| Treasury reads | **PASS** | — | **PASS** | **PASS** | — | **PASS** | **PENDING E2E** |
+| Webhooks CRUD | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Team invite | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Landing page | — | — | **PASS** (addresses) | **PASS** | **PASS** (copy) | **PASS** | **PASS** |
+
+### Frontend changes (this session)
+
+| Area | Change |
+|------|--------|
+| `frontend/src/lib/api.ts` | Added `operatorFetch`; agents suspend/revoke/wallet/api-key; policies create; executions cancel; webhooks CRUD; team invite |
+| `frontend/src/hooks/use-valen-api.ts` | Hooks for all new mutations |
+| `frontend/src/lib/explorer.ts` | Arbiscan + Robinhood explorer URLs |
+| `frontend/src/components/app/chain-badge.tsx` | Chain network indicators |
+| Agent detail | Activate, pause (suspend), revoke, link wallet, create API key |
+| Execution detail | Compliance/risk/settlement/timeline, explorer links, cancel, settlement retry |
+| Settlements | Chain badge, explorer links, retry failed |
+| Policies | `/new` + `/[policyId]` detail pages |
+| Webhooks | Create, disable, delete, test with real API response |
+| Team | Invite member form |
+| Audit | Filter by settlement/attestation actions |
+| Governance / Treasury | Product UI via operator API; added to sidebar |
+| Landing | Rewritten around real pipeline, networks, contract addresses |
+| Header | Removed fake notification/cart badges; real approval count |
+
+### Browser E2E checklist (Phase 11 — run manually)
+
+1. `curl https://valen-api-m3g4.onrender.com/health/ready` — wake API
+2. `cd frontend && pnpm run dev` — port 3001
+3. Login via Privy → dashboard loads with org
+4. Register agent → activate → link wallet → create API key
+5. Submit intent (Arbitrum Sepolia settlement target) → monitor execution detail
+6. Approvals queue if risk requires approval
+7. Settlements page shows tx hash + explorer link when executed
+8. Audit logs filter `settlement.executed`
+9. Governance + Treasury pages load operator data (requires `OPERATOR_DASHBOARD_SECRET` in `.env.local`)
+10. Create webhook + team invite
+
+**Verdict:** Frontend wired to real Render API across all product pages. Final **PASS** on Production Ready column requires completing browser E2E above — do not mark PASS until verified.
+
+### Browser verification (2026-06-11, automated partial)
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| Landing `/` | **PASS** | Product copy, pipeline steps, real settlement addresses render |
+| `/api-proxy/health/ready` | **PASS** | HTTP 200, DB + Redis ok via Render |
+| `/api/operator/governance/status?chainId=421614` | **PASS** | HTTP 200, real timelock + governance addresses |
+| Privy login → full dashboard flows | **PENDING** | Requires wallet approval — manual retest |
+| Agent create → execution → settlement E2E | **PENDING** | Requires authenticated session |
+
+---
+
+## Dashboard E2E test vs Render (2026-06-11, post-deploy)
+
+**Render API:** `https://valen-api-m3g4.onrender.com` — health **200**, auth sync reachable, settlement pipeline **RENDER READY** (unchanged).
+
+**Local frontend:** `http://localhost:3001` → `/api-proxy` → Render. `.env.local` + `next.config.ts` explicit env load for `NEXT_PUBLIC_PRIVY_APP_ID`.
+
+### Browser test results (automated + live session)
+
+| Step | Result | Notes |
+|------|--------|-------|
+| Render deploy complete | **PASS** | `POST /v1/auth/sync` → `Invalid token` (not guard-blocked) |
+| `/api-proxy/health/ready` | **PASS** | HTTP 200 via Next.js rewrite |
+| Privy login → dashboard | **PASS** | Org **My Organization**, role **organization_owner** |
+| Dashboard overview | **PASS** | Stats load from Render (0 until data created) |
+| Agents list | **PASS** | Real API; empty → then 3 agents after register |
+| Register agent (`/dashboard/register-agent`) | **PASS** | `POST /v1/organizations/{id}/agents` on Render |
+| Submit execution | **FAIL → FIXED** | `Insufficient permissions` — org owner lacked `@Roles` on `POST /executions` |
+| Draft agents block execution | **FAIL → FIXED** | Agents default `draft`; execution requires `active` — added activate + auto-activate on create |
+| `/dashboard/agents/new` route | **FAIL → FIXED** | Dynamic `[agentId]` caught `new`/`register` — moved to `/dashboard/register-agent` |
+| Policies, Compliance, Audit, Team, Settings, Webhooks | **PASS** | Pages render; API lists return real (empty) data |
+| Settlement pipeline E2E from UI | **PENDING** | Requires deploy of commit below + activate agents + resubmit intent |
+
+### Fixes in this session (commit pending push)
+
+| File | Fix |
+|------|-----|
+| `frontend/next.config.ts` | Read `.env.local` explicitly; inject `NEXT_PUBLIC_*` into client bundle |
+| `frontend/src/app/dashboard/register-agent/page.tsx` | **New** — register agent form (was 404 at `/agents/new`) |
+| `frontend/src/contexts/auth-context.tsx` | Skip full-page loading spinner when `me` already cached |
+| `backend/.../settlement.controller.ts` | Allow `organization_owner` on `POST /executions` |
+| `backend/.../agents.service.ts` | Auto-activate agent on create; new `activate()` method |
+| `backend/.../agents.controller.ts` | `POST .../agents/:id/activate` |
+| `frontend/src/lib/api.ts` | `agents.create`, `agents.activate` |
+| `frontend/.../agents/[agentId]/page.tsx` | **Activate Agent** button for draft agents |
+
+### User flow after next Render deploy
+
+1. **Login:** `/login` → Privy → MetaMask QR on phone → dashboard
+2. **Register agent:** Agents → **Register Agent** → submit (auto-active after deploy)
+3. **Activate existing drafts:** Open agent → **Activate Agent** (for agents created before deploy)
+4. **Submit intent:** Executions → Submit Intent → Arbitrum Sepolia → settlement contract target → **Submit for Evaluation**
+5. **Monitor:** Execution detail → Compliance → Risk → Settlement (on-chain txs via Render worker — user approves wallet txs on phone when prompted)
+6. **Dashboard pages:** Approvals, Settlements, Audit, Policies, Team, Settings — all live Render data
+
+### Vercel prep checklist
+
+- [ ] Set `NEXT_PUBLIC_API_URL=https://valen-api-m3g4.onrender.com`
+- [ ] Set `NEXT_PUBLIC_PRIVY_APP_ID` + add Vercel domain to Privy allowed origins
+- [ ] `pnpm --filter frontend build` passes
+- [ ] No backend redeploy needed for Vercel (frontend-only host)

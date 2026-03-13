@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
+import { ensureOrganization } from '@/lib/ensure-organization';
 
 export function PrivyLoginButton() {
   const { login, authenticated, ready, getAccessToken, user } = usePrivy();
@@ -21,15 +22,22 @@ export function PrivyLoginButton() {
       const accessToken = await getAccessToken();
       if (!accessToken) throw new Error('Could not obtain access token');
 
-      await api.auth.sync(accessToken, {
+      const profile = await api.auth.sync(accessToken, {
         privyUserId: user.id,
         email: user.email?.address,
       });
 
+      await ensureOrganization(accessToken, profile);
+
       setToken(accessToken);
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Auth sync failed');
+      const message = err instanceof Error ? err.message : 'Auth sync failed';
+      setError(
+        message.includes('fetch') || message.includes('Failed')
+          ? `${message}. Render API may be waking up — wait ~60s and try again.`
+          : message,
+      );
     } finally {
       setSyncing(false);
     }
