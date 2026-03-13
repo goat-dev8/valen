@@ -199,6 +199,11 @@ export type ExecutionDto = {
   targetChainId: number;
   targetAddress: string | null;
   requestPayloadHash: string;
+  assetAddress?: string | null;
+  assetSymbol?: string;
+  assetDecimals?: number;
+  settlementMode?: 'native_eth' | 'policy_label_only';
+  settlementExplanation?: string;
   createdAt: string;
   updatedAt: string;
 };

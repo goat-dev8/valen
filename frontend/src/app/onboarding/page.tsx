@@ -56,7 +56,7 @@ function OnboardingContent() {
     <div className="space-y-6">
         <PageHeader
           title="Guided Setup"
-          description="Connect the pieces that make VALEN a signed permission layer for agentic finance."
+          description="Connect wallet → create agent → set rules → fund with USDC → execute → see proof."
         />
 
         <section className="app-card overflow-hidden">

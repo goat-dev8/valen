@@ -86,6 +86,32 @@ export default function ExecutionProofPage() {
                 </div>
 
                 <div className="app-card">
+                  <h3 className="app-card-title mb-3">Asset & Settlement</h3>
+                  <dl className="app-detail-list">
+                    <div>
+                      <dt>Governed Asset</dt>
+                      <dd>
+                        {execution.assetSymbol ?? 'ETH'}
+                        {execution.assetAddress ? (
+                          <span className="block font-mono text-xs text-[#64748b] break-all">{execution.assetAddress}</span>
+                        ) : null}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Settlement Mode</dt>
+                      <dd className="capitalize">{(execution.settlementMode ?? 'native_eth').replace(/_/g, ' ')}</dd>
+                    </div>
+                    <div>
+                      <dt>Explanation</dt>
+                      <dd className="text-sm leading-6 text-[#64748b]">
+                        {execution.settlementExplanation ??
+                          'Native ETH settled by VALEN operator relayer after policy checks pass.'}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div className="app-card">
                   <h3 className="app-card-title mb-3">Settlement Proof</h3>
                   {!settlement ? (
                     <p className="text-sm text-[#64748b]">Settlement proof is not available yet.</p>

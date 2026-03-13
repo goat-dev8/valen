@@ -62,12 +62,12 @@ export function buildSetupSteps({
     },
     {
       id: 'policy',
-      title: 'Create a policy',
+      title: 'Create active rules',
       description: policies.length
-        ? `${policies.length} polic${policies.length === 1 ? 'y is' : 'ies are'} available for agent permissions.`
-        : 'Create the compliance and risk policy that will govern agent actions.',
+        ? `${policies.length} rule set${policies.length === 1 ? '' : 's'} available for agent permissions.`
+        : 'Create the compliance and risk rules that govern agent actions.',
       href: policies.length ? '/dashboard/policies' : '/dashboard/policies/new',
-      actionLabel: policies.length ? 'View policies' : 'Create policy',
+      actionLabel: policies.length ? 'View rules' : 'Create rules',
       complete: policies.length > 0,
     },
     {

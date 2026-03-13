@@ -58,29 +58,29 @@ export function HeroSection() {
             </div>
 
             <h1 className="hero-headline">
-              <span className="hero-headline-line fade-up fade-up-delay-1">Nothing settles</span>
+              <span className="hero-headline-line fade-up fade-up-delay-1">The operating system</span>
               <span className="hero-headline-line fade-up fade-up-delay-2">
-                without{' '}
-                <span className="hero-headline-mark text-frame-underline">permission</span>.
+                for{' '}
+                <span className="hero-headline-mark text-frame-underline">autonomous finance</span>.
               </span>
             </h1>
 
             <p className="fade-up fade-up-delay-3 mx-auto max-w-[520px] text-lg leading-7 text-[#31485f]">
-              The permission layer between autonomous agents and onchain settlement — mandates,
-              risk, and policy enforced before anything executes.
+              Create an agent, give it a USDC budget and rules, fund it, let it act — and see immutable proof for every
+              approval or refusal. Robinhood tokenized assets included.
             </p>
 
             <div className="fade-up fade-up-delay-4 flex flex-wrap justify-center gap-[15px]">
               <Link href="/dashboard" className="btn-primary inline-block">
-                Start Building
+                Open Mission Control
               </Link>
-              <Link href="/login" className="btn-white inline-block">
-                View Architecture
+              <Link href="/dashboard/demo/robinhood-tsla" className="btn-white inline-block">
+                Robinhood Assets Demo
               </Link>
             </div>
 
             <div className="hero-pipeline fade-up fade-up-delay-5">
-              {['Agent', 'Intent', 'Compliance', 'Risk', 'Policy', 'Settlement', 'Audit'].map(
+              {['Wallet', 'Agent', 'Rules', 'USDC', 'Execute', 'Proof'].map(
                 (step, i, arr) => (
                   <span key={step} className="hero-pipeline-item">
                     <span

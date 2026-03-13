@@ -31,8 +31,8 @@ export default function ExecutionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Executions"
-        description="All agent intents flowing through compliance, risk, and policy pipeline"
+        title="Activity"
+        description="All agent intents flowing through compliance, risk, rules, and settlement"
       >
         <select
           className="app-input w-auto"

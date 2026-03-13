@@ -442,8 +442,8 @@ export default function WalletsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Wallet & Authority"
-        description="Verify owner wallet authority, then review the relayer, treasury, and settlement contract state."
+        title="Fund & Authority"
+        description="Verify wallet ownership, view USDC balances, sign mandates, and review settlement authority."
       >
         <select value={chainId} onChange={(e) => setChainId(Number(e.target.value))} className="app-input w-auto">
           <option value={421614}>Arbitrum Sepolia</option>
