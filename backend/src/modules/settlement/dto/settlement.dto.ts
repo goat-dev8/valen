@@ -78,6 +78,12 @@ export class ExecutionResponseDto {
   @ApiProperty()
   agentId!: string;
 
+  @ApiProperty({ nullable: true })
+  mandateId!: string | null;
+
+  @ApiProperty({ nullable: true })
+  policyId!: string | null;
+
   @ApiProperty()
   idempotencyKey!: string;
 
@@ -156,6 +162,24 @@ export class SettlementResponseDto {
 
   @ApiProperty({ nullable: true })
   txHash!: string | null;
+
+  @ApiProperty({ nullable: true })
+  submitTxHash!: string | null;
+
+  @ApiProperty({ nullable: true })
+  approveTxHash!: string | null;
+
+  @ApiProperty({ nullable: true })
+  blockNumber!: string | null;
+
+  @ApiProperty({ nullable: true })
+  onChainSettlementId!: string | null;
+
+  @ApiProperty({ nullable: true })
+  failureReason!: string | null;
+
+  @ApiProperty({ nullable: true })
+  relayerAddress!: string | null;
 
   @ApiProperty()
   createdAt!: string;

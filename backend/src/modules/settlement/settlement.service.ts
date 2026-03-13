@@ -95,7 +95,8 @@ export class SettlementService {
       action: `execution.${dto.decision}`,
       entityType: 'execution',
       entityId: executionId,
-      eventHash: hashPayload({ executionId, decision: dto.decision }),
+      eventHash: hashPayload({ executionId, decision: dto.decision, approvalProofRef: dto.approvalProofRef }),
+      payloadRef: dto.approvalProofRef,
     });
 
     return this.executionsService.toDto(updated!);
@@ -209,6 +210,11 @@ export class SettlementService {
     contract_address: string;
     status: string;
     tx_hash: string | null;
+    submit_tx_hash?: string | null;
+    approve_tx_hash?: string | null;
+    block_number?: string | null;
+    on_chain_settlement_id?: string | null;
+    failure_reason?: string | null;
     created_at: Date;
   }): SettlementResponseDto {
     return {
@@ -218,6 +224,12 @@ export class SettlementService {
       contractAddress: settlement.contract_address,
       status: settlement.status,
       txHash: settlement.tx_hash,
+      submitTxHash: settlement.submit_tx_hash ?? null,
+      approveTxHash: settlement.approve_tx_hash ?? null,
+      blockNumber: settlement.block_number ?? null,
+      onChainSettlementId: settlement.on_chain_settlement_id ?? null,
+      failureReason: settlement.failure_reason ?? null,
+      relayerAddress: null,
       createdAt: settlement.created_at.toISOString(),
     };
   }

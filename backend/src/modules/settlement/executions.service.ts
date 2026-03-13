@@ -233,6 +233,8 @@ export class ExecutionsService {
     id: string;
     organization_id: string;
     agent_id: string;
+    mandate_id?: string | null;
+    policy_id?: string | null;
     idempotency_key: string;
     action_type: string;
     status: string;
@@ -246,6 +248,8 @@ export class ExecutionsService {
       id: execution.id,
       organizationId: execution.organization_id,
       agentId: execution.agent_id,
+      mandateId: execution.mandate_id ?? null,
+      policyId: execution.policy_id ?? null,
       idempotencyKey: execution.idempotency_key,
       actionType: execution.action_type,
       status: execution.status,

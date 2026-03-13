@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApiKeysRepository } from '../../database/repositories/api-keys.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
+import { MandatesRepository } from '../../database/repositories/mandates.repository';
 import {
   apiKeyPrefix,
   generateApiKeySecret,
@@ -23,6 +24,7 @@ export class AgentApiKeysService {
   constructor(
     private readonly apiKeysRepository: ApiKeysRepository,
     private readonly auditLogsRepository: AuditLogsRepository,
+    private readonly mandatesRepository: MandatesRepository,
   ) {}
 
   async create(
@@ -40,11 +42,22 @@ export class AgentApiKeysService {
       }
     }
 
+    if (dto.mandateId) {
+      const mandate = await this.mandatesRepository.findByOrgAndId(organizationId, dto.mandateId);
+      if (!mandate || mandate.agent_id !== agentId || mandate.status !== 'active') {
+        throw new BadRequestException({
+          code: ErrorCodes.VALIDATION_ERROR,
+          message: 'API key mandate must be active and belong to this agent',
+        });
+      }
+    }
+
     const secret = generateApiKeySecret();
     const prefix = apiKeyPrefix(secret);
     const keyRow = await this.apiKeysRepository.create({
       organizationId,
       agentId,
+      mandateId: dto.mandateId,
       name: dto.name,
       keyPrefix: prefix,
       keyHash: sha256(secret),
@@ -67,11 +80,26 @@ export class AgentApiKeysService {
       id: keyRow.id,
       name: keyRow.name,
       keyPrefix: keyRow.key_prefix,
+      mandateId: keyRow.mandate_id,
       scopes: keyRow.scopes,
       status: keyRow.status,
       expiresAt: keyRow.expires_at?.toISOString() ?? null,
       createdAt: keyRow.created_at.toISOString(),
       oneTimeSecret: secret,
     };
+  }
+
+  async list(agentId: string): Promise<ApiKeyResponseDto[]> {
+    const rows = await this.apiKeysRepository.listByAgent(agentId);
+    return rows.map((keyRow) => ({
+      id: keyRow.id,
+      name: keyRow.name,
+      keyPrefix: keyRow.key_prefix,
+      mandateId: keyRow.mandate_id,
+      scopes: keyRow.scopes,
+      status: keyRow.status,
+      expiresAt: keyRow.expires_at?.toISOString() ?? null,
+      createdAt: keyRow.created_at.toISOString(),
+    }));
   }
 }

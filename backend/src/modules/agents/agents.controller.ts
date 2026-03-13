@@ -156,4 +156,14 @@ export class AgentsController {
   ): Promise<ApiKeyResponseDto> {
     return this.agentApiKeysService.create(organizationId, agentId, dto, user);
   }
+
+  @Get(':agentId/api-keys')
+  @UseGuards(PrivyAuthGuard)
+  @Roles('organization_owner', 'developer')
+  @ApiOperation({ summary: 'List agent API keys' })
+  listApiKeys(
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+  ): Promise<ApiKeyResponseDto[]> {
+    return this.agentApiKeysService.list(agentId);
+  }
 }
