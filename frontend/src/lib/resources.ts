@@ -7,6 +7,7 @@ export type ResourceLink = {
   description?: string;
   address?: string;
   chainId?: number;
+  iconSrc?: string;
 };
 
 export type ResourceSection = {
@@ -40,16 +41,22 @@ export const RESOURCE_SECTIONS: ResourceSection[] = [
         label: 'Arbitrum Sepolia ETH Faucet',
         href: 'https://www.alchemy.com/faucets/arbitrum-sepolia',
         description: 'Gas for Arbitrum Sepolia transactions.',
+        chainId: 421614,
+        iconSrc: '/arbitrum-logo.png',
       },
       {
         label: 'Circle USDC Faucet (Sepolia)',
         href: 'https://faucet.circle.com/',
         description: 'Official USDC test tokens for Arbitrum Sepolia.',
+        chainId: 421614,
+        iconSrc: '/usdc.svg',
       },
       {
         label: 'Robinhood Testnet Faucet',
         href: 'https://faucet.testnet.chain.robinhood.com',
-        description: 'Robinhood testnet ETH and demo assets.',
+        description: 'Robinhood testnet ETH, USDG, and demo stock tokens.',
+        chainId: 46630,
+        iconSrc: '/robinhood.svg',
       },
     ],
   },
@@ -85,3 +92,7 @@ export const RESOURCE_SECTIONS: ResourceSection[] = [
     ],
   },
 ];
+
+export const FAUCET_SECTION = RESOURCE_SECTIONS.find((section) => section.title === 'Testnet Faucets');
+
+export const FAUCET_LINKS: ResourceLink[] = FAUCET_SECTION?.links ?? [];

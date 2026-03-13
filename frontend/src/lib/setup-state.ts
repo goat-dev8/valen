@@ -56,8 +56,8 @@ export function buildSetupSteps({
       description: activeAgents.length
         ? `${activeAgents.length} active agent${activeAgents.length === 1 ? '' : 's'} can submit governed intents.`
         : 'Create and activate an agent before submitting financial intents.',
-      href: activeAgents.length ? '/dashboard/agents' : '/dashboard/register-agent',
-      actionLabel: activeAgents.length ? 'View agents' : 'Register agent',
+      href: activeAgents.length ? '/dashboard/agents' : '/dashboard/agents/studio',
+      actionLabel: activeAgents.length ? 'View agents' : 'Open Agent Studio',
       complete: activeAgents.length > 0,
     },
     {
@@ -76,10 +76,10 @@ export function buildSetupSteps({
       description: ownerWalletVerified
         ? 'Owner wallet authority has been verified.'
         : 'Prove wallet ownership before signing agent authority.',
-      href: '/dashboard/wallets',
+      href: '/dashboard/authority',
       actionLabel: ownerWalletVerified ? 'View authority' : 'Verify wallet',
       complete: ownerWalletVerified,
-      blockedReason: ownerWalletVerified ? undefined : 'Open Wallet & Authority and sign an ownership challenge.',
+      blockedReason: ownerWalletVerified ? undefined : 'Open Authority and sign an ownership challenge.',
     },
     {
       id: 'mandate',
@@ -87,10 +87,10 @@ export function buildSetupSteps({
       description: signedMandateCount
         ? `${signedMandateCount} signed mandate${signedMandateCount === 1 ? '' : 's'} authorize agent actions.`
         : 'Bind an agent to policy, chain, actions, targets, limits, and approval thresholds.',
-      href: '/dashboard/wallets',
+      href: '/dashboard/authority',
       actionLabel: signedMandateCount ? 'View mandates' : 'Sign mandate',
       complete: signedMandateCount > 0,
-      blockedReason: signedMandateCount ? undefined : 'Sign a mandate on Wallet & Authority after verifying your wallet.',
+      blockedReason: signedMandateCount ? undefined : 'Sign a mandate on Authority after verifying your wallet.',
     },
     {
       id: 'intent',

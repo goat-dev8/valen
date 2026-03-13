@@ -76,7 +76,7 @@ export function explainExecutionFailure(input: {
         : settlement.failureReason ?? 'The relayer transaction failed or reverted.',
       technicalReason: reason.slice(0, 500),
       suggestedFix: vaultCapExceeded
-        ? 'Top up the agent USDC budget on Fund & Authority, or use an agent whose on-chain vault has remaining cap. Then submit a new intent or retry settlement.'
+        ? 'Top up the agent USDC budget on Budgets, or use an agent whose on-chain vault has remaining cap. Then submit a new intent or retry settlement.'
         : 'Check wallet allowance, relayer balance, mandate validity, and retry settlement from this page.',
     };
   }
@@ -89,7 +89,7 @@ export function explainExecutionFailure(input: {
         technicalReason: `pipelineFailure.stage=${pipeline.stage ?? 'unknown'}`,
         suggestedFix:
           pipeline.stage === 'intent'
-            ? 'Retry the intent after confirming Stylus attestation and worker health on Render.'
+            ? 'Retry the intent after confirming Stylus attestation and worker health.'
             : 'Open Audit Logs or retry after confirming backend workers are running.',
       };
     }

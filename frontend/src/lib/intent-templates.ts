@@ -25,7 +25,7 @@ function robinhoodStockTemplate(
     id: `robinhood-${ticker.toLowerCase()}-${scenario}`,
     name: `Robinhood ${ticker} ${isAllowed ? 'Allowed' : 'Refused'}`,
     description: isAllowed
-      ? `${ticker} ERC-20 transfer on Robinhood Testnet through the Phase C token adapter.`
+      ? `${ticker} ERC-20 transfer on Robinhood Testnet via token settlement adapter.`
       : `${ticker} over-limit scenario refused by Robinhood policy before settlement.`,
     actionType: isAllowed ? 'transfer' : 'robinhood_token_transfer',
     targetChainId: 46630,
@@ -68,7 +68,7 @@ export const INTENT_TEMPLATES: IntentTemplate[] = [
   {
     id: 'robinhood-usdg-allowed',
     name: 'Robinhood USDG Allowed',
-    description: 'USDG ERC-20 settlement on Robinhood Testnet via the Phase C token adapter.',
+    description: 'USDG ERC-20 settlement on Robinhood Testnet via token settlement adapter.',
     actionType: 'transfer',
     targetChainId: 46630,
     targetAddress: ROBINHOOD_TARGET,
