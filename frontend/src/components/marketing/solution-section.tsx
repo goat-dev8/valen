@@ -1,33 +1,7 @@
 'use client';
 
 import { useScrollStory } from '@/hooks/use-scroll-story';
-
-const STORY = [
-  'VALEN',
-  'shows',
-  'which',
-  'agent',
-  'intents',
-  'pass',
-  'compliance',
-  'with',
-  'real-time',
-  'insight',
-  'across',
-  'all',
-  'chains',
-  'helping',
-  'you',
-  'cut',
-  'risk,',
-  'boost',
-  'settlement',
-  'speed,',
-  'and',
-  'scale',
-  'what',
-  'works',
-];
+import { SOLUTION_STORY } from '@/lib/landing-content';
 
 export function SolutionSection() {
   const { containerRef, wordOpacity } = useScrollStory();
@@ -37,12 +11,13 @@ export function SolutionSection() {
       <div className="solution-sticky">
         <div className="solution-inner">
           <div className="solution-content">
+            <p className="solution-kicker">Why VALEN exists</p>
             <div className="solution-text-block">
-              {STORY.map((word, i) => (
+              {SOLUTION_STORY.map((word, i) => (
                 <span
                   key={`${word}-${i}`}
                   className="solution-word"
-                  style={{ opacity: wordOpacity(i, STORY.length) }}
+                  style={{ opacity: wordOpacity(i, SOLUTION_STORY.length) }}
                 >
                   {word}
                 </span>

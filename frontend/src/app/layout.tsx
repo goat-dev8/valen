@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ValenPrivyProvider } from '@/components/app/privy-provider';
 import { Providers } from '@/providers';
+import { fontVariables } from '@/lib/fonts';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -19,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="min-h-screen antialiased">
+    <html lang="en" className={fontVariables}>
+      <body className="min-h-screen font-sans antialiased">
         <ValenPrivyProvider>
           <Providers>{children}</Providers>
         </ValenPrivyProvider>

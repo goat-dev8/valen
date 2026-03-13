@@ -6,11 +6,11 @@ import { Menu, X } from 'lucide-react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 
 const NAV_LINKS = [
-  { href: '#about', label: 'Solution' },
-  { href: '#features', label: 'Features' },
-  { href: '#case-study', label: 'Case Studies' },
-  { href: '#pricing', label: 'Pricing' },
-  { href: '#faq', label: 'FAQs' },
+  { href: '#about', label: 'Why VALEN' },
+  { href: '#modules', label: 'Modules' },
+  { href: '#how-it-works', label: 'Journey' },
+  { href: '#demos', label: 'Demos' },
+  { href: '#faq', label: 'FAQ' },
 ];
 
 export function Navbar() {

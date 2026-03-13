@@ -39,7 +39,7 @@ export function PartnersSection() {
       <GridWallpaper />
       <div className="landing-container">
         <div className="partners-content">
-          <p className="partners-label">Trusted by builders shipping agentic finance onchain</p>
+          <p className="partners-label">Production stack · Arbitrum Stylus · Robinhood Chain · NestJS · Supabase</p>
           <div className="partners-marquee-outer">
             <div className="partners-fade-left" aria-hidden="true" />
             <div className="partners-fade-right" aria-hidden="true" />
