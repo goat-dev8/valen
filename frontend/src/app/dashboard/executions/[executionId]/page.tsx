@@ -7,6 +7,7 @@ import { ArrowLeft, Check, ExternalLink, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
+import { GovernancePipelineStrip } from '@/components/command-center/governance-pipeline-strip';
 import { PipelineTimeline } from '@/components/app/pipeline-timeline';
 import { QueryState } from '@/components/app/query-state';
 import { RiskBadge, StatusBadge } from '@/components/app/status-badge';
@@ -163,6 +164,19 @@ export default function ExecutionDetailPage() {
             </PageHeader>
 
             {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+
+            <GovernancePipelineStrip
+              status={ex.status}
+              state={
+                ex.status === 'executed'
+                  ? 'complete'
+                  : ['compliance_failed', 'risk_failed', 'policy_rejected', 'failed'].includes(ex.status)
+                    ? 'refused'
+                    : ['created', 'validated', 'approval_required', 'approved', 'settlement_submitted'].includes(ex.status)
+                      ? 'running'
+                      : 'idle'
+              }
+            />
 
             {failureExplanation && (
               <div className="rounded-2xl border border-red-100 bg-red-50 p-5">

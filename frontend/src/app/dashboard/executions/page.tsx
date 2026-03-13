@@ -8,7 +8,7 @@ import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
 import { explainExecutionFailure } from '@/lib/execution-failure';
 import { useAgents, useExecutions, useMandates, useWalletVerifications } from '@/hooks/use-valen-api';
-import { chainName } from '@/lib/constants';
+import { ChainBadge } from '@/components/app/chain-badge';
 
 export default function ExecutionsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -32,8 +32,8 @@ export default function ExecutionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Executions"
-        description="All agent intents flowing through compliance, risk, and policy pipeline"
+        title="Execution Log"
+        description="Technical list of all agent intents — for outcome-first view see Outcome Ledger."
       >
         <select
           className="app-input w-auto"
@@ -53,12 +53,32 @@ export default function ExecutionsPage() {
           className={readyAgent ? 'app-btn app-btn-primary' : 'app-btn app-btn-outline'}
         >
           <Plus className="h-4 w-4" />
-          {readyAgent ? 'Submit Intent' : 'Complete Readiness'}
+          {readyAgent ? 'Governed Intent' : 'Complete Readiness'}
         </Link>
       </PageHeader>
 
       <QueryState isLoading={isLoading} error={error} isEmpty={!data?.items.length} emptyMessage="No executions found">
-        <div className="app-card">
+        <div className="space-y-3 md:hidden">
+          {data?.items.map((ex) => (
+            <Link
+              key={ex.id}
+              href={`/dashboard/executions/${ex.id}`}
+              className="block rounded-2xl border border-[#eef0f3] bg-white p-4"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-xs text-[#007dfc]">{ex.id.slice(0, 8)}…</span>
+                <StatusBadge status={ex.status} />
+              </div>
+              <p className="mt-2 text-sm font-semibold capitalize text-[#012b54]">{ex.actionType.replace(/_/g, ' ')}</p>
+              <p className="mt-1 text-xs text-[#64748b]">{agentMap.get(ex.agentId) ?? 'Agent'}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <ChainBadge chainId={ex.targetChainId} />
+                <span className="text-xs text-[#64748b]">{new Date(ex.createdAt).toLocaleString()}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div className="app-card hidden md:block">
           <div className="app-table-wrap">
             <table className="app-table">
               <thead>
@@ -90,7 +110,7 @@ export default function ExecutionsPage() {
                         ) : null;
                       })()}
                     </td>
-                    <td className="text-[#64748b]">{chainName(ex.targetChainId)}</td>
+                    <td className="text-[#64748b]"><ChainBadge chainId={ex.targetChainId} /></td>
                     <td className="text-sm text-[#64748b]">{new Date(ex.createdAt).toLocaleString()}</td>
                   </tr>
                 ))}

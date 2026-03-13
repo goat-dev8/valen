@@ -2,32 +2,35 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle, Circle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
 import { keccak256, toHex } from 'viem';
 import { PageHeader } from '@/components/app/page-header';
-import { BudgetMeter } from '@/components/app/budget-meter';
-import { ChainBadge } from '@/components/app/chain-badge';
-import { SelectedAssetBalance, compareAmountToBalance } from '@/components/app/selected-asset-balance';
-import { useWalletBalanceForChain } from '@/hooks/use-wallet-balances';
-import { WalletBalancesPanel } from '@/components/app/wallet-balances-panel';
+import { IntentAgentPicker } from '@/components/execution/intent-agent-picker';
+import { IntentConfigPanel } from '@/components/execution/intent-config-panel';
+import { IntentContextSidebar } from '@/components/execution/intent-context-sidebar';
+import { IntentReviewCard } from '@/components/execution/intent-review-card';
+import { IntentTemplatePicker } from '@/components/execution/intent-template-picker';
+import { IntentWizardNav } from '@/components/execution/intent-wizard-nav';
 import { useAgents, useCreateExecution, useMandates } from '@/hooks/use-valen-api';
-import { executionAmountBaseUnits, executionAmountLabel } from '@/lib/amount';
-import { INTENT_TEMPLATES, intentTemplateById } from '@/lib/intent-templates';
+import { useWalletBalanceForChain } from '@/hooks/use-wallet-balances';
+import { compareAmountToBalance } from '@/components/app/selected-asset-balance';
+import { INTENT_TEMPLATES, intentTemplateById, type IntentTemplate } from '@/lib/intent-templates';
 import { knownAssetForMandateValue, knownAssetsForChain, settlementLabelForAsset } from '@/lib/known-assets';
 import { mandateMatchesIntent } from '@/lib/mandate-match';
+import { GOVERNED_INTENT_LABEL } from '@/lib/navigation';
 import { assetSelectValue, resolveIntentAssetForSubmit } from '@/lib/resolve-intent-asset';
 import { formatApiErrorMessage } from '@/lib/utils';
 
-function robinhoodTickerFromTemplate(template: ReturnType<typeof intentTemplateById>): string | undefined {
+function robinhoodTickerFromTemplate(template: IntentTemplate): string | undefined {
   const meta = template.metadata?.robinhood as { ticker?: string } | undefined;
   return meta?.ticker;
 }
 
 function agentMatchesTemplate(
   agentId: string,
-  template: ReturnType<typeof intentTemplateById>,
+  template: IntentTemplate,
   mandates: Array<{
     status: string;
     agentId: string;
@@ -61,12 +64,19 @@ export default function SubmitIntentPage() {
   const { data: mandates } = useMandates();
   const createMutation = useCreateExecution();
   const [error, setError] = useState<string | null>(null);
+
   const initialTemplate = intentTemplateById(searchParams.get('template') ?? INTENT_TEMPLATES[0].id);
+  const urlAmount = searchParams.get('amount');
+  const initialStep = searchParams.get('template') ? 2 : 1;
+
   const [templateId, setTemplateId] = useState(initialTemplate.id);
   const [agentId, setAgentId] = useState(searchParams.get('agentId') ?? '');
-  const [amount, setAmount] = useState(initialTemplate.amount);
+  const [amount, setAmount] = useState(urlAmount ?? initialTemplate.amount);
   const [targetAddress, setTargetAddress] = useState(initialTemplate.targetAddress);
   const [assetAddress, setAssetAddress] = useState(initialTemplate.assetAddress ?? '');
+  const [wizardStep, setWizardStep] = useState(initialStep);
+  const [maxStep, setMaxStep] = useState(initialStep);
+
   const selectedTemplate = intentTemplateById(templateId);
   const resolvedSubmitAsset = resolveIntentAssetForSubmit({
     chainId: selectedTemplate.targetChainId,
@@ -75,6 +85,7 @@ export default function SubmitIntentPage() {
     templateActionType: selectedTemplate.actionType,
     robinhoodTicker: robinhoodTickerFromTemplate(selectedTemplate),
   });
+
   const selectedAgent = agents?.items.find((agent) => agent.id === agentId) ?? agents?.items[0];
   const activeMandates = useMemo(
     () =>
@@ -97,10 +108,10 @@ export default function SubmitIntentPage() {
   const selectedAsset = knownAssetForMandateValue(selectedTemplate.targetChainId, resolvedSubmitAsset);
   const amountDecimals = selectedAsset?.decimals ?? 18;
   const amountSymbol = selectedAsset?.symbol ?? 'ETH';
-  const normalizedAmountPreview = executionAmountBaseUnits(amount, amountDecimals);
   const showUsdcBudget =
     selectedTemplate.targetChainId === 421614 &&
     (selectedTemplate.id.startsWith('arbitrum-usdc') || selectedAsset?.symbol === 'USDC');
+
   const matchingAgents = useMemo(
     () =>
       (agents?.items ?? []).filter((agent) =>
@@ -108,15 +119,18 @@ export default function SubmitIntentPage() {
       ),
     [agents?.items, selectedTemplate, mandates, targetAddress, resolvedSubmitAsset],
   );
+  const matchingAgentIds = useMemo(() => new Set(matchingAgents.map((a) => a.id)), [matchingAgents]);
+
   const submitBlockedReason = !selectedAgent
     ? 'Select an active agent.'
     : !selectedAgent.defaultPolicyId
       ? 'Selected agent needs an assigned policy.'
       : !selectedMandate
         ? matchingAgents.length
-          ? `No mandate for this agent. Try agent "${matchingAgents[0]?.name}" — it has a matching ${selectedTemplate.targetChainId === 46630 ? 'Robinhood' : 'Arbitrum'} mandate.`
+          ? `No mandate for this agent. Try "${matchingAgents[0]?.name}" — it has a matching mandate.`
           : 'No active mandate matches this agent, chain, action, and target.'
         : null;
+
   const { data: chainBalance } = useWalletBalanceForChain(connectedWallet, selectedTemplate.targetChainId);
   const walletAssetBalance = useMemo(() => {
     if (!chainBalance || !selectedAsset) return undefined;
@@ -130,8 +144,27 @@ export default function SubmitIntentPage() {
   }, [chainBalance, selectedAsset]);
   const balanceWarning = compareAmountToBalance(amount, amountDecimals, walletAssetBalance);
   const approvalExplanation = selectedMandate?.approvalThreshold
-    ? `This intent may require approval when ${selectedMandate.approvalThreshold}.`
-    : 'This intent can proceed automatically when wallet authority, rules, risk, and settlement checks pass.';
+    ? `May require approval when ${selectedMandate.approvalThreshold}.`
+    : 'Proceeds automatically when wallet authority, rules, risk, and settlement checks pass.';
+
+  const readiness = [
+    { label: 'Active agent selected', complete: Boolean(selectedAgent), href: '/dashboard/agents' },
+    {
+      label: 'Policy assigned',
+      complete: Boolean(selectedAgent?.defaultPolicyId),
+      href: selectedAgent ? `/dashboard/agents/${selectedAgent.id}` : '/dashboard/agents',
+    },
+    { label: 'Matching mandate', complete: Boolean(selectedMandate), href: '/dashboard/authority' },
+  ];
+
+  useEffect(() => {
+    setMaxStep((prev) => Math.max(prev, wizardStep));
+  }, [wizardStep]);
+
+  useEffect(() => {
+    const nextAmount = searchParams.get('amount');
+    if (nextAmount) setAmount(nextAmount);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!mandates?.length || !agents?.items.length) return;
@@ -162,12 +195,16 @@ export default function SubmitIntentPage() {
     selectedTemplate,
   ]);
 
-  const handleTemplateChange = (value: string) => {
-    const nextTemplate = intentTemplateById(value);
-    setTemplateId(value);
-    setAmount(nextTemplate.amount);
-    setTargetAddress(nextTemplate.targetAddress);
-    setAssetAddress(nextTemplate.assetAddress ?? '');
+  const goToStep = (step: number) => {
+    setWizardStep(step);
+    setError(null);
+  };
+
+  const applyTemplate = (template: IntentTemplate) => {
+    setTemplateId(template.id);
+    setAmount(template.amount);
+    setTargetAddress(template.targetAddress);
+    setAssetAddress(template.assetAddress ?? '');
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -218,193 +255,140 @@ export default function SubmitIntentPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="intent-wizard-page">
       <Link href="/dashboard/executions" className="app-back-link">
         <ArrowLeft className="h-4 w-4" />
-        Back to Executions
+        Execution log
       </Link>
 
-      <PageHeader title="Execute Governed Action" description="Choose an agent action, check the matching mandate, then produce an execution proof or refusal." />
+      <PageHeader
+        title={GOVERNED_INTENT_LABEL}
+        description="Submit a policy-checked intent in four steps — pick an action, assign an agent, configure settlement, then review."
+        className="intent-wizard-header"
+      />
 
-      <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="app-card">
-        {agentsLoading ? (
-          <p className="text-sm text-[#64748b]">Loading agents...</p>
-        ) : !agents?.items.length ? (
-          <p className="text-sm text-[#64748b]">
-            No active agents. <Link href="/dashboard/register-agent" className="app-link">Register an agent</Link> first.
-          </p>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="app-form-group">
-            <label htmlFor="template">Template</label>
-            <select id="template" className="app-input" value={templateId} onChange={(e) => handleTemplateChange(e.target.value)}>
-              {INTENT_TEMPLATES.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="app-form-group">
-            <label htmlFor="agent">Agent</label>
-            <select id="agent" name="agentId" className="app-input" value={selectedAgent?.id ?? agentId} onChange={(e) => setAgentId(e.target.value)} required>
-              {agents?.items.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-            {matchingAgents.length === 1 && selectedAgent?.id !== matchingAgents[0].id && (
-              <p className="mt-1 text-xs text-amber-700">This template requires agent &quot;{matchingAgents[0].name}&quot;.</p>
-            )}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="app-form-group">
-              <label>Chain</label>
-              <div className="rounded-xl border border-[#eef0f3] px-3 py-2">
-                <ChainBadge chainId={selectedTemplate.targetChainId} />
-              </div>
+      <IntentWizardNav current={wizardStep} maxReached={maxStep} onStep={goToStep} />
+
+      <div className="intent-wizard-layout">
+        <div className="intent-wizard-main">
+          {agentsLoading ? (
+            <div className="app-panel-floating intent-wizard-panel">
+              <p className="text-sm text-[#5E6C7B]">Loading agents…</p>
             </div>
-            <div className="app-form-group">
-              <label htmlFor="amount">Amount ({amountSymbol})</label>
-              <input id="amount" name="amount" type="text" value={amount} onChange={(e) => setAmount(e.target.value)} className="app-input" />
-              <p className="mt-1 text-xs text-[#64748b]">
-                Human-readable {amountSymbol} amount. Example: entering <strong>1</strong> transfers 1 {amountSymbol}
-                {normalizedAmountPreview ? ` (${normalizedAmountPreview} base units)` : ''}.
+          ) : !agents?.items.length ? (
+            <div className="app-panel-floating intent-wizard-panel intent-empty-state">
+              <p className="text-sm font-semibold text-[#1A2332]">No active agents yet</p>
+              <p className="mt-2 text-sm text-[#5E6C7B]">
+                Create and publish an agent before submitting intents.
               </p>
-              <SelectedAssetBalance
-                walletAddress={connectedWallet}
-                chainId={selectedTemplate.targetChainId}
-                assetValue={resolvedSubmitAsset}
-              />
-              {!balanceWarning.ok && balanceWarning.message && (
-                <p className="mt-2 text-xs font-medium text-amber-700">{balanceWarning.message}</p>
-              )}
-            </div>
-          </div>
-          <div className="app-form-group">
-            <label htmlFor="target">Target Address</label>
-            <input id="target" name="targetAddress" type="text" value={targetAddress} onChange={(e) => setTargetAddress(e.target.value)} className="app-input font-mono" required />
-          </div>
-          <div className="app-form-group">
-            <label htmlFor="assetAddress">Asset</label>
-            <select
-              id="assetAddress"
-              className="app-input"
-              value={assetSelectValue(selectedTemplate.targetChainId, assetAddress)}
-              onChange={(e) => {
-                if (e.target.value !== 'custom') setAssetAddress(e.target.value);
-              }}
-            >
-              {chainAssets.map((asset) => (
-                <option key={asset.id} value={asset.mandateValue}>
-                  {asset.label}
-                </option>
-              ))}
-              <option value="custom">Custom address or symbol</option>
-            </select>
-            <input
-              aria-label="Custom asset address or symbol"
-              type="text"
-              value={assetAddress}
-              onChange={(e) => setAssetAddress(e.target.value)}
-              placeholder="native, USDC address, or demo symbol"
-              className="app-input mt-2 font-mono text-sm"
-            />
-            <p className="mt-2 text-xs leading-5 text-[#64748b]">{settlementNote}</p>
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {submitBlockedReason && <p className="text-sm font-medium text-amber-700">{submitBlockedReason}</p>}
-          <button type="submit" className="app-btn app-btn-primary" disabled={createMutation.isPending || Boolean(submitBlockedReason)}>
-            {createMutation.isPending ? 'Submitting...' : 'Submit for Evaluation'}
-          </button>
-          </form>
-        )}
-        </div>
-
-        <div className="space-y-5">
-          <div className="app-card">
-            <h3 className="app-card-title">Intent Preview</h3>
-            <p className="mt-2 text-sm text-[#64748b]">{selectedTemplate.description}</p>
-            <div className="mt-4 space-y-3">
-              {[
-                ['Action', selectedTemplate.actionType],
-                ['Target', targetAddress],
-                ['Amount', amount ? executionAmountLabel(amount, amountDecimals, amountSymbol) : 'Not set'],
-                ['Asset', selectedAsset?.symbol ?? resolvedSubmitAsset],
-                ['Mandate', selectedMandate?.id ?? 'No matching mandate'],
-              ].map(([label, value]) => (
-                <div key={label} className="wallet-row">
-                  <span>{label}</span>
-                  <strong className="break-all">{value}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="app-card">
-            <h3 className="app-card-title">Readiness</h3>
-            <div className="mt-4 space-y-3">
-              {[
-                ['Active agent', Boolean(selectedAgent)],
-                ['Assigned policy', Boolean(selectedAgent?.defaultPolicyId)],
-                ['Matching mandate', Boolean(selectedMandate)],
-              ].map(([label, complete]) => (
-                <div key={String(label)} className="flex items-center gap-3 rounded-2xl border border-[#eef0f3] p-3">
-                  {complete ? <CheckCircle className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5 text-[#94a3b8]" />}
-                  <span className="text-sm font-medium text-[#012b54]">{label}</span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm leading-6 text-[#64748b]">
-              {approvalExplanation}
-            </p>
-          </div>
-
-          {showUsdcBudget ? (
-            <div className="app-card">
-              <h3 className="app-card-title">USDC Budget Check</h3>
-              <div className="mt-4">
-                <BudgetMeter agentId={selectedAgent?.id} compact chainId={421614} />
-              </div>
-              <p className="mt-3 text-xs leading-5 text-[#64748b]">
-                USDC budget applies to Arbitrum USDC payments only. Robinhood stock transfers use wallet token balance instead.
-              </p>
-            </div>
-          ) : (
-            <div className="app-card">
-              <h3 className="app-card-title">{amountSymbol} Settlement Check</h3>
-              <p className="mt-2 text-sm leading-6 text-[#64748b]">
-                This template settles {amountSymbol} on chain — not USDC budget. Your connected wallet must hold enough {amountSymbol} (and approval) for the amount entered.
-              </p>
-              <div className="mt-4">
-                <SelectedAssetBalance
-                  walletAddress={connectedWallet}
-                  chainId={selectedTemplate.targetChainId}
-                  assetValue={resolvedSubmitAsset}
-                />
-              </div>
-            </div>
-          )}
-
-          {showUsdcBudget && (
-            <div className="app-card">
-              <h3 className="app-card-title">x402 USDC Payments</h3>
-              <p className="mt-2 text-sm leading-6 text-[#64748b]">
-                HTTP-native governed payments with budget enforcement and public proof URLs.
-              </p>
-              <Link href="/dashboard/payments" className="app-btn app-btn-outline mt-4 inline-flex">
-                Open x402 Payments sandbox
+              <Link href="/dashboard/agents/studio" className="app-btn app-btn-primary mt-4">
+                Open Agent Studio
               </Link>
             </div>
-          )}
+          ) : (
+            <form onSubmit={handleSubmit} className="app-panel-floating intent-wizard-panel">
+              {wizardStep === 1 && (
+                <IntentTemplatePicker
+                  templates={INTENT_TEMPLATES}
+                  selectedId={templateId}
+                  onSelect={applyTemplate}
+                  onContinue={() => goToStep(2)}
+                />
+              )}
 
-          <div className="app-card">
-            <h3 className="app-card-title">Wallet on this chain</h3>
-            <div className="mt-4">
-              <WalletBalancesPanel walletAddress={connectedWallet} chainId={selectedTemplate.targetChainId} compact />
-            </div>
-          </div>
+              {wizardStep === 2 && (
+                <IntentAgentPicker
+                  agents={agents.items}
+                  matchingAgentIds={matchingAgentIds}
+                  selectedId={agentId || selectedAgent?.id || ''}
+                  templateName={selectedTemplate.name}
+                  onSelect={setAgentId}
+                  onBack={() => goToStep(1)}
+                  onContinue={() => goToStep(3)}
+                />
+              )}
+
+              {wizardStep === 3 && (
+                <IntentConfigPanel
+                  chainId={selectedTemplate.targetChainId}
+                  amount={amount}
+                  amountSymbol={amountSymbol}
+                  targetAddress={targetAddress}
+                  assetAddress={assetAddress}
+                  chainAssets={chainAssets}
+                  settlementNote={settlementNote}
+                  connectedWallet={connectedWallet}
+                  resolvedAsset={resolvedSubmitAsset}
+                  balanceWarning={balanceWarning}
+                  onAmountChange={setAmount}
+                  onTargetChange={setTargetAddress}
+                  onAssetChange={setAssetAddress}
+                  assetSelectValue={assetSelectValue(selectedTemplate.targetChainId, assetAddress)}
+                  onBack={() => goToStep(2)}
+                  onContinue={() => goToStep(4)}
+                />
+              )}
+
+              {wizardStep === 4 && selectedAgent && (
+                <div className="intent-review-step">
+                  <div className="intent-step-intro">
+                    <p className="intent-step-eyebrow">Step 4</p>
+                    <h2 className="intent-step-title">Review & submit</h2>
+                    <p className="intent-step-desc">Confirm the details below. VALEN runs governance gates before any settlement.</p>
+                  </div>
+
+                  <IntentReviewCard
+                    agentName={selectedAgent.name}
+                    templateName={selectedTemplate.name}
+                    actionType={selectedTemplate.actionType}
+                    chainId={selectedTemplate.targetChainId}
+                    amount={amount}
+                    amountDecimals={amountDecimals}
+                    amountSymbol={amountSymbol}
+                    targetAddress={targetAddress}
+                    assetSymbol={selectedAsset?.symbol ?? amountSymbol}
+                    mandateId={selectedMandate?.id}
+                    approvalExplanation={approvalExplanation}
+                  />
+
+                  {error && <p className="intent-error">{error}</p>}
+                  {submitBlockedReason && <p className="intent-hint intent-hint--warn">{submitBlockedReason}</p>}
+
+                  <div className="intent-step-actions intent-step-actions--submit">
+                    <button type="button" className="app-btn app-btn-outline" onClick={() => goToStep(3)}>
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="app-btn app-btn-primary intent-submit-btn"
+                      disabled={createMutation.isPending || Boolean(submitBlockedReason)}
+                    >
+                      {createMutation.isPending ? 'Submitting…' : 'Submit intent'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </form>
+          )}
         </div>
+
+        <IntentContextSidebar
+          template={selectedTemplate}
+          targetAddress={targetAddress}
+          amount={amount}
+          amountDecimals={amountDecimals}
+          amountSymbol={amountSymbol}
+          assetSymbol={selectedAsset?.symbol ?? amountSymbol}
+          resolvedAsset={resolvedSubmitAsset}
+          mandateId={selectedMandate?.id}
+          agentName={selectedAgent?.name}
+          approvalExplanation={approvalExplanation}
+          readiness={readiness}
+          showUsdcBudget={showUsdcBudget}
+          agentId={selectedAgent?.id}
+          connectedWallet={connectedWallet}
+          wizardStep={wizardStep}
+        />
       </div>
     </div>
   );
