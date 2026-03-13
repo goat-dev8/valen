@@ -17,6 +17,8 @@ import {
   ChevronDown,
   Landmark,
   Shield,
+  Wallet,
+  Blocks,
 } from 'lucide-react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { cn } from '@/lib/utils';
@@ -28,6 +30,7 @@ const MENU_ITEMS = [
   { href: '/dashboard/executions', label: 'Executions', icon: Zap },
   { href: '/dashboard/approvals', label: 'Approvals', icon: CheckCircle, badgeKey: 'approvals' as const },
   { href: '/dashboard/settlements', label: 'Settlements', icon: ArrowLeftRight },
+  { href: '/dashboard/wallets', label: 'Wallets', icon: Wallet },
 ];
 
 const PAGE_ITEMS = [
@@ -37,6 +40,7 @@ const PAGE_ITEMS = [
   { href: '/dashboard/audit', label: 'Audit Logs', icon: ScrollText },
   { href: '/dashboard/governance', label: 'Governance', icon: Shield },
   { href: '/dashboard/treasury', label: 'Treasury', icon: Landmark },
+  { href: '/dashboard/contracts', label: 'Contracts', icon: Blocks },
   { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
   { href: '/dashboard/team', label: 'Team', icon: Users },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
