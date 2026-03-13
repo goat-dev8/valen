@@ -6,23 +6,17 @@ import { ValenLogo } from '@/components/brand/valen-logo';
 
 const MAIN_PAGES = [
   { href: '#home', label: 'Home' },
-  { href: '#about', label: 'About' },
-  { href: '#features', label: 'Services' },
-  { href: '#get-started', label: 'Contact' },
-  { href: '#pricing', label: 'Pricing' },
+  { href: '#modules', label: 'Modules' },
+  { href: '#how-it-works', label: 'Journey' },
+  { href: '#demos', label: 'Demos' },
+  { href: '#get-started', label: 'Get Started' },
 ];
 
 const UTILITY_PAGES = [
-  { href: '#faq', label: 'FAQs' },
-  { href: '#how-it-works', label: 'How It Works' },
-  { href: '#integrations', label: 'Integrations' },
+  { href: '/proofs/pack', label: 'Proof Pack' },
+  { href: '/agents/valen', label: 'Agent Profile' },
+  { href: 'https://valen-api-m3g4.onrender.com/docs', label: 'API Docs' },
   { href: '/login', label: 'Login' },
-];
-
-const SOCIALS = [
-  { href: '#', label: 'FACEBOOK' },
-  { href: '#', label: 'INSTAGRAM' },
-  { href: '#', label: 'LINKEDIN' },
 ];
 
 const LEFT_BARS = [72, 96, 120, 88, 104];
@@ -35,34 +29,17 @@ export function FooterSection() {
         <div className="footer-top">
           <div className="footer-brand-col">
             <ValenLogo href="#home" size="md" variant="light" />
-
-            <p className="footer-newsletter-title">Subscribe For Our Newsletter</p>
-
-            <form
-              className="footer-newsletter-form"
-              onSubmit={(e) => e.preventDefault()}
-            >
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                className="footer-newsletter-input"
-                aria-label="Email address"
-              />
-              <button type="submit" className="footer-newsletter-submit" aria-label="Subscribe">
-                <ArrowRight className="h-4 w-4" strokeWidth={2} />
-              </button>
-            </form>
-
-            <label className="footer-privacy">
-              <input type="checkbox" name="privacy" className="footer-privacy-checkbox" />
-              <span>I agree to the Privacy Policy</span>
-            </label>
+            <p className="footer-tagline">
+              Compliance, risk, and permission layer for agentic finance. Infrastructure — not a wallet or DEX.
+            </p>
+            <Link href="/login" className="footer-cta-link">
+              Launch dashboard <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
 
           <div className="footer-nav-cols">
             <div className="footer-nav-col">
-              <h4 className="footer-nav-title">MAIN PAGES</h4>
+              <h4 className="footer-nav-title">PRODUCT</h4>
               <ul className="footer-nav-links">
                 {MAIN_PAGES.map((link) => (
                   <li key={link.href}>
@@ -73,22 +50,17 @@ export function FooterSection() {
             </div>
 
             <div className="footer-nav-col">
-              <h4 className="footer-nav-title">UTILITY PAGES</h4>
+              <h4 className="footer-nav-title">RESOURCES</h4>
               <ul className="footer-nav-links">
                 {UTILITY_PAGES.map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href}>{link.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="footer-nav-col">
-              <h4 className="footer-nav-title">SOCIALS</h4>
-              <ul className="footer-nav-links">
-                {SOCIALS.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href}>{link.label}</Link>
+                    {link.href.startsWith('http') ? (
+                      <a href={link.href} target="_blank" rel="noopener noreferrer">
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link href={link.href}>{link.label}</Link>
+                    )}
                   </li>
                 ))}
               </ul>

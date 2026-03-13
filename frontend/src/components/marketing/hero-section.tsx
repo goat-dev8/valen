@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { HeroDashboardMock } from '@/components/marketing/hero-dashboard-mock';
+import { HERO_PIPELINE } from '@/lib/landing-content';
 
 /**
  * Vertical border lines inside .hero-border-frame (reference: .border-line).
@@ -30,7 +31,7 @@ function BorderLines({ count, baseDelay = 0 }: { count: number; baseDelay?: numb
 
 const CHAIN_BADGES = [
   { name: 'Arbitrum Sepolia', src: '/arbitrum-logo.png' },
-  { name: 'Robinhood Chain Testnet', src: '/robinhood-chain-logo.svg' },
+  { name: 'Robinhood Chain Testnet', src: '/robinhood.svg' },
 ];
 
 export function HeroSection() {
@@ -54,38 +55,37 @@ export function HeroSection() {
                   />
                 ))}
               </div>
-              <span className="text-sm leading-5 text-[#31485f]">Live on 2 Arbitrum chains</span>
+              <span className="text-sm leading-5 text-[#31485f]">Arbitrum Sepolia · Robinhood Testnet</span>
             </div>
 
             <h1 className="hero-headline">
-              <span className="hero-headline-line fade-up fade-up-delay-1">The operating system</span>
+              <span className="hero-headline-line fade-up fade-up-delay-1">Compliance, risk &amp; permission</span>
               <span className="hero-headline-line fade-up fade-up-delay-2">
                 for{' '}
-                <span className="hero-headline-mark text-frame-underline">autonomous finance</span>.
+                <span className="hero-headline-mark text-frame-underline">agentic finance</span>.
               </span>
             </h1>
 
-            <p className="fade-up fade-up-delay-3 mx-auto max-w-[520px] text-lg leading-7 text-[#31485f]">
-              Create an agent, give it a USDC budget and rules, let it act, and see immutable proof for every
-              approval or refusal across Arbitrum and Robinhood.
+            <p className="fade-up fade-up-delay-3 mx-auto max-w-[560px] text-lg leading-7 text-[#31485f]">
+              Infrastructure between autonomous AI agents and on-chain execution. Scoped mandates, Stylus engine
+              evaluation, budget caps, and a public proof for every outcome — settled or refused.
             </p>
 
             <div className="fade-up fade-up-delay-4 flex flex-wrap justify-center gap-[15px]">
-              <Link href="/dashboard" className="btn-primary inline-block">
-                Create Agent
+              <Link href="/login" className="btn-primary inline-block">
+                Get Started
               </Link>
-              <Link href="/login" className="btn-white inline-block">
-                See Proof Flow
+              <Link href="/proofs/pack" className="btn-white inline-block">
+                See Live Proofs
               </Link>
             </div>
 
             <div className="hero-pipeline fade-up fade-up-delay-5">
-              {['Connect', 'Agent', 'Rules', 'USDC Budget', 'Execute', 'Proof'].map(
-                (step, i, arr) => (
+              {HERO_PIPELINE.map((step, i, arr) => (
                   <span key={step} className="hero-pipeline-item">
                     <span
                       className={
-                        i >= 2 && i <= 3
+                        i >= 1 && i <= 3
                           ? 'hero-pipeline-step hero-pipeline-step-engine'
                           : 'hero-pipeline-step'
                       }

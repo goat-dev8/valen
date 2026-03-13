@@ -115,11 +115,11 @@ export function IntegrationsSection() {
       <div className="landing-container">
         <div ref={ref} className={cn('integrations-content', visible && 'scroll-revealed')}>
           <div className="section-top-block">
-            <SectionBadge suffix="Integrations" label="Connect with platform" />
-            <h2 className="landing-heading">Integrate with your overall workflow</h2>
+            <SectionBadge suffix="Standards" label="Protocol alignment" />
+            <h2 className="landing-heading">Built on emerging agentic finance standards</h2>
             <p className="integrations-desc">
-              Integrate VALEN with your team&apos;s stack and create a powerful compliance insights
-              hub that fits seamlessly with the way you work.
+              ERC-8226 mandates, ERC-8004 identity, x402 payments, Stylus engines, and dual-chain settlement —
+              unified under one fail-closed pipeline.
             </p>
           </div>
 

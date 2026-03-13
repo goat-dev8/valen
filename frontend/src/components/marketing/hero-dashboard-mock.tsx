@@ -16,17 +16,17 @@ import { useCountUp } from '@/hooks/use-count-up';
 
 const PIPELINE = [
   { key: 'intent', label: 'Intent', status: 'done' },
-  { key: 'compliance', label: 'Compliance', status: 'done' },
-  { key: 'risk', label: 'Risk', status: 'active' },
-  { key: 'policy', label: 'Policy', status: 'idle' },
-  { key: 'settlement', label: 'Settlement', status: 'idle' },
+  { key: 'policy', label: 'Policy', status: 'done' },
+  { key: 'budget', label: 'Budget', status: 'active' },
+  { key: 'risk', label: 'Risk', status: 'idle' },
+  { key: 'proof', label: 'Proof', status: 'idle' },
 ] as const;
 
 const EXECUTIONS = [
-  { id: '8f2a…c41', agent: 'Agent-42', action: 'Buy 500 USDG · TokenX', status: 'approved' as const, chain: 'Sepolia' },
-  { id: '1b9d…a02', agent: 'Agent-07', action: 'Transfer mandate cap', status: 'pending' as const, chain: 'RH Testnet' },
-  { id: '9b1c…7e2', agent: 'Agent-42', action: 'Buy 2,000 USDG · TokenX', status: 'blocked' as const, chain: 'Sepolia' },
-  { id: '4e88…91f', agent: 'Agent-19', action: 'Policy version bump', status: 'approved' as const, chain: 'Sepolia' },
+  { id: '07736a69…', agent: 'valen', action: 'Transfer 0.001 USDC', status: 'approved' as const, chain: 'Sepolia' },
+  { id: '1b9d…a02', agent: 'valen', action: 'x402 micropayment', status: 'pending' as const, chain: 'Sepolia' },
+  { id: '9b1c…7e2', agent: 'valen', action: 'Transfer TSLA · refused', status: 'blocked' as const, chain: 'RH Testnet' },
+  { id: '4e88…91f', agent: 'valen', action: 'Policy v2 published', status: 'approved' as const, chain: 'Sepolia' },
 ];
 
 const SPARKLINE = [38, 52, 44, 68, 58, 72, 64, 78, 70, 84, 76, 88];
@@ -66,7 +66,7 @@ export function HeroDashboardMock() {
             <span className="hero-dashboard-live-ping" />
             Live
           </span>
-          Compliance &amp; Risk Overview
+          Compliance &amp; Risk · Home
         </div>
         <span className="hero-dashboard-chain-pill">Arbitrum Sepolia</span>
       </div>

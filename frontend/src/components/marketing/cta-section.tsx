@@ -15,15 +15,19 @@ export function CtaSection() {
       <div className="landing-container">
         <div ref={ref} className={cn('cta-card', visible && 'scroll-revealed')}>
           <div className="cta-pattern" />
-          <h2 className="cta-heading">
-            Get ready to transform intents into compliant settlements!
-          </h2>
+          <h2 className="cta-heading">Deploy governed agents on live testnets today</h2>
           <p className="cta-desc">
-            Ready for policy-powered agentic finance? Get started now with one of our packages today.
+            Connect → Agent Studio → Policy → Authority → Intent → Proof. Every refusal is as valuable as
+            every settlement.
           </p>
-          <Link href="#pricing" className="cta-btn">
-            Get your first insight <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="cta-actions">
+            <Link href="/login" className="cta-btn">
+              Get Started <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/proofs/pack" className="cta-btn cta-btn--ghost">
+              View proof pack <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </div>
     </section>

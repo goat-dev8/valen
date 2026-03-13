@@ -8,10 +8,10 @@ import { useScrollReveal } from '@/hooks/use-scroll-reveal';
 import { cn } from '@/lib/utils';
 
 const NOTIFICATIONS = [
-  { user: '@Agent-42', action: 'Intent approved by compliance', time: '15 min ago' },
-  { user: '@Policy', action: 'Risk threshold updated: 0.72 → 0.65', time: '32 min ago' },
-  { user: '@Audit', action: 'Settlement logged on Arbitrum Sepolia', time: '1 hr ago' },
-  { user: '@Mandate', action: 'New spending cap enforced for wallet', time: '2 hr ago' },
+  { user: 'Execution', action: 'USDC transfer settled on Arbitrum Sepolia', time: 'Just now' },
+  { user: 'Refusal', action: 'TSLA transfer blocked — POLICY_CAP_EXCEEDED', time: '12 min ago' },
+  { user: 'Approval', action: 'High-risk intent awaiting owner signature', time: '28 min ago' },
+  { user: 'x402', action: 'Micropayment proof published with evidence hash', time: '1 hr ago' },
 ];
 
 export function NotificationSection() {
@@ -23,16 +23,16 @@ export function NotificationSection() {
       <div className="landing-container">
         <div ref={ref} className={cn('notification-grid', visible && 'scroll-revealed')}>
           <div className="notification-copy">
-            <SectionBadge suffix="Know More" label="Smart Notification" />
+            <SectionBadge suffix="Alerts" label="Fail-closed feedback" />
             <h2 className="landing-heading text-left">
-              Smart notification alerts across your compliance layer
+              Approvals, refusals, and settlements — in real time
             </h2>
             <p className="notification-desc">
-              Integrate VALEN with your team&apos;s stack and create a powerful compliance hub that
-              fits seamlessly with the way you work.
+              When risk tier requires human oversight, approvers get in-app alerts. Every blocked intent still
+              produces a public refusal receipt.
             </p>
-            <Link href="#get-started" className="btn-primary inline-flex items-center gap-2">
-              Get Started <ArrowRight className="h-4 w-4" />
+            <Link href="/login" className="btn-primary inline-flex items-center gap-2">
+              Open dashboard <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
@@ -44,29 +44,28 @@ export function NotificationSection() {
                   <span className="window-dot window-dot-yellow" />
                   <span className="window-dot window-dot-green" />
                 </div>
-                <span className="text-xs text-[#31485f]">VALEN Activity</span>
+                <span className="text-xs text-[#31485f]">VALEN · Outcomes</span>
               </div>
               <div className="notification-window-body">
                 <div className="notification-tabs">
-                  <span className="notification-tab notification-tab-active">Inbox 82</span>
-                  <span className="notification-tab">Activities</span>
-                  <span className="notification-tab">Policies</span>
+                  <span className="notification-tab notification-tab-active">Proofs 3</span>
+                  <span className="notification-tab">Approvals 1</span>
+                  <span className="notification-tab">Audit</span>
                 </div>
                 <div className="notification-header-row">
-                  <span className="font-semibold text-[#012b54]">All Activities</span>
-                  <span className="text-sm text-[#007dfc]">See All</span>
+                  <span className="font-semibold text-[#012b54]">Latest outcomes</span>
+                  <span className="text-sm text-[#007dfc]">Proof pack</span>
                 </div>
                 <div className="notification-list">
                   {NOTIFICATIONS.map((n) => (
-                    <div key={n.time + n.user} className="notification-item">
-                      <div className="notification-avatar" />
+                    <div key={n.time + n.user} className="notification-item notification-item--slide">
+                      <div className="notification-avatar notification-avatar--pulse" />
                       <div className="flex-1">
                         <p className="text-sm text-[#012b54]">
-                          <strong>{n.user}</strong> {n.action}
+                          <strong>{n.user}</strong> · {n.action}
                         </p>
                         <span className="text-xs text-[#31485f]">{n.time}</span>
                       </div>
-                      <div className="notification-placeholder" />
                     </div>
                   ))}
                 </div>

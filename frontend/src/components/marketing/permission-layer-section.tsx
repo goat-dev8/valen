@@ -37,28 +37,28 @@ const ENGINES = [
 
 const EVALUATIONS = [
   {
-    id: '8f2a…c41',
-    intent: 'Buy 500 USDG · TokenX',
-    agent: 'Agent-42',
+    id: '07736a69…',
+    intent: 'Transfer 0.001 USDC · Arbitrum Sepolia',
+    agent: 'valen',
     verdict: 'approved' as const,
-    settlement: 'Arbitrum Sepolia',
+    settlement: 'ValenSettlement',
     steps: [
-      { label: 'Compliance', result: 'PASS', note: 'mandate valid · US jurisdiction' },
-      { label: 'Risk', result: 'PASS', note: 'score 18 · LOW' },
-      { label: 'Policy', result: 'PASS', note: 'within 1,000 USDG cap' },
-      { label: 'Settlement', result: 'APPROVED', note: 'transfer executed' },
+      { label: 'Mandate', result: 'PASS', note: 'EIP-712 scope valid · 421614' },
+      { label: 'Compliance', result: 'PASS', note: 'Stylus · US jurisdiction' },
+      { label: 'Budget', result: 'PASS', note: 'within agent USDC cap' },
+      { label: 'Settlement', result: 'EXECUTED', note: 'tx 0xf3f5526a…' },
     ],
   },
   {
     id: '9b1c…7e2',
-    intent: 'Buy 2,000 USDG · TokenX',
-    agent: 'Agent-42',
+    intent: 'Transfer TSLA · Robinhood Testnet',
+    agent: 'valen',
     verdict: 'blocked' as const,
     settlement: 'Settlement Gate',
     steps: [
-      { label: 'Compliance', result: 'PASS', note: 'mandate valid · US jurisdiction' },
-      { label: 'Risk', result: 'PASS', note: 'score 24 · LOW' },
-      { label: 'Policy', result: 'FAIL', note: 'exceeds 1,000 USDG cap' },
+      { label: 'Mandate', result: 'PASS', note: 'EIP-712 scope valid · 46630' },
+      { label: 'Policy', result: 'FAIL', note: 'exceeds maxPerTx cap' },
+      { label: 'Budget', result: 'SKIP', note: 'blocked before spend' },
       { label: 'Settlement', result: 'BLOCKED', note: 'POLICY_CAP_EXCEEDED' },
     ],
   },
@@ -177,7 +177,9 @@ export function PermissionLayerSection() {
                                 'permission-eval-step-result',
                                 step.result === 'FAIL' || step.result === 'BLOCKED'
                                   ? 'permission-eval-step-fail'
-                                  : 'permission-eval-step-pass',
+                                  : step.result === 'SKIP'
+                                    ? 'permission-eval-step-skip'
+                                    : 'permission-eval-step-pass',
                               )}
                             >
                               {step.result}
