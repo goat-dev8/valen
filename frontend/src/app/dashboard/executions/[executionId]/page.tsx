@@ -29,6 +29,23 @@ const SETTLEMENT_AUDIT_EVENTS = new Set([
   'settlement.failed',
 ]);
 
+function riskStatusMessage(status: string): string {
+  if (status === 'failed') return 'Execution failed before risk was calculated.';
+  if (status === 'compliance_failed') return 'Execution failed during compliance; risk was not calculated.';
+  if (status === 'risk_failed') return 'Risk evaluation failed for this execution.';
+  if (status === 'cancelled') return 'Execution was cancelled before risk was calculated.';
+  return 'Risk not calculated yet.';
+}
+
+function settlementStatusMessage(status: string): string {
+  if (status === 'failed') return 'Execution failed before settlement was created.';
+  if (status === 'cancelled') return 'Execution was cancelled before settlement.';
+  if (['created', 'validated', 'compliance_failed', 'risk_failed', 'policy_rejected'].includes(status)) {
+    return 'Settlement has not started for this execution.';
+  }
+  return 'No settlement record yet.';
+}
+
 export default function ExecutionDetailPage() {
   const params = useParams();
   const executionId = params.executionId as string;
@@ -185,7 +202,7 @@ export default function ExecutionDetailPage() {
                 <div className="app-card">
                   <h3 className="app-card-title mb-3">Risk Score</h3>
                   {!risk ? (
-                    <p className="text-sm text-[#64748b]">Risk not calculated yet.</p>
+                    <p className="text-sm text-[#64748b]">{riskStatusMessage(ex.status)}</p>
                   ) : (
                     <>
                       <div className="flex items-center gap-3">
@@ -202,7 +219,7 @@ export default function ExecutionDetailPage() {
                 <div className="app-card">
                   <h3 className="app-card-title mb-3">Settlement</h3>
                   {!settlement ? (
-                    <p className="text-sm text-[#64748b]">No settlement record yet.</p>
+                    <p className="text-sm text-[#64748b]">{settlementStatusMessage(ex.status)}</p>
                   ) : (
                     <>
                       <dl className="app-detail-list">

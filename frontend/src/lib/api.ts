@@ -1,4 +1,4 @@
-import { ApiClientError, apiRequest } from '@/lib/api-client';
+import { ApiClientError, apiRequest, apiRequestOrNull } from '@/lib/api-client';
 import type {
   AgentDto,
   AgentWalletDto,
@@ -162,12 +162,12 @@ export const api = {
 
   risk: {
     get: (token: string, orgId: string, executionId: string) =>
-      apiRequest<RiskScoreDto>(orgPath(orgId, `/executions/${executionId}/risk`), { token }),
+      apiRequestOrNull<RiskScoreDto>(orgPath(orgId, `/executions/${executionId}/risk`), { token }),
   },
 
   settlements: {
     get: (token: string, orgId: string, executionId: string) =>
-      apiRequest<SettlementDto>(orgPath(orgId, `/executions/${executionId}/settlement`), { token }),
+      apiRequestOrNull<SettlementDto>(orgPath(orgId, `/executions/${executionId}/settlement`), { token }),
     retry: (token: string, orgId: string, settlementId: string, reason: string) =>
       apiRequest<SettlementDto>(orgPath(orgId, `/settlements/${settlementId}/retry`), {
         method: 'POST',

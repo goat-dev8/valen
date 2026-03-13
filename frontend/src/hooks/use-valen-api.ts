@@ -63,6 +63,7 @@ export function useExecutionRisk(executionId: string) {
     queryKey: ['execution-risk', orgId, executionId],
     queryFn: () => api.risk.get(token!, orgId!, executionId),
     enabled: enabled && Boolean(executionId),
+    retry: false,
   });
 }
 

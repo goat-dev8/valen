@@ -88,3 +88,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   return data as T;
 }
+
+export async function apiRequestOrNull<T>(path: string, options: RequestOptions = {}): Promise<T | null> {
+  try {
+    return await apiRequest<T>(path, options);
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
