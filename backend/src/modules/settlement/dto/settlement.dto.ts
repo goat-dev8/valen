@@ -101,6 +101,21 @@ export class ExecutionResponseDto {
   @ApiProperty()
   requestPayloadHash!: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  assetAddress?: string | null;
+
+  @ApiPropertyOptional()
+  assetSymbol?: string;
+
+  @ApiPropertyOptional()
+  assetDecimals?: number;
+
+  @ApiPropertyOptional({ enum: ['native_eth', 'policy_label_only'] })
+  settlementMode?: 'native_eth' | 'policy_label_only';
+
+  @ApiPropertyOptional()
+  settlementExplanation?: string;
+
   @ApiProperty()
   createdAt!: string;
 
