@@ -100,16 +100,6 @@ export async function deployValen(): Promise<DeploymentRecord> {
   await treasury.contract.setSettlementContract(await settlement.contract.getAddress());
   await auditLog.authorizeEmitter(await settlement.contract.getAddress(), true);
 
-  const proposerRole = await timelock.PROPOSER_ROLE();
-  const executorRole = await timelock.EXECUTOR_ROLE();
-  const governanceAddress = await governance.contract.getAddress();
-  if (!(await timelock.hasRole(proposerRole, governanceAddress))) {
-    await timelock.grantRole(proposerRole, governanceAddress);
-  }
-  if (!(await timelock.hasRole(executorRole, governanceAddress))) {
-    await timelock.grantRole(executorRole, governanceAddress);
-  }
-
   const record: DeploymentRecord = {
     network: network.name,
     chainId: net.chainId.toString(),

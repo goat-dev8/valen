@@ -1,81 +1,73 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { operatorFetch } from '@/lib/api';
-import { formatTimestamp } from '@/lib/utils';
+import { Download } from 'lucide-react';
+import { useState } from 'react';
+import { PageHeader } from '@/components/app/page-header';
+import { QueryState } from '@/components/app/query-state';
+import { useAuditExport, useAuditLogs } from '@/hooks/use-valen-api';
 
 export default function AuditPage() {
-  const { data, error, isLoading } = useQuery({
-    queryKey: ['operator-audit'],
-    queryFn: () => operatorFetch<{
-      databaseAuditLogs: Array<Record<string, unknown>>;
-      recentExecutions: Array<Record<string, unknown>>;
-    }>('audit?limit=50'),
-  });
+  const { data, isLoading, error } = useAuditLogs({ limit: 50 });
+  const exportMutation = useAuditExport();
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+
+  const handleExport = async () => {
+    setExportMsg(null);
+    try {
+      const end = new Date();
+      const start = new Date();
+      start.setMonth(start.getMonth() - 1);
+      const result = await exportMutation.mutateAsync({
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+        format: 'json',
+        entityTypes: ['execution', 'settlement', 'policy'],
+      });
+      setExportMsg(`Export ${result.exportId} started — ${result.recordCount} records (${result.status})`);
+    } catch (err) {
+      setExportMsg(err instanceof Error ? err.message : 'Export failed');
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Audit Panel</h1>
-        <p className="mt-2 text-neutral-600">Database audit records correlated with recent execution history.</p>
-      </div>
+      <PageHeader title="Audit Logs" description="Immutable evidence trail for compliance and regulatory export">
+        <button type="button" className="app-btn app-btn-primary" onClick={handleExport} disabled={exportMutation.isPending}>
+          <Download className="h-4 w-4" />
+          Export Report
+        </button>
+      </PageHeader>
 
-      {isLoading && <p>Loading audit records…</p>}
-      {error && <p className="text-red-600">{(error as Error).message}</p>}
+      {exportMsg && <p className="text-sm text-[#64748b]">{exportMsg}</p>}
 
-      <Card>
-        <CardHeader><CardTitle>Database audit logs</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Entity</TableHead>
-                <TableHead>Tx hash</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(data?.databaseAuditLogs ?? []).map((row) => (
-                <TableRow key={String(row.id)}>
-                  <TableCell>{formatTimestamp(String(row.created_at))}</TableCell>
-                  <TableCell>{String(row.action)}</TableCell>
-                  <TableCell>{String(row.entity_type)}:{String(row.entity_id).slice(0, 8)}…</TableCell>
-                  <TableCell className="font-mono text-xs">{String(row.tx_hash ?? '—')}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Recent executions</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Chain</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(data?.recentExecutions ?? []).map((row) => (
-                <TableRow key={String(row.id)}>
-                  <TableCell className="font-mono text-xs">{String(row.id)}</TableCell>
-                  <TableCell>{String(row.status)}</TableCell>
-                  <TableCell>{String(row.target_chain_id)}</TableCell>
-                  <TableCell>{formatTimestamp(String(row.created_at))}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <QueryState isLoading={isLoading} error={error} isEmpty={!data?.items.length} emptyMessage="No audit logs found">
+        <div className="app-card">
+          <div className="app-table-wrap">
+            <table className="app-table">
+              <thead>
+                <tr>
+                  <th>Actor</th>
+                  <th>Action</th>
+                  <th>Entity</th>
+                  <th>Event Hash</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data?.items.map((log) => (
+                  <tr key={log.id}>
+                    <td className="capitalize">{log.actorType.replace(/_/g, ' ')}</td>
+                    <td className="font-mono text-xs">{log.action}</td>
+                    <td className="font-mono text-xs">{log.entityType}:{log.entityId.slice(0, 8)}...</td>
+                    <td className="font-mono text-xs text-[#64748b]">{log.eventHash.slice(0, 12)}...</td>
+                    <td className="text-[#64748b]">{new Date(log.createdAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </QueryState>
     </div>
   );
 }

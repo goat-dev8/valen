@@ -11,19 +11,16 @@ import {
   NOTIFICATION_QUEUE,
 } from '../../common/constants/queues.constant';
 import { DEFAULT_JOB_OPTIONS } from '../bullmq.config';
-import { enqueueDeterministicJob } from '../queue-enqueue.util';
 
 @Injectable()
 export class IntentProducer {
   constructor(@InjectQueue(INTENT_QUEUE) private readonly queue: Queue) {}
 
   async enqueue(data: { organizationId: string; executionId: string }) {
-    await enqueueDeterministicJob(
-      this.queue,
-      'process-intent',
-      data,
-      `intent-${data.executionId}`,
-    );
+    await this.queue.add('process-intent', data, {
+      ...DEFAULT_JOB_OPTIONS,
+      jobId: `intent-${data.executionId}`,
+    });
   }
 }
 
@@ -32,12 +29,10 @@ export class ComplianceProducer {
   constructor(@InjectQueue(COMPLIANCE_QUEUE) private readonly queue: Queue) {}
 
   async enqueue(data: { organizationId: string; executionId: string }) {
-    await enqueueDeterministicJob(
-      this.queue,
-      'process-compliance',
-      data,
-      `compliance-${data.executionId}`,
-    );
+    await this.queue.add('process-compliance', data, {
+      ...DEFAULT_JOB_OPTIONS,
+      jobId: `compliance-${data.executionId}`,
+    });
   }
 }
 
@@ -46,12 +41,10 @@ export class RiskProducer {
   constructor(@InjectQueue(RISK_QUEUE) private readonly queue: Queue) {}
 
   async enqueue(data: { organizationId: string; executionId: string }) {
-    await enqueueDeterministicJob(
-      this.queue,
-      'process-risk',
-      data,
-      `risk-${data.executionId}`,
-    );
+    await this.queue.add('process-risk', data, {
+      ...DEFAULT_JOB_OPTIONS,
+      jobId: `risk-${data.executionId}`,
+    });
   }
 }
 
@@ -60,12 +53,10 @@ export class PolicyProducer {
   constructor(@InjectQueue(POLICY_QUEUE) private readonly queue: Queue) {}
 
   async enqueue(data: { organizationId: string; executionId: string }) {
-    await enqueueDeterministicJob(
-      this.queue,
-      'process-policy',
-      data,
-      `policy-${data.executionId}`,
-    );
+    await this.queue.add('process-policy', data, {
+      ...DEFAULT_JOB_OPTIONS,
+      jobId: `policy-${data.executionId}`,
+    });
   }
 }
 
@@ -79,12 +70,10 @@ export class SettlementProducer {
     settlementId: string;
     idempotencyKey: string;
   }) {
-    await enqueueDeterministicJob(
-      this.queue,
-      'process-settlement',
-      data,
-      `settlement-${data.idempotencyKey}`,
-    );
+    await this.queue.add('process-settlement', data, {
+      ...DEFAULT_JOB_OPTIONS,
+      jobId: `settlement-${data.idempotencyKey}`,
+    });
   }
 }
 

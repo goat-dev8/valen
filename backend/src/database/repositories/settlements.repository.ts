@@ -31,17 +31,7 @@ export class SettlementsRepository extends BaseRepository {
 
   async findByExecution(executionId: string): Promise<SettlementRow | null> {
     return this.queryOne<SettlementRow>(
-      `SELECT * FROM settlements
-       WHERE execution_id = $1
-       ORDER BY
-         CASE status
-           WHEN 'confirmed' THEN 0
-           WHEN 'prepared' THEN 1
-           WHEN 'pending' THEN 2
-           ELSE 3
-         END,
-         created_at DESC
-       LIMIT 1`,
+      `SELECT * FROM settlements WHERE execution_id = $1 ORDER BY created_at DESC LIMIT 1`,
       [executionId],
     );
   }

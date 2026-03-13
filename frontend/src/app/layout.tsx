@@ -1,10 +1,23 @@
 import type { Metadata } from 'next';
+import { Inter_Tight } from 'next/font/google';
+import { ValenPrivyProvider } from '@/components/app/privy-provider';
+import { Providers } from '@/providers';
 import './globals.css';
-import { Providers } from './providers';
+
+const interTight = Inter_Tight({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-inter-tight',
+});
 
 export const metadata: Metadata = {
-  title: 'VALEN Operator Dashboard',
-  description: 'Internal validation dashboard for VALEN infrastructure',
+  title: 'VALEN — The Permission Layer for Agentic Finance',
+  description:
+    'VALEN enforces compliance, risk, and policy before any agent transaction settles on Arbitrum or Robinhood Chain.',
+  icons: {
+    icon: '/valen-logo.svg',
+    apple: '/valen-logo.svg',
+  },
 };
 
 export default function RootLayout({
@@ -14,8 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-neutral-50 text-neutral-950 antialiased">
-        <Providers>{children}</Providers>
+      <body className={`${interTight.variable} min-h-screen antialiased`}>
+        <ValenPrivyProvider>
+          <Providers>{children}</Providers>
+        </ValenPrivyProvider>
       </body>
     </html>
   );
