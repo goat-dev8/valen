@@ -18,8 +18,8 @@ export default function RobinhoodDemoPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Robinhood Token Assets"
-        description="Govern and settle Robinhood testnet stock tokens and USDG with rules, ERC-20 settlement, and proof."
+        title="Tokenized Assets"
+        description="Govern and settle Robinhood testnet stock tokens and USDG with rules, ERC-20 settlement, and public proof."
       >
         <ChainBadge chainId={46630} />
         <Link href="/dashboard/executions/new?template=robinhood-tsla-allowed" className="app-btn app-btn-primary">

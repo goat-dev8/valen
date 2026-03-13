@@ -23,9 +23,9 @@ export default function RobinhoodTickerPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/dashboard/demo/robinhood" className="app-back-link">
+      <Link href="/dashboard/assets" className="app-back-link">
         <ArrowLeft className="h-4 w-4" />
-        Back to Robinhood Assets
+        Back to Tokenized Assets
       </Link>
 
       <PageHeader
