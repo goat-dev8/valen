@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ArrowRight } from 'lucide-react';
+import { GridWallpaper } from '@/components/marketing/grid-wallpaper';
 import { SectionBadge } from '@/components/marketing/section-badge';
 import { useScrollReveal } from '@/hooks/use-scroll-reveal';
 import { cn } from '@/lib/utils';
@@ -35,7 +36,8 @@ export function FaqSection() {
   const { ref, visible } = useScrollReveal();
 
   return (
-    <section id="faq" className="landing-section faq-section">
+    <section id="faq" className="landing-section faq-section grid-wallpaper-section">
+      <GridWallpaper />
       <div className="landing-container">
         <div ref={ref} className={cn('faq-content', visible && 'scroll-revealed')}>
           <div className="section-top-block">

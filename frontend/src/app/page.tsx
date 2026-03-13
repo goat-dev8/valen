@@ -6,7 +6,7 @@ import { FeaturesSection } from '@/components/marketing/features-section';
 import { CaseStudiesSection } from '@/components/marketing/case-studies-section';
 import { StepsSection } from '@/components/marketing/steps-section';
 import { NotificationSection } from '@/components/marketing/notification-section';
-import { TestimonialsSection } from '@/components/marketing/testimonials-section';
+import { PermissionLayerSection } from '@/components/marketing/permission-layer-section';
 import { IntegrationsSection } from '@/components/marketing/integrations-section';
 import { PricingSection } from '@/components/marketing/pricing-section';
 import { FaqSection } from '@/components/marketing/faq-section';
@@ -24,7 +24,7 @@ export default function HomePage() {
       <CaseStudiesSection />
       <StepsSection />
       <NotificationSection />
-      <TestimonialsSection />
+      <PermissionLayerSection />
       <IntegrationsSection />
       <PricingSection />
       <FaqSection />

@@ -1,6 +1,7 @@
 'use client';
 
 import { Bell, Gamepad2, MousePointer2, Settings } from 'lucide-react';
+import { GridWallpaper } from '@/components/marketing/grid-wallpaper';
 import { SectionBadge } from '@/components/marketing/section-badge';
 import { useScrollReveal } from '@/hooks/use-scroll-reveal';
 import { cn } from '@/lib/utils';
@@ -69,7 +70,8 @@ export function StepsSection() {
   const { ref, visible } = useScrollReveal();
 
   return (
-    <section id="how-it-works" className="landing-section steps-section">
+    <section id="how-it-works" className="landing-section steps-section grid-wallpaper-section">
+      <GridWallpaper />
       <div className="landing-container">
         <div ref={ref} className={cn('steps-content', visible && 'scroll-revealed')}>
           <div className="section-top-block">

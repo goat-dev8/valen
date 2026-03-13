@@ -1,5 +1,7 @@
 'use client';
 
+import { GridWallpaper } from '@/components/marketing/grid-wallpaper';
+
 const PARTNERS = [
   { name: 'Arbitrum', mark: '◆' },
   { name: 'Stylus', mark: '⬡' },
@@ -33,7 +35,8 @@ function MarqueeRow() {
 
 export function PartnersSection() {
   return (
-    <section className="partners-section">
+    <section className="partners-section grid-wallpaper-section">
+      <GridWallpaper />
       <div className="landing-container">
         <div className="partners-content">
           <p className="partners-label">Trusted by builders shipping agentic finance onchain</p>

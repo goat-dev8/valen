@@ -16,6 +16,7 @@ const SIZE_MAP = {
 type ValenLogoProps = {
   size?: keyof typeof SIZE_MAP;
   showWordmark?: boolean;
+  variant?: 'dark' | 'light';
   href?: string;
   className?: string;
 };
@@ -23,13 +24,20 @@ type ValenLogoProps = {
 export function ValenLogo({
   size = 'md',
   showWordmark = true,
+  variant = 'dark',
   href,
   className,
 }: ValenLogoProps) {
   const dimension = SIZE_MAP[size];
 
   const content = (
-    <span className={cn('inline-flex items-center gap-2.5', className)}>
+    <span
+      className={cn(
+        'inline-flex items-center',
+        size === 'hero' ? 'gap-1.5' : 'gap-0.5',
+        className,
+      )}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={VALEN_LOGO_SRC}
@@ -42,12 +50,13 @@ export function ValenLogo({
       {showWordmark && (
         <span
           className={cn(
-            'font-semibold tracking-tight text-[#012b54]',
+            'valen-wordmark -ml-0.5',
+            variant === 'light' ? 'valen-wordmark-light' : 'valen-wordmark-dark',
             size === 'hero'
-              ? 'text-4xl'
+              ? 'valen-wordmark-hero'
               : size === 'xl' || size === 'nav' || size === 'lg'
-                ? 'text-3xl'
-                : 'text-2xl',
+                ? 'valen-wordmark-lg'
+                : 'valen-wordmark-md',
           )}
         >
           VALEN

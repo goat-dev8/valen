@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { GridWallpaper } from '@/components/marketing/grid-wallpaper';
 import { useScrollReveal } from '@/hooks/use-scroll-reveal';
 import { cn } from '@/lib/utils';
 
@@ -9,7 +10,8 @@ export function CtaSection() {
   const { ref, visible } = useScrollReveal();
 
   return (
-    <section id="get-started" className="landing-section cta-section">
+    <section id="get-started" className="landing-section cta-section grid-wallpaper-section">
+      <GridWallpaper />
       <div className="landing-container">
         <div ref={ref} className={cn('cta-card', visible && 'scroll-revealed')}>
           <div className="cta-pattern" />

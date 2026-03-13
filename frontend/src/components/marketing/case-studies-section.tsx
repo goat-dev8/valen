@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { GridWallpaper } from '@/components/marketing/grid-wallpaper';
 import { SectionBadge } from '@/components/marketing/section-badge';
 import { useScrollReveal } from '@/hooks/use-scroll-reveal';
 import { cn } from '@/lib/utils';
@@ -41,7 +42,8 @@ export function CaseStudiesSection() {
   const current = CASES[active];
 
   return (
-    <section id="case-study" className="landing-section case-studies-section">
+    <section id="case-study" className="landing-section case-studies-section grid-wallpaper-section">
+      <GridWallpaper />
       <div className="landing-container">
         <div ref={ref} className={cn('case-studies-content', visible && 'scroll-revealed')}>
           <div className="section-top-block">
