@@ -18,6 +18,7 @@ import {
   useRevokeAgent,
   useSuspendAgent,
 } from '@/hooks/use-valen-api';
+import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -33,6 +34,7 @@ export default function AgentDetailPage() {
   const linkWalletMutation = useLinkAgentWallet();
   const createApiKeyMutation = useCreateAgentApiKey();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [apiKeySecret, setApiKeySecret] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function AgentDetailPage() {
     try {
       await suspendMutation.mutateAsync({ agentId, reason: reason.trim() });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Suspend failed');
+      setActionError(formatApiErrorMessage(err, 'Suspend failed'));
     }
   };
 
@@ -65,27 +67,35 @@ export default function AgentDetailPage() {
     try {
       await revokeMutation.mutateAsync({ agentId, reason: reason.trim() });
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Revoke failed');
+      setActionError(formatApiErrorMessage(err, 'Revoke failed'));
     }
   };
 
   const handleLinkWallet = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setActionError(null);
+    setActionSuccess(null);
     const form = new FormData(e.currentTarget);
+    const walletAddress = normalizeEvmAddressInput(String(form.get('walletAddress') ?? ''));
+    if (!walletAddress) {
+      setActionError('Enter a valid EVM wallet address (0x followed by 40 hex characters).');
+      return;
+    }
+
     try {
       await linkWalletMutation.mutateAsync({
         agentId,
         body: {
           chainId: Number(form.get('chainId')),
-          walletAddress: String(form.get('walletAddress')),
+          walletAddress,
           walletType: String(form.get('walletType')),
           isPrimary: form.get('isPrimary') === 'on',
         },
       });
       e.currentTarget.reset();
+      setActionSuccess('Wallet linked successfully.');
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Wallet link failed');
+      setActionError(formatApiErrorMessage(err, 'Wallet link failed'));
     }
   };
 
@@ -107,7 +117,7 @@ export default function AgentDetailPage() {
       }
       e.currentTarget.reset();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'API key creation failed');
+      setActionError(formatApiErrorMessage(err, 'API key creation failed'));
     }
   };
 
@@ -146,6 +156,7 @@ export default function AgentDetailPage() {
             </PageHeader>
 
             {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+            {actionSuccess && <p className="text-sm text-emerald-600">{actionSuccess}</p>}
 
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="app-card">
@@ -161,6 +172,9 @@ export default function AgentDetailPage() {
 
               <div className="app-card">
                 <h3 className="app-card-title mb-3">Link Wallet</h3>
+                <p className="mb-3 text-sm text-[#64748b]">
+                  Each wallet address can only be linked once per chain across the organization.
+                </p>
                 <form onSubmit={handleLinkWallet} className="space-y-3">
                   <div className="app-form-group">
                     <label htmlFor="chainId">Chain</label>

@@ -57,8 +57,10 @@ function orgPath(orgId: string, suffix: string) {
   return `/v1/organizations/${orgId}${suffix}`;
 }
 
-function normalizeList<T>(data: T[] | PaginatedResult<T>): T[] {
-  return Array.isArray(data) ? data : data.items;
+function normalizeList<T>(data: T[] | PaginatedResult<T> | null | undefined): T[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  return Array.isArray(data.items) ? data.items : [];
 }
 
 export const api = {
