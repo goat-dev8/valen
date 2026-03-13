@@ -4,7 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/org-context';
 import { api } from '@/lib/api';
-import type { ApprovalInput, CreateExecutionInput, UpdateOrganizationInput } from '@/types/api';
+import type {
+  ApprovalInput,
+  CreateExecutionInput,
+  CreateSignedMandateDto,
+  MandateTypedDataRequestDto,
+  UpdateOrganizationInput,
+  WalletChallengeDto,
+  WalletVerifyDto,
+} from '@/types/api';
 
 function useAuthOrg() {
   const { token } = useAuth();
@@ -30,6 +38,15 @@ export function useAgent(agentId: string) {
   });
 }
 
+export function useAgentApiKeys(agentId: string) {
+  const { token, orgId, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['agent-api-keys', orgId, agentId],
+    queryFn: () => api.agents.listApiKeys(token!, orgId!, agentId),
+    enabled: enabled && Boolean(agentId),
+  });
+}
+
 export function useExecutions(params?: { status?: string; agentId?: string; page?: number; limit?: number }) {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({
@@ -45,6 +62,12 @@ export function useExecution(executionId: string) {
     queryKey: ['execution', orgId, executionId],
     queryFn: () => api.executions.get(token!, orgId!, executionId),
     enabled: enabled && Boolean(executionId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && ['executed', 'failed', 'cancelled', 'compliance_failed', 'risk_failed', 'policy_rejected'].includes(status)
+        ? false
+        : 5000;
+    },
   });
 }
 
@@ -84,6 +107,7 @@ export function useExecutionTimeline(executionId: string) {
     queryFn: () => api.executions.timeline(token!, orgId!, executionId),
     enabled: enabled && Boolean(executionId),
     retry: false,
+    refetchInterval: 5000,
   });
 }
 
@@ -96,6 +120,72 @@ export function usePolicies() {
       return policies ?? [];
     },
     enabled,
+  });
+}
+
+export function useWalletVerifications() {
+  const { token, orgId, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['wallet-verifications', orgId],
+    queryFn: () => api.wallets.list(token!, orgId!),
+    enabled,
+  });
+}
+
+export function useCreateWalletChallenge() {
+  const { token, orgId } = useAuthOrg();
+  return useMutation({
+    mutationFn: (body: WalletChallengeDto) => api.wallets.challenge(token!, orgId!, body),
+  });
+}
+
+export function useVerifyWallet() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: WalletVerifyDto) => api.wallets.verify(token!, orgId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wallet-verifications', orgId] });
+    },
+  });
+}
+
+export function useMandates() {
+  const { token, orgId, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['mandates', orgId],
+    queryFn: () => api.mandates.list(token!, orgId!),
+    enabled,
+  });
+}
+
+export function useCreateMandateTypedData() {
+  const { token, orgId } = useAuthOrg();
+  return useMutation({
+    mutationFn: (body: MandateTypedDataRequestDto) => api.mandates.typedData(token!, orgId!, body),
+  });
+}
+
+export function useCreateSignedMandate() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateSignedMandateDto) => api.mandates.create(token!, orgId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mandates', orgId] });
+    },
+  });
+}
+
+export function useRevokeMandate() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mandateId, reason }: { mandateId: string; reason: string }) =>
+      api.mandates.revoke(token!, orgId!, mandateId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mandates', orgId] });
+    },
   });
 }
 
@@ -233,6 +323,7 @@ export function useLinkAgentWallet() {
 
 export function useCreateAgentApiKey() {
   const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -240,8 +331,11 @@ export function useCreateAgentApiKey() {
       body,
     }: {
       agentId: string;
-      body: { name: string; scopes: string[]; expiresAt?: string };
+      body: { name: string; scopes: string[]; expiresAt?: string; mandateId?: string };
     }) => api.agents.createApiKey(token!, orgId!, agentId, body),
+    onSuccess: (_data, { agentId }) => {
+      queryClient.invalidateQueries({ queryKey: ['agent-api-keys', orgId, agentId] });
+    },
   });
 }
 
@@ -292,6 +386,49 @@ export function useCreatePolicy() {
   return useMutation({
     mutationFn: (body: { name: string; description?: string }) => api.policies.create(token!, orgId!, body),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policies', orgId] });
+    },
+  });
+}
+
+export function useCreatePolicyVersion() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ policyId, rules }: { policyId: string; rules: Record<string, unknown> }) =>
+      api.policies.createVersion(token!, orgId!, policyId, { rules }),
+    onSuccess: (_data, { policyId }) => {
+      queryClient.invalidateQueries({ queryKey: ['policy', orgId, policyId] });
+    },
+  });
+}
+
+export function usePublishPolicyVersion() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ policyId, versionId, approvalRef }: { policyId: string; versionId: string; approvalRef?: string }) =>
+      api.policies
+        .submitVersion(token!, orgId!, policyId, versionId, 'Template version ready for activation')
+        .then(() => api.policies.publishVersion(token!, orgId!, policyId, versionId, { approvalRef })),
+    onSuccess: (_data, { policyId }) => {
+      queryClient.invalidateQueries({ queryKey: ['policy', orgId, policyId] });
+      queryClient.invalidateQueries({ queryKey: ['policies', orgId] });
+    },
+  });
+}
+
+export function useActivatePolicyVersion() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ policyId, versionId, approvalRef }: { policyId: string; versionId: string; approvalRef?: string }) =>
+      api.policies.activateVersion(token!, orgId!, policyId, versionId, {
+        approvalRef,
+        comment: 'Activated through VALEN policy template flow',
+      }),
+    onSuccess: (_data, { policyId }) => {
+      queryClient.invalidateQueries({ queryKey: ['policy', orgId, policyId] });
       queryClient.invalidateQueries({ queryKey: ['policies', orgId] });
     },
   });

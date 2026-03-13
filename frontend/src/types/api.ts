@@ -71,10 +71,88 @@ export type AgentWalletDto = {
   status: string;
 };
 
+export type WalletChallengeDto = {
+  chainId: number;
+  walletAddress: string;
+};
+
+export type WalletVerifyDto = WalletChallengeDto & {
+  signature: string;
+};
+
+export type WalletChallengeResponseDto = {
+  id: string;
+  chainId: number;
+  walletAddress: string;
+  nonce: string;
+  message: string;
+  expiresAt: string;
+};
+
+export type WalletVerificationDto = {
+  id: string;
+  chainId: number;
+  walletAddress: string;
+  status: string;
+  signature: string | null;
+  verifiedAt: string | null;
+  challengeExpiresAt: string;
+  createdAt: string;
+};
+
+export type MandateTypedDataRequestDto = {
+  agentId: string;
+  policyId?: string;
+  signerAddress: string;
+  chainId: number;
+  allowedChains: number[];
+  allowedActions: string[];
+  allowedAssets: string[];
+  allowedTargets: string[];
+  maxPerTransaction?: string;
+  maxTotal?: string;
+  approvalThreshold?: string;
+  validUntil: string;
+  nonce?: string;
+};
+
+export type CreateSignedMandateDto = MandateTypedDataRequestDto & {
+  signature: string;
+  typedDataHash: string;
+};
+
+export type MandateTypedDataResponseDto = {
+  typedData: Record<string, unknown>;
+  typedDataHash: string;
+  nonce: string;
+};
+
+export type MandateDto = {
+  id: string;
+  organizationId: string;
+  agentId: string;
+  policyId: string | null;
+  chainId: number;
+  signerAddress: string;
+  status: string;
+  allowedChains: number[];
+  allowedActions: string[];
+  allowedAssets: string[];
+  allowedTargets: string[];
+  maxPerTransaction: string | null;
+  maxTotal: string | null;
+  approvalThreshold: string | null;
+  typedDataHash: string;
+  signature: string;
+  validUntil: string;
+  createdAt: string;
+};
+
 export type ApiKeyDto = {
   id: string;
   name: string;
   keyPrefix: string;
+  mandateId: string | null;
   scopes: string[];
   status: string;
   expiresAt: string | null;
@@ -112,6 +190,8 @@ export type ExecutionDto = {
   id: string;
   organizationId: string;
   agentId: string;
+  mandateId: string | null;
+  policyId: string | null;
   idempotencyKey: string;
   actionType: string;
   status: string;
@@ -163,6 +243,12 @@ export type SettlementDto = {
   contractAddress: string;
   status: string;
   txHash: string | null;
+  submitTxHash: string | null;
+  approveTxHash: string | null;
+  blockNumber: string | null;
+  onChainSettlementId: string | null;
+  failureReason: string | null;
+  relayerAddress: string | null;
   createdAt: string;
 };
 
