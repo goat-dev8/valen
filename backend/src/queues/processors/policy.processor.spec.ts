@@ -30,6 +30,7 @@ describe('PolicyProcessor', () => {
     };
 
     const processor = new PolicyProcessor(
+      { touch: jest.fn() } as never,
       executionsRepository as never,
       riskScoresRepository as never,
       settlementsRepository as never,
@@ -65,6 +66,7 @@ describe('PolicyProcessor', () => {
     };
 
     const processor = new PolicyProcessor(
+      { touch: jest.fn() } as never,
       executionsRepository as never,
       riskScoresRepository as never,
       settlementsRepository as never,

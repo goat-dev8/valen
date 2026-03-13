@@ -12,7 +12,11 @@ RUN pnpm deploy --filter backend --prod /prod/backend
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV VALEN_WORKER_MODE=pipeline
 COPY --from=builder /prod/backend/ ./
+# Runtime attestation reads ../contracts and ../stylus from /app (repo root = /).
+COPY contracts/deployments /contracts/deployments
+COPY stylus/deployments /stylus/deployments
 COPY backend/scripts/render-start.sh ./render-start.sh
 RUN chmod +x ./render-start.sh
 EXPOSE 3000

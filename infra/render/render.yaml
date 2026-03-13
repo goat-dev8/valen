@@ -26,6 +26,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: VALEN_WORKER_MODE
+        value: pipeline
       - key: PORT
         value: "3000"
       - key: REDIS_URL

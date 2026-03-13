@@ -71,6 +71,9 @@ const governanceAbi = parseAbi([
 const timelockAbi = parseAbi([
   'function getMinDelay() view returns (uint256)',
   'function hashOperation(address target, uint256 value, bytes data, bytes32 predecessor, bytes32 salt) view returns (bytes32)',
+  'function PROPOSER_ROLE() view returns (bytes32)',
+  'function EXECUTOR_ROLE() view returns (bytes32)',
+  'function hasRole(bytes32 role, address account) view returns (bool)',
 ]);
 
 const stylusEngineAbi = parseAbi([
@@ -447,6 +450,32 @@ export class OperatorChainService {
       abi: timelockAbi,
       functionName: 'getMinDelay',
     });
+    const [proposerRole, executorRole] = await Promise.all([
+      client.readContract({
+        address: timelockAddress,
+        abi: timelockAbi,
+        functionName: 'PROPOSER_ROLE',
+      }),
+      client.readContract({
+        address: timelockAddress,
+        abi: timelockAbi,
+        functionName: 'EXECUTOR_ROLE',
+      }),
+    ]);
+    const [governanceHasProposerRole, governanceHasExecutorRole] = await Promise.all([
+      client.readContract({
+        address: timelockAddress,
+        abi: timelockAbi,
+        functionName: 'hasRole',
+        args: [proposerRole, governanceAddress],
+      }),
+      client.readContract({
+        address: timelockAddress,
+        abi: timelockAbi,
+        functionName: 'hasRole',
+        args: [executorRole, governanceAddress],
+      }),
+    ]);
     return {
       chainId,
       governanceAddress,
@@ -455,6 +484,8 @@ export class OperatorChainService {
       timelockLinked:
         linkedTimelock.toLowerCase() === timelockAddress.toLowerCase(),
       minDelaySeconds: minDelay.toString(),
+      governanceHasProposerRole,
+      governanceHasExecutorRole,
     };
   }
 

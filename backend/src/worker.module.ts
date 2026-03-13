@@ -24,14 +24,20 @@ import { VendorProcessor } from './queues/processors/vendor.processor';
 import { IndexerProcessor } from './queues/processors/indexer.processor';
 import { MaintenanceProcessor } from './queues/processors/maintenance.processor';
 import { DeadLetterProcessor } from './queues/processors/dead-letter.processor';
+import { PipelineRecoveryService } from './queues/pipeline-recovery.service';
+import { WorkerHeartbeatService } from './queues/worker-heartbeat.service';
+import { WorkerConsumerHealthService } from './queues/worker-consumer-health.service';
 import { ChainService, AlchemyService } from './modules/settlement/chain.service';
 
-const processors = [
+const PIPELINE_PROCESSORS = [
   IntentProcessor,
   ComplianceProcessor,
   RiskProcessor,
   PolicyProcessor,
   SettlementProcessor,
+];
+
+const AUXILIARY_PROCESSORS = [
   ConfirmationProcessor,
   AuditProcessor,
   NotificationProcessor,
@@ -40,6 +46,12 @@ const processors = [
   MaintenanceProcessor,
   DeadLetterProcessor,
 ];
+
+const workerMode = process.env.VALEN_WORKER_MODE ?? 'pipeline';
+const processors =
+  workerMode === 'full'
+    ? [...PIPELINE_PROCESSORS, ...AUXILIARY_PROCESSORS]
+    : PIPELINE_PROCESSORS;
 
 @Module({
   imports: [
@@ -57,6 +69,13 @@ const processors = [
     AuditModule,
     NotificationsModule,
   ],
-  providers: [...processors, ChainService, AlchemyService],
+  providers: [
+    ...processors,
+    PipelineRecoveryService,
+    WorkerHeartbeatService,
+    WorkerConsumerHealthService,
+    ChainService,
+    AlchemyService,
+  ],
 })
 export class WorkerModule {}

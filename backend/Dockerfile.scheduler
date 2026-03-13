@@ -13,4 +13,6 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /prod/backend/ ./
-CMD ["node", "dist/src/scheduler.js"]
+COPY contracts/deployments /contracts/deployments
+COPY stylus/deployments /stylus/deployments
+CMD ["node", "dist/scheduler.js"]
