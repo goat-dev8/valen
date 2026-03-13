@@ -1939,15 +1939,17 @@ ROBINHOOD_TESTNET_VALEN_REGISTRY, ROBINHOOD_TESTNET_VALEN_SETTLEMENT
 ### Dashboard (auth-gated)
 | Route | Purpose |
 |-------|---------|
-| `/dashboard` | Mission Control |
-| `/onboarding` | Guided setup |
-| `/dashboard/register-agent` | Agent creation |
-| `/dashboard/agents`, `/dashboard/agents/[id]` | Agent management |
+| `/dashboard` | **Command Center** — NL command surface, status strip, governance pipeline, asset strip, x402 drawer |
+| `/dashboard/agents/studio` | Agent Studio 5-step wizard (Identity → Rules → Authority → Budget → Publish) |
+| `/dashboard/agents`, `/dashboard/agents/[id]` | Agent fleet + detail (IdentityCard, Governance Crew) |
+| `/dashboard/assets`, `/dashboard/assets/[ticker]` | Unified tokenized assets hub (USDC + Robinhood) |
+| `/dashboard/proofs` | Proof Center with outcome filters |
 | `/dashboard/policies`, `/new`, `/[id]` | Policy management |
-| `/dashboard/wallets` | Wallet verify, mandate, budget |
-| `/dashboard/executions/new` | Intent builder |
-| `/dashboard/executions`, `/[id]`, `/[id]/proof` | Execution monitoring |
-| `/dashboard/payments` | x402 USDC flow |
+| `/dashboard/authority` | Wallet verify + mandate signing (replaces `/dashboard/wallets`) |
+| `/dashboard/budgets` | USDC budget caps |
+| `/dashboard/executions/new` | Intent builder (command parser prefill via `?template=&amount=`) |
+| `/dashboard/executions`, `/[id]`, `/[id]/proof` | Execution monitoring + pipeline strip |
+| `/dashboard/payments` | x402 USDC flow (also available as Command Center drawer) |
 | `/dashboard/approvals` | Approval queue |
 | `/dashboard/settlements` | Settlement monitoring |
 | `/dashboard/compliance` | Compliance evidence |
@@ -1958,20 +1960,30 @@ ROBINHOOD_TESTNET_VALEN_REGISTRY, ROBINHOOD_TESTNET_VALEN_SETTLEMENT
 | `/dashboard/webhooks` | Webhook CRUD |
 | `/dashboard/team` | Team management |
 | `/dashboard/settings` | Org settings |
-| `/dashboard/demo/robinhood` | Robinhood demo hub |
 | `/dashboard/resources` | Documentation links |
+
+**Redirects (middleware):** `/onboarding` → `/dashboard`; `/dashboard/wallets` → `/dashboard/authority`; `/dashboard/register-agent` → `/dashboard/agents/studio`; `/dashboard/demo/robinhood*` → `/dashboard/assets`
 
 ## Key components
 
 | Component | Purpose |
 |-----------|---------|
-| `AppShell` | Sidebar + header layout |
-| `Sidebar` | Primary journey + admin nav |
+| `AppShell` | Sidebar + header + ⌘K command palette |
+| `CommandSurface` | NL command input, preview card, gate banner |
+| `CommandPalette` | Global search (⌘K / Ctrl+K) |
+| `GovernancePipelineStrip` | Intent → Policy → Budget → Risk → Execution → Proof |
+| `X402PaymentDrawer` | Inline x402 flow from Command Center |
+| `AssetStrip` | Quick-launch governed assets from dashboard |
+| `AgentStudio` | 5-step agent lifecycle wizard |
+| `IdentityCard` | ERC-8004 hero on agent detail |
+| `GovernanceCrewDiagram` | Mandate → Policy → Budget → Relayer → Proof actors |
+| `ResponsiveDataList` | Table on desktop, cards on mobile |
+| `TechnicalDisclosure` | Collapsed UUIDs/hashes |
+| `Sidebar` | Reduced IA: Command · Agents · Proofs · Control · More |
 | `AuthGuard` | Redirect unauthenticated users |
 | `BudgetMeter` | USDC cap/spent/remaining |
-| `SelectedAssetBalance` | Wallet balance for selected token |
 | `Erc8004Badge` | Identity status + register action |
-| `PublicProofIdentityPanel` | Identity on public proofs |
+| `ProofShareBar` | Sticky share URL on public proofs |
 | `PipelineTimeline` | Execution pipeline events |
 | `StatusBadge` | Status visualization |
 
@@ -1984,11 +1996,11 @@ ROBINHOOD_TESTNET_VALEN_REGISTRY, ROBINHOOD_TESTNET_VALEN_SETTLEMENT
 
 ## Design philosophy
 
-1. **Single user journey** — sidebar Primary Journey mirrors setup steps
+1. **Command-first UX** — 80%+ actions from Command Center (NL input, chips, ⌘K palette)
 2. **Proof as product** — every success/failure links to public proof URL
-3. **Honest demo states** — ERC-8004 "Registration Pending" explained clearly
+3. **Agent Studio lifecycle** — identity → rules → authority → budget → publish without page hopping
 4. **Chain-aware UX** — auto network switch, chain badges, asset-specific balances
-5. **Fail-closed feedback** — mandate mismatch hints, budget warnings before submit
+5. **Fail-closed feedback** — inline gate banners, mandate mismatch hints, budget warnings before submit
 
 ## API client
 
