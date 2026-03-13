@@ -15,6 +15,7 @@ import { ComplianceModule } from './modules/compliance/compliance.module';
 import { RiskModule } from './modules/risk/risk.module';
 import { SettlementModule } from './modules/settlement/settlement.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { MandatesModule } from './modules/mandates/mandates.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -38,6 +39,7 @@ import { OperatorModule } from './modules/operator/operator.module';
     RiskModule,
     SettlementModule,
     AuditModule,
+    MandatesModule,
     NotificationsModule,
     WebhooksModule,
     AdminModule,
