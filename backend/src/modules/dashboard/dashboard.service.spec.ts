@@ -62,9 +62,10 @@ describe('DashboardService', () => {
     expect(summary.readiness.agentActive).toBe(true);
     expect(summary.readiness.mandateSigned).toBe(true);
     expect(summary.readiness.usdcBudgetFunded).toBe(false);
-    expect(summary.latest.proof?.href).toBe(
+    expect(summary.latest.proof?.dashboardHref).toBe(
       '/dashboard/executions/44444444-4444-4444-8444-444444444444/proof',
     );
+    expect(summary.latest.proof?.href).toBe('/proofs/executions/44444444-4444-4444-8444-444444444444');
     expect(summary.latest.robinhood?.asset).toBe('TSLA');
     expect(redis.set).toHaveBeenCalledWith(
       `dashboard:summary:${row.organization_id}`,

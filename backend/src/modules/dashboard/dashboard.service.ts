@@ -69,11 +69,11 @@ export class DashboardService {
     private readonly redis: RedisService,
   ) {}
 
-  async summary(organizationId: string) {
+  async summary(organizationId: string): Promise<ReturnType<DashboardService['toPayload']>> {
     const cacheKey = `dashboard:summary:${organizationId}`;
     const cached = await this.redis.get(cacheKey).catch(() => null);
     if (cached) {
-      return JSON.parse(cached) as unknown;
+      return JSON.parse(cached) as ReturnType<DashboardService['toPayload']>;
     }
 
     const row = await this.loadSummaryRow(organizationId);
