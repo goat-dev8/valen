@@ -35,7 +35,7 @@ export function PrivyLoginButton() {
       const message = err instanceof Error ? err.message : 'Auth sync failed';
       setError(
         message.includes('fetch') || message.includes('Failed')
-          ? `${message}. Render API may be waking up — wait ~60s and try again.`
+          ? `${message}. The API may be waking up — wait ~60s and try again.`
           : message,
       );
     } finally {

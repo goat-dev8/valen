@@ -72,6 +72,9 @@ export function LoginForm() {
         </div>
       </div>
 
+      <Link href="/proofs/pack" className="login-back mt-4 block text-center">
+        View public proofs without signing in
+      </Link>
       <Link href="/" className="login-back">
         ← Back to landing page
       </Link>

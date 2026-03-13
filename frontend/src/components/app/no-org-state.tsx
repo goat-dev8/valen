@@ -14,7 +14,7 @@ export function NoOrgState() {
       <p className="font-medium">Setting up your workspace…</p>
       <p className="mt-1 text-amber-800">
         No organization is linked yet. Sign out and sign in again, or wait a moment while the API
-        provisions your account. If this persists, the Render API may need the latest backend deploy.
+        provisions your account. If this persists, the platform API may need a fresh deploy.
       </p>
     </div>
   );

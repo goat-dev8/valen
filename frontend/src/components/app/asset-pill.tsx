@@ -1,4 +1,5 @@
 import { KnownAsset } from '@/lib/known-assets';
+import { AssetIcon } from '@/lib/asset-icons';
 import { cn } from '@/lib/utils';
 
 const SUPPORT_LABEL: Record<KnownAsset['supportLevel'], string> = {
@@ -24,6 +25,7 @@ export function AssetPill({ asset, compact = false }: AssetPillProps) {
         SUPPORT_CLASS[asset.supportLevel],
       )}
     >
+      <AssetIcon symbol={asset.symbol} size={18} />
       <span>{asset.symbol}</span>
       {!compact && <span className="opacity-80">{SUPPORT_LABEL[asset.supportLevel]}</span>}
     </span>

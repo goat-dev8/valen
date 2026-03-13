@@ -2,137 +2,106 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Zap,
-  CheckCircle,
-  ArrowLeftRight,
-  Bot,
-  FileText,
-  Scale,
-  ScrollText,
-  Webhook,
-  Users,
-  Settings,
-  ChevronDown,
-  Landmark,
-  Shield,
-  Wallet,
-  Blocks,
-  FileCheck,
-  KeyRound,
-  CreditCard,
-  BookOpen,
-} from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/contexts/org-context';
 import { useExecutions } from '@/hooks/use-valen-api';
+import { isJudgeModeEnabled, subscribeJudgeMode } from '@/lib/judge-mode';
+import { isNavActive, NAV_SECTIONS, type NavItem } from '@/lib/navigation';
+import { ChainBadge } from '@/components/app/chain-badge';
 
-const PRIMARY_ITEMS = [
-  { href: '/dashboard', label: 'Mission Control', icon: LayoutDashboard },
-  { href: '/dashboard/register-agent', label: 'Create Agent', icon: Bot },
-  { href: '/dashboard/policies', label: 'Set Rules', icon: FileText },
-  { href: '/dashboard/wallets', label: 'Fund & Authority', icon: Wallet },
-  { href: '/dashboard/executions/new', label: 'Execute', icon: Zap },
-  { href: '/dashboard/payments', label: 'x402 Payments', icon: CreditCard },
-  { href: '/dashboard/executions', label: 'See Proof', icon: FileCheck },
-  { href: '/dashboard/demo/robinhood', label: 'Robinhood Assets', icon: KeyRound },
-  { href: '/dashboard/resources', label: 'Resources', icon: BookOpen },
-];
-
-const ADMIN_ITEMS = [
-  { href: '/dashboard/approvals', label: 'Approvals', icon: CheckCircle, badgeKey: 'approvals' as const },
-  { href: '/dashboard/settlements', label: 'Settlements', icon: ArrowLeftRight },
-  { href: '/dashboard/compliance', label: 'Compliance Evidence', icon: Scale },
-  { href: '/dashboard/audit', label: 'Audit Logs', icon: ScrollText },
-  { href: '/dashboard/governance', label: 'Governance', icon: Shield },
-  { href: '/dashboard/treasury', label: 'Treasury', icon: Landmark },
-  { href: '/dashboard/contracts', label: 'Contracts', icon: Blocks },
-  { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
-  { href: '/dashboard/team', label: 'Team', icon: Users },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-];
-
-function NavItem({
-  href,
-  label,
-  icon: Icon,
+function NavItemLink({
+  item,
   badge,
 }: {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  item: NavItem;
   badge?: number;
 }) {
   const pathname = usePathname();
-  const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+  const active = isNavActive(pathname, item.href);
 
   return (
-    <Link
-      href={href}
-      className={cn('app-nav-item', active && 'app-nav-item-active')}
-    >
-      <Icon className="h-[18px] w-[18px] shrink-0" />
-      <span className="flex-1">{label}</span>
-      {badge !== undefined && badge > 0 && (
-        <span className="app-nav-badge">{badge}</span>
-      )}
+    <Link href={item.href} className={cn('app-nav-item', active && 'app-nav-item-active')} title={item.description}>
+      <span className="app-nav-item__icon">
+        <item.icon className="h-[17px] w-[17px]" aria-hidden />
+      </span>
+      <span className="app-nav-item__label">{item.label}</span>
+      {badge !== undefined && badge > 0 && <span className="app-nav-badge">{badge}</span>}
     </Link>
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const { organization } = useOrganization();
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
   const approvalCount = approvals?.total ?? 0;
   const orgInitials = organization?.name?.slice(0, 2).toUpperCase() ?? 'OR';
-  const adminOpen = ADMIN_ITEMS.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const [judgeMode, setJudgeMode] = useState(true);
+
+  useEffect(() => {
+    setJudgeMode(isJudgeModeEnabled());
+    return subscribeJudgeMode(setJudgeMode);
+  }, []);
+
+  const sections = NAV_SECTIONS.filter((section) => !(judgeMode && section.judgeModeHidden));
+  const moreOpen = NAV_SECTIONS.find((s) => s.id === 'advanced')?.items.some((item) =>
+    isNavActive(pathname, item.href),
+  );
 
   return (
-    <aside className="app-sidebar">
+    <aside className={cn('app-sidebar', className)}>
       <div className="app-sidebar-brand">
-        <ValenLogo href="/dashboard" size="xl" />
+        <ValenLogo href="/dashboard" size="lg" />
       </div>
 
-      <nav className="app-sidebar-nav">
-        <div className="app-nav-section">
-          <span className="app-nav-label">PRIMARY JOURNEY</span>
-          {PRIMARY_ITEMS.map((item) => (
-            <NavItem key={item.href} href={item.href} label={item.label} icon={item.icon} />
-          ))}
-        </div>
-
-        <details className="app-nav-section" open={adminOpen}>
-          <summary className="app-nav-label flex cursor-pointer list-none items-center justify-between">
-            Evidence & Admin
-            <ChevronDown className="h-3.5 w-3.5" />
-          </summary>
-          <div className="mt-2 space-y-1">
-            {ADMIN_ITEMS.map((item) => (
-              <NavItem
-                key={item.href}
-                href={item.href}
-                label={item.label}
-                icon={item.icon}
-                badge={'badgeKey' in item && item.badgeKey === 'approvals' ? approvalCount : undefined}
-              />
-            ))}
-          </div>
-        </details>
+      <nav className="app-sidebar-nav" aria-label="Main navigation">
+        {sections.map((section) =>
+          section.collapsible ? (
+            <details key={section.id} className="app-nav-section app-nav-section--collapsible" open={moreOpen}>
+              <summary className="app-nav-section__summary">
+                <span className="app-nav-label">{section.label}</span>
+                <ChevronDown className="app-nav-section__chevron h-4 w-4" aria-hidden />
+              </summary>
+              <div className="app-nav-section__items">
+                {section.items.map((item) => (
+                  <NavItemLink
+                    key={item.href}
+                    item={item}
+                    badge={item.badgeKey === 'approvals' ? approvalCount : undefined}
+                  />
+                ))}
+              </div>
+            </details>
+          ) : (
+            <div key={section.id} className="app-nav-section">
+              <span className="app-nav-label">{section.label}</span>
+              <div className="app-nav-section__items">
+                {section.items.map((item) => (
+                  <NavItemLink
+                    key={item.href}
+                    item={item}
+                    badge={item.badgeKey === 'approvals' ? approvalCount : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+          ),
+        )}
       </nav>
 
       <div className="app-sidebar-footer">
-        <div className="app-org-switcher">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#007dfc] text-xs font-bold text-white">
-            {orgInitials}
+        <div className="app-sidebar-org">
+          <div className="app-sidebar-org__avatar">{orgInitials}</div>
+          <div className="app-sidebar-org__copy">
+            <p className="app-sidebar-org__name">{organization?.name ?? 'Organization'}</p>
+            <div className="app-sidebar-org__meta">
+              <ChainBadge chainId={organization?.defaultChainId ?? 421614} />
+              <span className="app-sidebar-org__plan">{organization?.plan ?? '—'}</span>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="truncate text-sm font-medium text-[#012b54]">{organization?.name ?? 'Organization'}</p>
-            <p className="text-xs capitalize text-[#64748b]">{organization?.plan ?? '—'} plan</p>
-          </div>
-          <ChevronDown className="h-4 w-4 text-[#64748b]" />
         </div>
       </div>
     </aside>

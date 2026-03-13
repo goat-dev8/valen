@@ -1,4 +1,6 @@
+import Image from 'next/image';
 import { chainName } from '@/lib/constants';
+import { chainLogoSrc } from '@/lib/chain-logos';
 import { cn } from '@/lib/utils';
 
 const CHAIN_STYLES: Record<number, string> = {
@@ -7,15 +9,33 @@ const CHAIN_STYLES: Record<number, string> = {
   46630: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
-export function ChainBadge({ chainId, className }: { chainId: number; className?: string }) {
+type ChainBadgeProps = {
+  chainId: number;
+  className?: string;
+  showLogo?: boolean;
+};
+
+export function ChainBadge({ chainId, className, showLogo = true }: ChainBadgeProps) {
+  const logo = showLogo ? chainLogoSrc(chainId) : null;
+
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium',
+        'chain-badge inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium',
         CHAIN_STYLES[chainId] ?? 'bg-slate-50 text-slate-700 border-slate-200',
         className,
       )}
     >
+      {logo && (
+        <Image
+          src={logo}
+          alt=""
+          width={14}
+          height={14}
+          className="chain-badge__logo h-3.5 w-3.5 shrink-0 rounded-full object-contain"
+          aria-hidden
+        />
+      )}
       {chainName(chainId)}
     </span>
   );

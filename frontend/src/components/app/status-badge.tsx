@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { STATUS_HUMAN_LABELS } from '@/lib/design-tokens';
 
 const STATUS_STYLES: Record<string, string> = {
   created: 'bg-slate-100 text-slate-600',
@@ -22,9 +23,9 @@ const RISK_STYLES: Record<string, string> = {
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const label = status.replace(/_/g, ' ');
+  const label = STATUS_HUMAN_LABELS[status] ?? status.replace(/_/g, ' ');
   return (
-    <span className={cn('app-badge capitalize', STATUS_STYLES[status] ?? 'bg-slate-100 text-slate-600')}>
+    <span className={cn('app-badge', STATUS_STYLES[status] ?? 'bg-slate-100 text-slate-600')}>
       {label}
     </span>
   );

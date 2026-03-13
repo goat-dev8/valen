@@ -1,15 +1,25 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { usePrivy } from '@privy-io/react-auth';
-import { Bell, FileCheck, LogOut } from 'lucide-react';
+import { Bell, FileCheck, LogOut, Menu, Search } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/org-context';
 import { useDashboardSummary, useExecutions } from '@/hooks/use-valen-api';
+import { navLabelForPath, OUTCOME_LEDGER_NAV_LABEL } from '@/lib/navigation';
 
-export function AppHeader({ title }: { title?: string }) {
+export function AppHeader({
+  title,
+  onMenuClick,
+  onSearchClick,
+}: {
+  title?: string;
+  onMenuClick?: () => void;
+  onSearchClick?: () => void;
+}) {
   const router = useRouter();
+  const pathname = usePathname();
   const { logout: privyLogout } = usePrivy();
   const { me, logout } = useAuth();
   const { organization } = useOrganization();
@@ -31,44 +41,79 @@ export function AppHeader({ title }: { title?: string }) {
     .toUpperCase();
   const role = me?.organizations.find((o) => o.id === organization?.id)?.role?.replace(/_/g, ' ') ?? 'Member';
   const approvalCount = pendingApprovals?.total ?? 0;
-  const latestProofHref = summary?.latest.proof?.href ?? '/dashboard/executions';
+  const latestProofHref = summary?.latest.proof?.href ?? '/dashboard/proofs';
+  const currentPage = navLabelForPath(pathname) ?? title ?? 'Home';
 
   return (
     <header className="app-header">
-      <div className="hidden md:block">
-        <p className="text-sm font-medium text-[#012b54]">{organization?.name ?? 'VALEN'}</p>
-        <p className="text-xs text-[#64748b]">
-          {organization?.defaultChainId === 46630 ? 'Robinhood Testnet' : 'Arbitrum Sepolia'} · Render API
-        </p>
+      <div className="app-header__start">
+        <button
+          type="button"
+          className="app-header-icon lg:hidden"
+          aria-label="Open navigation menu"
+          onClick={onMenuClick}
+        >
+          <Menu className="h-[18px] w-[18px]" />
+        </button>
+        <div className="app-header__context">
+          <p className="app-header__org">{organization?.name ?? 'VALEN'}</p>
+          <p className="app-header__page">{currentPage}</p>
+        </div>
       </div>
 
+      <button
+        type="button"
+        onClick={onSearchClick}
+        className="app-header-search-pill hidden md:flex"
+        aria-label="Open command palette"
+      >
+        <Search className="h-4 w-4 shrink-0 text-[#8B98A5]" aria-hidden />
+        <span>Search pages & actions</span>
+        <kbd>⌘K</kbd>
+      </button>
+
       <div className="app-header-actions">
-        <Link href={latestProofHref} className="hidden items-center gap-2 rounded-full border border-[#dbeafe] bg-[#eff6ff] px-3 py-2 text-xs font-semibold text-[#0f5db8] sm:flex">
-          <FileCheck className="h-4 w-4" />
-          Latest Proof
+        <button
+          type="button"
+          onClick={onSearchClick}
+          className="app-header-icon md:hidden"
+          aria-label="Open command palette"
+        >
+          <Search className="h-[18px] w-[18px]" />
+        </button>
+
+        <Link
+          href={latestProofHref.startsWith('/proofs') ? latestProofHref : '/dashboard/proofs'}
+          className="app-header-chip app-header-chip--proof hidden sm:inline-flex"
+        >
+          <FileCheck className="h-4 w-4" aria-hidden />
+          {OUTCOME_LEDGER_NAV_LABEL}
         </Link>
 
         {approvalCount > 0 && (
-          <button type="button" className="app-header-icon relative" aria-label="Pending approvals" onClick={() => router.push('/dashboard/approvals')}>
+          <button
+            type="button"
+            className="app-header-icon relative"
+            aria-label="Pending approvals"
+            onClick={() => router.push('/dashboard/approvals')}
+          >
             <Bell className="h-[18px] w-[18px]" />
             <span className="app-header-badge">{approvalCount}</span>
           </button>
         )}
 
-        <button type="button" onClick={handleLogout} className="app-header-icon" aria-label="Logout">
-          <LogOut className="h-[18px] w-[18px]" />
-        </button>
-
         <div className="app-header-user">
           <div className="app-header-avatar">{initials}</div>
           <div className="hidden md:block">
-            <p className="text-sm font-medium text-[#012b54]">{displayName}</p>
-            <p className="text-xs capitalize text-[#64748b]">{role}</p>
+            <p className="app-header-user__name">{displayName}</p>
+            <p className="app-header-user__role">{role}</p>
           </div>
         </div>
-      </div>
 
-      {title && <span className="sr-only">{title}</span>}
+        <button type="button" onClick={handleLogout} className="app-header-icon" aria-label="Log out">
+          <LogOut className="h-[18px] w-[18px]" />
+        </button>
+      </div>
     </header>
   );
 }
