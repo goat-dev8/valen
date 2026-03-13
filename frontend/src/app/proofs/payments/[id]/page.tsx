@@ -1,17 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink } from 'lucide-react';
-import { ChainBadge } from '@/components/app/chain-badge';
-import { PageHeader } from '@/components/app/page-header';
+import { ProofBackLink } from '@/components/proof/proof-back-link';
 import { QueryState } from '@/components/app/query-state';
-import { StatusBadge } from '@/components/app/status-badge';
-import { PublicProofIdentityPanel } from '@/components/app/public-proof-identity-panel';
+import { PaymentProofView } from '@/components/proof/payment-proof-view';
 import { fetchPublicProof } from '@/lib/public-proofs';
-import { explorerTxUrl } from '@/lib/explorer';
-import { formatProofAmount } from '@/lib/token-amount';
 
 export default function PublicPaymentProofPage() {
   const params = useParams();
@@ -22,33 +16,10 @@ export default function PublicPaymentProofPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <PageHeader
-        title="Payment Proof"
-        description="Public proof of a governed x402 USDC payment or refusal."
-      />
+    <div className="public-proof-page">
+      <ProofBackLink fallbackHref="/dashboard/proofs" fallbackLabel="Outcome Ledger" />
       <QueryState isLoading={isLoading} error={error} isEmpty={!data}>
-        {data && (
-          <div className="space-y-4 rounded-3xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={data.status} />
-              <ChainBadge chainId={data.chainId} />
-            </div>
-            <dl className="grid gap-3 text-sm md:grid-cols-2">
-              <div><dt className="text-[#64748b]">Payment</dt><dd className="font-mono text-xs break-all">{data.id}</dd></div>
-              <div><dt className="text-[#64748b]">Amount</dt><dd>{formatProofAmount(data.amount, data.chainId, data.asset, 'USDC')}</dd></div>
-              <div><dt className="text-[#64748b]">Evidence hash</dt><dd className="font-mono text-xs break-all">{data.evidenceHash ?? 'Unavailable'}</dd></div>
-            </dl>
-            {data.settlementTx && (
-              <a href={explorerTxUrl(data.chainId, data.settlementTx)} target="_blank" rel="noreferrer" className="app-link inline-flex items-center gap-1 text-sm">
-                Settlement tx
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
-            <PublicProofIdentityPanel proof={data} />
-            <Link href="/proofs/pack" className="app-link text-sm">View proof pack</Link>
-          </div>
-        )}
+        {data && <PaymentProofView proof={data} proofUrl={`/proofs/payments/${id}`} />}
       </QueryState>
     </div>
   );

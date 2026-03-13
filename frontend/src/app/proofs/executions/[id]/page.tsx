@@ -11,6 +11,8 @@ import { StatusBadge } from '@/components/app/status-badge';
 import { PublicProofIdentityPanel } from '@/components/app/public-proof-identity-panel';
 import { fetchPublicProof } from '@/lib/public-proofs';
 import { explorerTxUrl } from '@/lib/explorer';
+import { ProofShareBar } from '@/components/proof/proof-share-bar';
+import { ProofVerificationSteps } from '@/components/proof/proof-verification-steps';
 import { formatProofAmount } from '@/lib/token-amount';
 
 export default function PublicExecutionProofPage() {
@@ -29,7 +31,9 @@ export default function PublicExecutionProofPage() {
       />
       <QueryState isLoading={isLoading} error={error} isEmpty={!data}>
         {data && (
-          <div className="space-y-4 rounded-3xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+          <div className="space-y-4">
+            <ProofShareBar url={`/proofs/executions/${data.id}`} />
+            <div className="space-y-4 rounded-3xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={data.status} />
               <ChainBadge chainId={data.chainId} />
@@ -49,9 +53,11 @@ export default function PublicExecutionProofPage() {
                 <ExternalLink className="h-3 w-3" />
               </a>
             )}
+            <ProofVerificationSteps />
             <PublicProofIdentityPanel proof={data} />
             <p className="text-xs text-[#64748b]">Published {new Date(data.publishedAt).toLocaleString()}</p>
             <Link href="/proofs/pack" className="app-link text-sm">View proof pack</Link>
+          </div>
           </div>
         )}
       </QueryState>

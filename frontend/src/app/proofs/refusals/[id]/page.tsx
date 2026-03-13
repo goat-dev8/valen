@@ -8,6 +8,8 @@ import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
 import { PublicProofIdentityPanel } from '@/components/app/public-proof-identity-panel';
+import { ProofShareBar } from '@/components/proof/proof-share-bar';
+import { ProofVerificationSteps } from '@/components/proof/proof-verification-steps';
 import { fetchPublicProof } from '@/lib/public-proofs';
 
 export default function PublicRefusalProofPage() {
@@ -43,6 +45,8 @@ export default function PublicRefusalProofPage() {
                 {JSON.stringify(data.refusalFactors, null, 2)}
               </pre>
             )}
+            <ProofShareBar url={`/proofs/refusals/${data.id}`} label="Copy refusal proof URL" />
+            <ProofVerificationSteps />
             <PublicProofIdentityPanel proof={data} />
             <Link href="/proofs/pack" className="app-link text-sm">View proof pack</Link>
           </div>
