@@ -57,6 +57,10 @@ function orgPath(orgId: string, suffix: string) {
   return `/v1/organizations/${orgId}${suffix}`;
 }
 
+function normalizeList<T>(data: T[] | PaginatedResult<T>): T[] {
+  return Array.isArray(data) ? data : data.items;
+}
+
 export const api = {
   auth: {
     sync: (token: string, body: { privyUserId: string; email?: string }) =>
@@ -111,7 +115,10 @@ export const api = {
 
   policies: {
     list: (token: string, orgId: string, params?: { status?: string }) =>
-      apiRequest<PolicyDto[]>(orgPath(orgId, '/policies'), { token, params }),
+      apiRequest<PolicyDto[] | PaginatedResult<PolicyDto>>(orgPath(orgId, '/policies'), {
+        token,
+        params,
+      }).then(normalizeList),
     get: (token: string, orgId: string, policyId: string) =>
       apiRequest<PolicyDetailDto>(orgPath(orgId, `/policies/${policyId}`), { token }),
     create: (token: string, orgId: string, body: { name: string; description?: string }) =>
