@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Circle } from 'lucide-react';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
@@ -11,12 +11,15 @@ import { AgentStatusBadge, StatusBadge } from '@/components/app/status-badge';
 import {
   useActivateAgent,
   useAgent,
+  useAgentApiKeys,
   useCreateAgentApiKey,
   useExecutions,
   useLinkAgentWallet,
+  useMandates,
   usePolicies,
   useRevokeAgent,
   useSuspendAgent,
+  useWalletVerifications,
 } from '@/hooks/use-valen-api';
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
 
@@ -28,6 +31,9 @@ export default function AgentDetailPage() {
   const { data: agent, isLoading, error } = useAgent(reserved ? '' : agentId);
   const { data: executions } = useExecutions({ agentId: reserved ? undefined : agentId, limit: 10 });
   const { data: policies } = usePolicies();
+  const { data: walletVerifications } = useWalletVerifications();
+  const { data: mandates } = useMandates();
+  const { data: apiKeys } = useAgentApiKeys(reserved ? '' : agentId);
   const activateMutation = useActivateAgent();
   const suspendMutation = useSuspendAgent();
   const revokeMutation = useRevokeAgent();
@@ -48,6 +54,42 @@ export default function AgentDetailPage() {
   }
 
   const policyName = policies?.find((p) => p.id === agent?.defaultPolicyId)?.name;
+  const agentMandates = mandates?.filter((mandate) => mandate.agentId === agentId && mandate.status === 'active') ?? [];
+  const mandateBoundApiKeys =
+    apiKeys?.filter(
+      (apiKey) =>
+        apiKey.status === 'active' &&
+        apiKey.mandateId &&
+        agentMandates.some((mandate) => mandate.id === apiKey.mandateId),
+    ) ?? [];
+  const readinessSteps = [
+    {
+      label: 'Active agent',
+      complete: agent?.status === 'active',
+      detail: agent?.status === 'active' ? 'Agent can receive intents.' : 'Activate the agent first.',
+    },
+    {
+      label: 'Assigned policy',
+      complete: Boolean(agent?.defaultPolicyId),
+      detail: agent?.defaultPolicyId ? policyName ?? agent.defaultPolicyId : 'Assign a default policy.',
+    },
+    {
+      label: 'Verified owner wallet',
+      complete: walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false,
+      detail: 'Verify wallet ownership from Wallet & Authority.',
+    },
+    {
+      label: 'Signed mandate',
+      complete: agentMandates.length > 0,
+      detail: agentMandates.length ? `${agentMandates.length} active mandate(s).` : 'Sign a mandate for this agent.',
+    },
+    {
+      label: 'Mandate-bound API key',
+      complete: mandateBoundApiKeys.length > 0,
+      detail: mandateBoundApiKeys.length ? `${mandateBoundApiKeys.length} active key(s).` : 'Create an API key bound to an active mandate.',
+    },
+  ];
+  const readinessComplete = readinessSteps.every((step) => step.complete);
 
   const handleSuspend = async () => {
     const reason = window.prompt('Reason for suspending this agent:');
@@ -114,7 +156,8 @@ export default function AgentDetailPage() {
         agentId,
         body: {
           name: keyName,
-          scopes: ['executions:create', 'executions:read'],
+          scopes: ['executions:write', 'executions:read'],
+          mandateId: String(form.get('mandateId') || '') || undefined,
         },
       });
       if (result.oneTimeSecret) {
@@ -138,6 +181,15 @@ export default function AgentDetailPage() {
           <>
             <PageHeader title={agent.name} description={`${agent.agentType} agent`}>
               <AgentStatusBadge status={agent.status} />
+              {readinessComplete ? (
+                <Link href={`/dashboard/executions/new?agentId=${agent.id}`} className="app-btn app-btn-primary">
+                  Submit Intent
+                </Link>
+              ) : (
+                <button type="button" className="app-btn app-btn-outline" disabled>
+                  Submit Intent gated
+                </button>
+              )}
               {agent.status === 'draft' && (
                 <button
                   type="button"
@@ -162,6 +214,33 @@ export default function AgentDetailPage() {
 
             {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             {actionSuccess && <p className="text-sm text-emerald-600">{actionSuccess}</p>}
+
+            <div className="app-card">
+              <div className="app-card-header">
+                <div>
+                  <h3 className="app-card-title">Agent Readiness</h3>
+                  <p className="mt-1 text-sm text-[#64748b]">
+                    Submit Intent is gated until authority, policy, mandate, and API access are complete.
+                  </p>
+                </div>
+                <span className={`wallet-status wallet-status-${readinessComplete ? 'ok' : 'warn'}`}>
+                  {readinessSteps.filter((step) => step.complete).length}/{readinessSteps.length}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                {readinessSteps.map((step) => (
+                  <div key={step.label} className="rounded-2xl border border-[#eef0f3] p-4">
+                    {step.complete ? (
+                      <CheckCircle className="h-5 w-5 text-emerald-500" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-[#94a3b8]" />
+                    )}
+                    <p className="mt-3 text-sm font-semibold text-[#012b54]">{step.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-[#64748b]">{step.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="app-card">
@@ -218,6 +297,17 @@ export default function AgentDetailPage() {
                 <div className="app-form-group min-w-[240px] flex-1">
                   <label htmlFor="keyName">Key Name</label>
                   <input id="keyName" name="keyName" className="app-input" placeholder="Production key" required />
+                </div>
+                <div className="app-form-group min-w-[240px] flex-1">
+                  <label htmlFor="mandateId">Mandate Binding</label>
+                  <select id="mandateId" name="mandateId" className="app-input" required>
+                    <option value="">Select active mandate</option>
+                    {agentMandates.map((mandate) => (
+                      <option key={mandate.id} value={mandate.id}>
+                        {mandate.id.slice(0, 8)}... · {mandate.allowedActions.join(', ') || 'actions'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <button type="submit" className="app-btn app-btn-primary" disabled={createApiKeyMutation.isPending}>
                   {createApiKeyMutation.isPending ? 'Creating...' : 'Create API Key'}
