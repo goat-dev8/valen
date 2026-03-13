@@ -77,7 +77,7 @@ export default function GovernancePage() {
               <span className={`app-badge ${rolesReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                 {rolesReady ? 'Roles configured' : 'Roles incomplete'}
               </span>
-              <span className="text-sm text-[#64748b]">Read via Render operator API · {data.queuedActionsCount ?? 0} queued</span>
+              <span className="text-sm text-[#64748b]">Operator API read · {data.queuedActionsCount ?? 0} queued</span>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">

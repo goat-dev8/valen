@@ -4,6 +4,7 @@ import { Download } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
+import { ResponsiveDataList } from '@/components/ui/responsive-data-list';
 import { useAuditExport, useAuditLogs } from '@/hooks/use-valen-api';
 
 const AUDIT_ACTIONS = [
@@ -61,30 +62,40 @@ export default function AuditPage() {
 
       <QueryState isLoading={isLoading} error={error} isEmpty={!filtered.length} emptyMessage="No audit logs found">
         <div className="app-card">
-          <div className="app-table-wrap">
-            <table className="app-table">
-              <thead>
-                <tr>
-                  <th>Actor</th>
-                  <th>Action</th>
-                  <th>Entity</th>
-                  <th>Event Hash</th>
-                  <th>Timestamp</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((log) => (
-                  <tr key={log.id}>
-                    <td className="capitalize">{log.actorType.replace(/_/g, ' ')}</td>
-                    <td className="font-mono text-xs">{log.action}</td>
-                    <td className="font-mono text-xs">{log.entityType}:{log.entityId.slice(0, 8)}...</td>
-                    <td className="font-mono text-xs text-[#64748b]">{log.eventHash.slice(0, 12)}...</td>
-                    <td className="text-[#64748b]">{new Date(log.createdAt).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveDataList
+            rows={filtered}
+            rowKey={(log) => log.id}
+            columns={[
+              {
+                key: 'actor',
+                header: 'Actor',
+                render: (log) => <span className="capitalize">{log.actorType.replace(/_/g, ' ')}</span>,
+              },
+              {
+                key: 'action',
+                header: 'Action',
+                render: (log) => <span className="font-mono text-xs">{log.action}</span>,
+              },
+              {
+                key: 'entity',
+                header: 'Entity',
+                render: (log) => (
+                  <span className="font-mono text-xs">{log.entityType}:{log.entityId.slice(0, 8)}…</span>
+                ),
+              },
+              {
+                key: 'hash',
+                header: 'Event Hash',
+                mobileLabel: 'Hash',
+                render: (log) => <span className="font-mono text-xs">{log.eventHash?.slice(0, 10) ?? '—'}…</span>,
+              },
+              {
+                key: 'time',
+                header: 'Timestamp',
+                render: (log) => new Date(log.createdAt).toLocaleString(),
+              },
+            ]}
+          />
         </div>
       </QueryState>
     </div>

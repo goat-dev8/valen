@@ -1,16 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { useOrganization } from '@/contexts/org-context';
 import { useUpdateOrganization } from '@/hooks/use-valen-api';
 import { chainName } from '@/lib/constants';
+import { isJudgeModeEnabled, setJudgeModeEnabled } from '@/lib/judge-mode';
 
 export default function SettingsPage() {
   const { organization, loading } = useOrganization();
   const updateMutation = useUpdateOrganization();
   const [message, setMessage] = useState<string | null>(null);
+  const [judgeMode, setJudgeMode] = useState(true);
+
+  useEffect(() => {
+    setJudgeMode(isJudgeModeEnabled());
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -57,6 +63,27 @@ export default function SettingsPage() {
                     <p className="text-xs text-[#64748b]">Current: {chainName(organization.defaultChainId)}</p>
                   </div>
                 </div>
+              </div>
+
+              <div className="app-card">
+                <h3 className="app-card-title mb-4">Experience</h3>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={judgeMode}
+                    onChange={(e) => {
+                      setJudgeMode(e.target.checked);
+                      setJudgeModeEnabled(e.target.checked);
+                    }}
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-[#012b54]">Judge Mode</p>
+                    <p className="mt-1 text-sm text-[#64748b]">
+                      Focus on Command Surface, demo actions, and proofs. Hides Advanced operator pages from navigation.
+                    </p>
+                  </div>
+                </label>
               </div>
 
               <div className="app-card">

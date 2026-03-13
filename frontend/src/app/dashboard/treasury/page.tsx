@@ -27,7 +27,7 @@ export default function TreasuryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Treasury" description="Live ValenTreasury contract reads via Render operator API">
+      <PageHeader title="Treasury" description="Live ValenTreasury contract reads via operator API">
         <select
           value={chainId}
           onChange={(e) => setChainId(Number(e.target.value))}
