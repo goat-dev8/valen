@@ -75,24 +75,25 @@ export default function AgentDetailPage() {
     e.preventDefault();
     setActionError(null);
     setActionSuccess(null);
-    const form = new FormData(e.currentTarget);
+
+    const formEl = e.currentTarget;
+    const form = new FormData(formEl);
     const walletAddress = normalizeEvmAddressInput(String(form.get('walletAddress') ?? ''));
     if (!walletAddress) {
       setActionError('Enter a valid EVM wallet address (0x followed by 40 hex characters).');
       return;
     }
 
+    const payload = {
+      chainId: Number(form.get('chainId')),
+      walletAddress,
+      walletType: String(form.get('walletType')),
+      isPrimary: form.get('isPrimary') === 'on',
+    };
+
     try {
-      await linkWalletMutation.mutateAsync({
-        agentId,
-        body: {
-          chainId: Number(form.get('chainId')),
-          walletAddress,
-          walletType: String(form.get('walletType')),
-          isPrimary: form.get('isPrimary') === 'on',
-        },
-      });
-      e.currentTarget.reset();
+      await linkWalletMutation.mutateAsync({ agentId, body: payload });
+      formEl.reset();
       setActionSuccess('Wallet linked successfully.');
     } catch (err) {
       setActionError(formatApiErrorMessage(err, 'Wallet link failed'));
@@ -103,19 +104,23 @@ export default function AgentDetailPage() {
     e.preventDefault();
     setActionError(null);
     setApiKeySecret(null);
-    const form = new FormData(e.currentTarget);
+
+    const formEl = e.currentTarget;
+    const form = new FormData(formEl);
+    const keyName = String(form.get('keyName'));
+
     try {
       const result = await createApiKeyMutation.mutateAsync({
         agentId,
         body: {
-          name: String(form.get('keyName')),
+          name: keyName,
           scopes: ['executions:create', 'executions:read'],
         },
       });
       if (result.oneTimeSecret) {
         setApiKeySecret(result.oneTimeSecret);
       }
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setActionError(formatApiErrorMessage(err, 'API key creation failed'));
     }
