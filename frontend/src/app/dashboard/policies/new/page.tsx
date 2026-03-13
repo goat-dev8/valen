@@ -5,7 +5,15 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/app/page-header';
-import { useActivatePolicyVersion, useCreatePolicy, useCreatePolicyVersion, usePublishPolicyVersion, useAgents, useUpdateAgent } from '@/hooks/use-valen-api';
+import { PolicyTemplatePreview } from '@/components/policies/policy-template-preview';
+import {
+  useActivatePolicyVersion,
+  useAgents,
+  useCreatePolicy,
+  useCreatePolicyVersion,
+  usePublishPolicyVersion,
+  useUpdateAgent,
+} from '@/hooks/use-valen-api';
 import { POLICY_TEMPLATES, policyTemplateById } from '@/lib/policy-templates';
 
 export default function CreatePolicyPage() {
@@ -64,97 +72,91 @@ export default function CreatePolicyPage() {
     }
   };
 
+  const isPending =
+    createMutation.isPending ||
+    createVersionMutation.isPending ||
+    publishVersionMutation.isPending ||
+    activateVersionMutation.isPending ||
+    updateAgentMutation.isPending;
+
   return (
-    <div className="space-y-6">
+    <div className="policy-create-page space-y-6">
       <Link href="/dashboard/policies" className="app-back-link">
         <ArrowLeft className="h-4 w-4" />
         Back to Policies
       </Link>
 
-      <PageHeader title="Create Policy" description="Start from a permission template, then publish and activate a version through existing policy APIs." />
+      <PageHeader
+        title="Create Policy"
+        description="Pick a template, name your policy, and publish the first version."
+        className="intent-wizard-header"
+      />
 
-      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="app-card">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="app-form-group">
-              <label htmlFor="templateId">Template</label>
-              <select id="templateId" className="app-input" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-                {POLICY_TEMPLATES.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="app-form-group">
-              <label htmlFor="name">Policy Name</label>
-              <input key={`${templateId}-name`} id="name" name="name" className="app-input" defaultValue={selectedTemplate.name} required />
-            </div>
-            <div className="app-form-group">
-              <label htmlFor="description">Description</label>
-              <textarea
-                id="description"
-                key={`${templateId}-description`}
-                name="description"
-                className="app-input min-h-[100px]"
-                defaultValue={selectedTemplate.description}
-              />
-            </div>
-            <div className="app-form-group">
-              <label htmlFor="activationProof">Activation Proof Ref</label>
-              <input
-                id="activationProof"
-                name="activationProof"
-                className="app-input"
-                placeholder="wallet-signature-ref or approval ticket"
-              />
-            </div>
-            <label className="flex items-start gap-3 rounded-2xl border border-[#eef0f3] p-4 text-sm text-[#64748b]">
-              <input type="checkbox" name="activateNow" defaultChecked className="mt-1" />
-              <span>
-                Create, submit, publish, and activate the first version now using existing policy lifecycle endpoints.
-                If your role cannot publish or activate, the policy and draft version will still show the backend error.
-              </span>
-            </label>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button
-              type="submit"
-              className="app-btn app-btn-primary"
-              disabled={
-                createMutation.isPending ||
-                createVersionMutation.isPending ||
-                publishVersionMutation.isPending ||
-                activateVersionMutation.isPending ||
-                updateAgentMutation.isPending
-              }
+      <div className="app-panel-floating policy-create-form">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="app-form-group">
+            <label htmlFor="templateId">Template</label>
+            <select
+              id="templateId"
+              className="app-input"
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
             >
-              {createMutation.isPending ||
-              createVersionMutation.isPending ||
-              publishVersionMutation.isPending ||
-              activateVersionMutation.isPending
-                ? 'Creating...'
-                : 'Create Policy'}
-            </button>
-          </form>
-        </div>
-
-        <div className="app-card">
-          <h3 className="app-card-title">Permission Rules Preview</h3>
-          <p className="mt-2 text-sm text-[#64748b]">{selectedTemplate.description}</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {Object.entries((selectedTemplate.rules.permissions as Record<string, unknown>) ?? {}).map(([key, value]) => (
-              <div key={key} className="rounded-2xl bg-[#f8fafc] p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-[#64748b]">{key}</p>
-                <p className="mt-2 break-words text-sm font-medium text-[#012b54]">
-                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                </p>
-              </div>
-            ))}
+              {POLICY_TEMPLATES.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
+                </option>
+              ))}
+            </select>
+            <PolicyTemplatePreview template={selectedTemplate} />
           </div>
-          <pre className="mt-5 max-h-[360px] overflow-auto rounded-2xl bg-[#011b33] p-4 text-xs leading-5 text-white">
-            {JSON.stringify(selectedTemplate.rules, null, 2)}
-          </pre>
-        </div>
+
+          <div className="app-form-group">
+            <label htmlFor="name">Policy name</label>
+            <input
+              key={`${templateId}-name`}
+              id="name"
+              name="name"
+              className="app-input"
+              defaultValue={selectedTemplate.name}
+              required
+            />
+          </div>
+
+          <div className="app-form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              key={`${templateId}-description`}
+              name="description"
+              className="app-input min-h-[88px]"
+              defaultValue={selectedTemplate.description}
+            />
+          </div>
+
+          <div className="app-form-group">
+            <label htmlFor="activationProof">Activation proof ref</label>
+            <input
+              id="activationProof"
+              name="activationProof"
+              className="app-input"
+              placeholder="wallet-signature-ref or approval ticket"
+            />
+          </div>
+
+          <label className="policy-create-form__checkbox">
+            <input type="checkbox" name="activateNow" defaultChecked className="mt-1" />
+            <span>
+              Publish and activate the first version now so the policy is ready to assign to agents.
+            </span>
+          </label>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <button type="submit" className="app-btn app-btn-primary" disabled={isPending}>
+            {isPending ? 'Creating…' : 'Create Policy'}
+          </button>
+        </form>
       </div>
     </div>
   );

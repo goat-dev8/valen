@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { usePolicy } from '@/hooks/use-valen-api';
+import { summarizePolicyRules } from '@/lib/policy-rules-summary';
 
 export default function PolicyDetailPage() {
   const params = useParams();
@@ -16,6 +17,7 @@ export default function PolicyDetailPage() {
     policy?.versions.find((version) => version.status === 'active') ??
     policy?.versions[0];
   const permissions = (activeVersion?.rules?.permissions as Record<string, unknown> | undefined) ?? null;
+  const ruleSentences = summarizePolicyRules(permissions);
 
   return (
     <div className="space-y-6">
@@ -43,7 +45,19 @@ export default function PolicyDetailPage() {
             </div>
 
             <div className="app-card">
-              <h3 className="app-card-title">Permission Rules</h3>
+              <h3 className="app-card-title">Rules in plain English</h3>
+              <ul className="mt-4 space-y-2">
+                {ruleSentences.map((sentence) => (
+                  <li key={sentence} className="flex gap-2 text-sm leading-6 text-[#31485f]">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#007dfc]" />
+                    {sentence}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="app-card">
+              <h3 className="app-card-title">Permission Rules (technical)</h3>
               {!permissions ? (
                 <p className="mt-3 text-sm text-[#64748b]">No permission rules are available for this policy version yet.</p>
               ) : (

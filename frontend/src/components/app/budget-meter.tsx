@@ -8,6 +8,7 @@ type BudgetMeterProps = {
   agentId?: string | null;
   compact?: boolean;
   showTopup?: boolean;
+  showActivity?: boolean;
   chainId?: number;
 };
 
@@ -31,7 +32,13 @@ type TopupSuccess = {
   evidenceHash: string;
 };
 
-export function BudgetMeter({ agentId, compact = false, showTopup = false, chainId = 421614 }: BudgetMeterProps) {
+export function BudgetMeter({
+  agentId,
+  compact = false,
+  showTopup = false,
+  showActivity = true,
+  chainId = 421614,
+}: BudgetMeterProps) {
   const { data: budget, isLoading } = useBudget(agentId);
   const { data: events } = useBudgetEvents(agentId);
   const topupMutation = useBudgetTopup(agentId);
@@ -203,7 +210,7 @@ export function BudgetMeter({ agentId, compact = false, showTopup = false, chain
         </form>
       )}
 
-      {!compact && events && events.length > 0 && (
+      {!compact && showActivity && events && events.length > 0 && (
         <div className="mt-4 border-t border-[#eef0f3] pt-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#94a3b8]">Recent budget activity</p>
           <div className="mt-3 space-y-2">

@@ -6,7 +6,9 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle, Circle, Sparkles } from 'lucide-react';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { BudgetMeter } from '@/components/app/budget-meter';
-import { Erc8004Badge } from '@/components/app/erc8004-badge';
+import { IdentityCard } from '@/components/agents/identity-card';
+import { GovernanceCrewDiagram } from '@/components/agents/governance-crew-diagram';
+import { TechnicalDisclosure } from '@/components/ui/technical-disclosure';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { AgentStatusBadge, StatusBadge } from '@/components/app/status-badge';
@@ -53,10 +55,18 @@ export default function AgentDetailPage() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [apiKeySecret, setApiKeySecret] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(welcome);
+  const [tab, setTab] = useState<'overview' | 'policy' | 'keys' | 'activity'>('overview');
+
+  const tabs = [
+    { id: 'overview' as const, label: 'Overview' },
+    { id: 'policy' as const, label: 'Policy & Authority' },
+    { id: 'keys' as const, label: 'API Keys' },
+    { id: 'activity' as const, label: 'Activity' },
+  ];
 
   useEffect(() => {
     if (reserved) {
-      router.replace('/dashboard/register-agent');
+      router.replace('/dashboard/agents/studio');
     }
   }, [reserved, router]);
 
@@ -219,12 +229,12 @@ export default function AgentDetailPage() {
               )}
               {readinessComplete ? (
                 <Link href={`/dashboard/executions/new?agentId=${agent.id}`} className="app-btn app-btn-primary">
-                  Submit Intent
+                  Governed Intent
                 </Link>
               ) : (
-                <button type="button" className="app-btn app-btn-outline" disabled>
-                  Submit Intent gated
-                </button>
+                <Link href={`/dashboard/agents/studio?agentId=${agent.id}&step=2`} className="app-btn app-btn-outline">
+                  Continue in Studio
+                </Link>
               )}
               {agent.status === 'draft' && (
                 <button
@@ -275,6 +285,24 @@ export default function AgentDetailPage() {
               </div>
             )}
 
+            <nav className="flex flex-wrap gap-2 border-b border-[#eef0f3] pb-4" aria-label="Agent sections">
+              {tabs.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setTab(item.id)}
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    tab === item.id
+                      ? 'border-[#007dfc] bg-[#e8f4ff] text-[#007dfc]'
+                      : 'border-[#eef0f3] bg-white text-[#64748b] hover:border-[#cfe6ff]'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            {(tab === 'overview' || tab === 'policy') && (
             <div className="app-card">
               <div className="app-card-header">
                 <div>
@@ -318,16 +346,24 @@ export default function AgentDetailPage() {
                 ))}
               </div>
             </div>
+            )}
 
+            {tab === 'overview' && (
+            <>
+            <GovernanceCrewDiagram />
             <BudgetMeter agentId={agent.id} showTopup chainId={421614} />
 
             <div className="grid gap-5 lg:grid-cols-2">
-              <Erc8004Badge identity={identity?.erc8004} agentId={agent.id} publicSlug={agent.publicSlug} />
+              <IdentityCard
+                agentId={agent.id}
+                agentName={agent.name}
+                publicSlug={agent.publicSlug}
+                identity={identity}
+              />
 
               <div className="app-card">
                 <h3 className="app-card-title mb-3">Agent Profile</h3>
                 <dl className="app-detail-list">
-                  <div><dt>ID</dt><dd className="font-mono text-xs">{agent.id}</dd></div>
                   <div>
                     <dt>Type</dt>
                     <dd>
@@ -360,7 +396,17 @@ export default function AgentDetailPage() {
                 </dl>
               </div>
             </div>
+            <TechnicalDisclosure title="Technical agent ID">
+              <p className="font-mono text-xs break-all text-[#1A2332]">{agent.id}</p>
+            </TechnicalDisclosure>
+            <Link href={`/dashboard?agent=${agent.id}`} className="text-sm font-semibold text-[#0066FF] hover:underline">
+              Run command from Command Center →
+            </Link>
+            </>
+            )}
 
+            {tab === 'policy' && (
+            <>
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="app-card">
                 <h3 className="app-card-title mb-3">Wallet Bindings</h3>
@@ -472,7 +518,10 @@ export default function AgentDetailPage() {
                 </form>
               </div>
             </div>
+            </>
+            )}
 
+            {tab === 'keys' && (
             <details className="app-card" id="api-keys" open={apiKeysOpenByDefault}>
               <summary className="cursor-pointer list-none">
                 <h3 className="app-card-title inline">
@@ -513,7 +562,9 @@ export default function AgentDetailPage() {
               )}
               </div>
             </details>
+            )}
 
+            {tab === 'activity' && (
             <div className="app-card">
               <h3 className="app-card-title mb-4">Recent Executions</h3>
               {!executions?.items.length ? (
@@ -549,6 +600,7 @@ export default function AgentDetailPage() {
                 </div>
               )}
             </div>
+            )}
           </>
         )}
       </QueryState>

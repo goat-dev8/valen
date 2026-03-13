@@ -1,55 +1,148 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowLeft, Plus, Search } from 'lucide-react';
 import { PageHeader } from '@/components/app/page-header';
-import { QueryState } from '@/components/app/query-state';
-import { usePolicies } from '@/hooks/use-valen-api';
+import { PolicyCard, PolicyCardSkeleton } from '@/components/policies/policy-card';
+import { PolicyExplainer } from '@/components/policies/policy-explainer';
+import { PolicyStats, type PolicyFilter } from '@/components/policies/policy-stats';
+import { useAgents, usePolicies } from '@/hooks/use-valen-api';
+
+function matchesPolicySearch(
+  policy: { id: string; name: string; description: string | null; status: string },
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    policy.name.toLowerCase().includes(q) ||
+    policy.id.toLowerCase().includes(q) ||
+    policy.status.toLowerCase().includes(q) ||
+    (policy.description?.toLowerCase().includes(q) ?? false)
+  );
+}
 
 export default function PoliciesPage() {
+  const [filter, setFilter] = useState<PolicyFilter>('all');
+  const [search, setSearch] = useState('');
   const { data, isLoading, error } = usePolicies();
+  const { data: agentsData } = useAgents({ limit: 100 });
+
+  const policies = data ?? [];
+  const agents = agentsData?.items ?? [];
+
+  const agentCountByPolicy = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const agent of agents) {
+      if (!agent.defaultPolicyId) continue;
+      map.set(agent.defaultPolicyId, (map.get(agent.defaultPolicyId) ?? 0) + 1);
+    }
+    return map;
+  }, [agents]);
+
+  const counts = useMemo(() => {
+    const active = policies.filter((p) => p.status === 'active').length;
+    const draft = policies.filter((p) => p.status === 'draft').length;
+    const assignedAgents = agents.filter((a) => a.defaultPolicyId).length;
+    return { total: policies.length, active, draft, assignedAgents };
+  }, [policies, agents]);
+
+  const filtered = useMemo(() => {
+    return policies.filter((policy) => {
+      const matchesFilter =
+        filter === 'all' ||
+        (filter === 'active' && policy.status === 'active') ||
+        (filter === 'draft' && policy.status === 'draft');
+      if (!matchesFilter) return false;
+      return matchesPolicySearch(policy, search);
+    });
+  }, [policies, filter, search]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Policies" description="Compliance and risk rules bound to agent intents at evaluation time">
+    <div className="policy-ledger-page space-y-6">
+      <Link href="/dashboard" className="app-back-link">
+        <ArrowLeft className="h-4 w-4" />
+        Command Center
+      </Link>
+
+      <PageHeader
+        title="Rules & Policies"
+        description="Compliance and risk rules bound to agent intents at evaluation time."
+      >
         <Link href="/dashboard/policies/new" className="app-btn app-btn-primary">
           <Plus className="h-4 w-4" />
           Create Policy
         </Link>
       </PageHeader>
 
-      <QueryState isLoading={isLoading} error={error} isEmpty={!data?.length} emptyMessage="No policies created yet">
-        <div className="app-card">
-          <div className="app-table-wrap">
-            <table className="app-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Active Version</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.map((p) => (
-                  <tr key={p.id}>
-                    <td className="font-medium text-[#012b54]">
-                      <Link href={`/dashboard/policies/${p.id}`} className="app-link">{p.name}</Link>
-                    </td>
-                    <td>
-                      <span className={`app-badge capitalize ${p.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-700'}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="font-mono text-xs text-[#64748b]">{p.activeVersionId?.slice(0, 8) ?? '—'}...</td>
-                    <td className="text-[#64748b]">{new Date(p.createdAt).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <PolicyExplainer />
+
+      {!isLoading && !error && policies.length > 0 && (
+        <PolicyStats
+          total={counts.total}
+          active={counts.active}
+          draft={counts.draft}
+          assignedAgents={counts.assignedAgents}
+          activeFilter={filter}
+          onFilter={setFilter}
+        />
+      )}
+
+      <section className="policy-ledger-list" aria-label="Policy list">
+        <div className="policy-ledger-list__toolbar">
+          <h2 className="policy-ledger-list__heading">Your policies</h2>
+          <label className="policy-ledger-search">
+            <Search className="h-4 w-4 text-[#8B98A5]" aria-hidden />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, status, or ID…"
+              className="policy-ledger-search__input"
+              aria-label="Search policies"
+            />
+          </label>
         </div>
-      </QueryState>
+
+        {isLoading ? (
+          <div className="policy-ledger-list__items">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <PolicyCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="app-card border-red-200 bg-red-50 py-8 text-center">
+            <p className="text-sm font-medium text-red-700">{error.message}</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="policy-ledger-empty-state">
+            <p className="policy-ledger-empty-state__text">
+              {search
+                ? 'No policies match your search. Try a different name or ID.'
+                : policies.length
+                  ? 'No policies in this filter. Try another status tab.'
+                  : 'No policies created yet. Start from a template to define compliance and permission rules.'}
+            </p>
+            {!search && policies.length === 0 && (
+              <Link href="/dashboard/policies/new" className="app-btn app-btn-primary">
+                <Plus className="h-4 w-4" />
+                Create your first policy
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="policy-ledger-list__items">
+            {filtered.map((policy) => (
+              <PolicyCard
+                key={policy.id}
+                policy={policy}
+                agentCount={agentCountByPolicy.get(policy.id) ?? 0}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

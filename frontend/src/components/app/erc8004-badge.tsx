@@ -32,8 +32,8 @@ const STATUS_COPY: Record<string, { title: string; body: string; tone: 'ok' | 'w
     tone: 'ok',
   },
   registration_pending: {
-    title: 'Registration Pending',
-    body: 'VALEN has prepared off-chain agent metadata (name, mandates, proof history). A full ERC-8004 identity NFT is not minted yet — the public ERC-8004 registry contract is optional in this demo. Click Register Identity to save metadata to ValenIdentityResolver; on-chain NFT mint requires deploying ERC8004_REGISTRY_ADDRESS.',
+    title: 'Identity bound — mint pending',
+    body: 'VALEN has bound agent metadata to ValenIdentityResolver. On-chain ERC-8004 NFT mint is pending — the resolver is live and proofs already include identity evidence.',
     tone: 'warn',
   },
   failed: {
