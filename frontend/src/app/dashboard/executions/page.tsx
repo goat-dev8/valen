@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
-import { useAgents, useExecutions } from '@/hooks/use-valen-api';
+import { useAgents, useExecutions, useMandates, useWalletVerifications } from '@/hooks/use-valen-api';
 import { chainName } from '@/lib/constants';
 
 export default function ExecutionsPage() {
@@ -16,7 +16,17 @@ export default function ExecutionsPage() {
     limit: 50,
   });
   const { data: agents } = useAgents({ limit: 100 });
+  const { data: mandates } = useMandates();
+  const { data: walletVerifications } = useWalletVerifications();
   const agentMap = new Map(agents?.items.map((a) => [a.id, a.name]) ?? []);
+  const hasVerifiedWallet = walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false;
+  const readyAgent = agents?.items.find(
+    (agent) =>
+      agent.status === 'active' &&
+      Boolean(agent.defaultPolicyId) &&
+      hasVerifiedWallet &&
+      mandates?.some((mandate) => mandate.agentId === agent.id && mandate.status === 'active'),
+  );
 
   return (
     <div className="space-y-6">
@@ -37,9 +47,12 @@ export default function ExecutionsPage() {
           <option value="settlement_submitted">Settlement submitted</option>
           <option value="failed">Failed</option>
         </select>
-        <Link href="/dashboard/executions/new" className="app-btn app-btn-primary">
+        <Link
+          href={readyAgent ? `/dashboard/executions/new?agentId=${readyAgent.id}` : '/dashboard/agents'}
+          className={readyAgent ? 'app-btn app-btn-primary' : 'app-btn app-btn-outline'}
+        >
           <Plus className="h-4 w-4" />
-          Submit Intent
+          {readyAgent ? 'Submit Intent' : 'Complete Readiness'}
         </Link>
       </PageHeader>
 
