@@ -53,10 +53,17 @@ export class ComplianceChecksRepository extends BaseRepository {
     provider: string;
     subjectType: string;
     subjectRef: string;
+    status?: string;
+    attestationHash?: string;
+    resultHash?: string;
+    expiresAt?: Date;
+    checkedAt?: Date;
   }): Promise<ComplianceCheckRow> {
     const row = await this.queryOne<ComplianceCheckRow>(
-      `INSERT INTO compliance_checks (organization_id, execution_id, reason_code, provider, subject_type, subject_ref)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `INSERT INTO compliance_checks (
+         organization_id, execution_id, reason_code, provider, subject_type,
+         subject_ref, status, attestation_hash, result_hash, expires_at, checked_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [
         input.organizationId,
         input.executionId,
@@ -64,6 +71,11 @@ export class ComplianceChecksRepository extends BaseRepository {
         input.provider,
         input.subjectType,
         input.subjectRef,
+        input.status ?? 'pending',
+        input.attestationHash ?? null,
+        input.resultHash ?? null,
+        input.expiresAt ?? null,
+        input.checkedAt ?? null,
       ],
     );
     if (!row) throw new Error('Failed to create compliance check');

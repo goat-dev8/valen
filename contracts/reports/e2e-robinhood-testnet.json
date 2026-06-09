@@ -1,7 +1,7 @@
 {
   "network": "robinhood-testnet",
   "chainId": "46630",
-  "timestamp": "2026-06-09T02:26:39.875Z",
+  "timestamp": "2026-06-09T23:48:52.945Z",
   "settlement": "0x91CdD9a481C732bEB09Ce039da23DC11e83547a4",
   "engines": {
     "ComplianceEngine": {
@@ -33,7 +33,7 @@
       "package": "policy-engine"
     }
   },
-  "settlementId": "0xbd3a6f9729b935668cdc6840c41d553b23cc967a87c03d0e31fb1b7daa76257f",
+  "settlementId": "0xf5f87a06f263fd032c52921bbff892a9d396c403d95891460e860c5b96082a2c",
   "steps": [
     {
       "step": "Registry.ComplianceEngine",
@@ -78,8 +78,8 @@
     {
       "step": "Mandate.setup",
       "status": "pass",
-      "detail": "0x3293933327ad12c5474bd8af7d3ba75c32b00d3ae4b6bbd0b759a9f79f5bedd5",
-      "txHash": "0x7835df752d076e01f9dd6bb26337ed3f5ca21ffc33f329c8a2ade900e893cc58"
+      "detail": "0x4e90e7fd37ede4ddd71004ce186a9efa1b068fb2126c6a506db8d5f02bb4cc5b",
+      "txHash": "0x2e1839e732c9c75ad4544b8f1634478131b035b3c1a645ce16addc7ef8344355"
     },
     {
       "step": "Policy.activate",
@@ -89,30 +89,30 @@
     {
       "step": "Engines.liveProbe",
       "status": "pass",
-      "detail": "compliance=0x054d6df9 risk=0x901757a9 policy=0xc5e19cdc"
+      "detail": "compliance=0xd76a9000 risk=0x8098001f policy=0x8c0a8bc4"
     },
     {
       "step": "Settlement.submit",
       "status": "pass",
       "detail": "Settlement submitted with live Stylus engine validation",
-      "txHash": "0x21b0ee1cbecf876de02bc87aea913b3ff33c96f649ea4fe02d4a26654ebc11e3"
+      "txHash": "0xe9e7130363b817a103d685a7fb2f08ef9b7a4755621775f8ccd86b8ee40a9014"
     },
     {
       "step": "Settlement.approve",
       "status": "pass",
-      "detail": "0xbd3a6f9729b935668cdc6840c41d553b23cc967a87c03d0e31fb1b7daa76257f",
-      "txHash": "0x0497a593e875b495f7d55c6858b264597d95de1c650532c3c805470b842a2bdb"
+      "detail": "0xf5f87a06f263fd032c52921bbff892a9d396c403d95891460e860c5b96082a2c",
+      "txHash": "0x32ecf343c94fbbe883a4e7b3e4509cd20ceae71828aa85f093a3b15f942f3b27"
     },
     {
       "step": "Settlement.execute",
       "status": "pass",
       "detail": "Executed with 0.001 ETH",
-      "txHash": "0xab2b9e57b9dcbe808b2658d9c90d0c657e6ad88d9b82032385c0b26f729f28ac"
+      "txHash": "0x2f1e1dfe76e947bd2bde12b604da724ff9f1cac57ed16199b99fb07f9d1a2d1e"
     },
     {
       "step": "Audit.commitment",
       "status": "pass",
-      "detail": "0xe94b48e31d3392a5a42e633b779ce010d92d1121409d74231f2076719f3e0f86"
+      "detail": "0xad3e6f789387e058b48ef71951a12b68240ffeed07443c8cd2aa2839fcaf7e6e"
     }
   ],
   "passed": true

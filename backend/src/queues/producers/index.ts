@@ -19,7 +19,7 @@ export class IntentProducer {
   async enqueue(data: { organizationId: string; executionId: string }) {
     await this.queue.add('process-intent', data, {
       ...DEFAULT_JOB_OPTIONS,
-      jobId: `intent:${data.executionId}`,
+      jobId: `intent-${data.executionId}`,
     });
   }
 }
@@ -31,7 +31,7 @@ export class ComplianceProducer {
   async enqueue(data: { organizationId: string; executionId: string }) {
     await this.queue.add('process-compliance', data, {
       ...DEFAULT_JOB_OPTIONS,
-      jobId: `compliance:${data.executionId}`,
+      jobId: `compliance-${data.executionId}`,
     });
   }
 }
@@ -43,7 +43,7 @@ export class RiskProducer {
   async enqueue(data: { organizationId: string; executionId: string }) {
     await this.queue.add('process-risk', data, {
       ...DEFAULT_JOB_OPTIONS,
-      jobId: `risk:${data.executionId}`,
+      jobId: `risk-${data.executionId}`,
     });
   }
 }
@@ -55,7 +55,7 @@ export class PolicyProducer {
   async enqueue(data: { organizationId: string; executionId: string }) {
     await this.queue.add('process-policy', data, {
       ...DEFAULT_JOB_OPTIONS,
-      jobId: `policy:${data.executionId}`,
+      jobId: `policy-${data.executionId}`,
     });
   }
 }
@@ -72,7 +72,7 @@ export class SettlementProducer {
   }) {
     await this.queue.add('process-settlement', data, {
       ...DEFAULT_JOB_OPTIONS,
-      jobId: `settlement:${data.idempotencyKey}`,
+      jobId: `settlement-${data.idempotencyKey}`,
     });
   }
 }

@@ -16,6 +16,54 @@ import { PolicyProducer } from '../../queues/producers/index';
 
 const TERMINAL = ['executed', 'failed', 'cancelled'];
 
+const RISK_TIERS = ['low', 'medium', 'high', 'critical'] as const;
+
+function getOnChainMetadata(execution: { metadata: Record<string, unknown> }) {
+  const metadata = execution.metadata?.onchain;
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw new Error('Execution metadata.onchain is required for risk processing');
+  }
+  return metadata as Record<string, unknown>;
+}
+
+function requireHex(value: unknown, key: string, bytes = 32): string {
+  if (
+    typeof value !== 'string' ||
+    !new RegExp(`^0x[0-9a-fA-F]{${bytes * 2}}$`).test(value)
+  ) {
+    throw new Error(`metadata.onchain.${key} must be ${bytes} bytes`);
+  }
+  return value;
+}
+
+function requireRiskScore(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 100) {
+    throw new Error('metadata.onchain.riskScore must be an integer between 0 and 100');
+  }
+  return value;
+}
+
+function requireRiskTier(value: unknown): (typeof RISK_TIERS)[number] {
+  if (typeof value !== 'string' || !RISK_TIERS.includes(value as (typeof RISK_TIERS)[number])) {
+    throw new Error('metadata.onchain.riskTier must be low, medium, high, or critical');
+  }
+  return value as (typeof RISK_TIERS)[number];
+}
+
+function requireBoolean(value: unknown, key: string): boolean {
+  if (typeof value !== 'boolean') {
+    throw new Error(`metadata.onchain.${key} must be boolean`);
+  }
+  return value;
+}
+
+function requireNumber(value: unknown, key: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new Error(`metadata.onchain.${key} must be a non-negative integer`);
+  }
+  return value;
+}
+
 @Injectable()
 export class RiskService {
   constructor(
@@ -138,18 +186,56 @@ export class RiskWorkerService {
     const execution = await this.executionsRepository.findById(executionId);
     if (!execution) return;
 
-    const factorSummary = { model: 'default', version: '1.0' };
-    const scoreHash = sha256(JSON.stringify(factorSummary));
+    try {
+      const onchain = getOnChainMetadata(execution);
+      const riskHash = requireHex(onchain.riskHash, 'riskHash');
+      const factorSummary = {
+        model: 'onchain-stylus',
+        riskHash,
+        historicalSummaryHash: requireHex(
+          onchain.historicalSummaryHash,
+          'historicalSummaryHash',
+        ),
+        externalRiskAttestationHash: requireHex(
+          onchain.externalRiskAttestationHash,
+          'externalRiskAttestationHash',
+        ),
+        externalRiskExpiry: requireNumber(
+          onchain.externalRiskExpiry,
+          'externalRiskExpiry',
+        ),
+        factors: {
+          amountFactor: requireNumber(onchain.amountFactor, 'amountFactor'),
+          assetFactor: requireNumber(onchain.assetFactor, 'assetFactor'),
+          counterpartyFactor: requireNumber(
+            onchain.counterpartyFactor,
+            'counterpartyFactor',
+          ),
+          velocityFactor: requireNumber(onchain.velocityFactor, 'velocityFactor'),
+          mandateUsageFactor: requireNumber(
+            onchain.mandateUsageFactor,
+            'mandateUsageFactor',
+          ),
+          anomalyFactor: requireNumber(onchain.anomalyFactor, 'anomalyFactor'),
+        },
+      };
 
-    await this.riskScoresRepository.create({
-      organizationId: execution.organization_id,
-      executionId,
-      score: 30,
-      tier: 'low',
-      factorSummary,
-      scoreHash,
-      requiresApproval: false,
-    });
+      await this.riskScoresRepository.create({
+        organizationId: execution.organization_id,
+        executionId,
+        score: requireRiskScore(onchain.riskScore),
+        tier: requireRiskTier(onchain.riskTier),
+        factorSummary,
+        scoreHash: riskHash,
+        requiresApproval: requireBoolean(
+          onchain.requiresApproval,
+          'requiresApproval',
+        ),
+      });
+    } catch (error) {
+      await this.executionsRepository.updateStatus(executionId, 'risk_failed');
+      throw error;
+    }
 
     await this.executionsRepository.updateStatus(executionId, 'validated');
     await this.policyProducer.enqueue({

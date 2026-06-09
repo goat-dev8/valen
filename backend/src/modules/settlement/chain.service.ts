@@ -77,34 +77,15 @@ export class ChainService {
 
 @Injectable()
 export class AlchemyService {
-  constructor(private readonly configService: ConfigService<AppConfig, true>) {}
+  constructor(private readonly chainService: ChainService) {}
 
-  getApiKey(): string {
-    return this.configService.get('alchemyApiKey', { infer: true });
-  }
-
-  async getTransactionStatus(chainId: number, txHash: string) {
-    if (chainId !== 421614) {
-      return null;
-    }
-
-    const url = `https://arb-sepolia.g.alchemy.com/v2/${this.getApiKey()}`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'eth_getTransactionReceipt',
-        params: [txHash],
-      }),
+  async getTransactionStatus(chainId: number, txHash: Hex) {
+    const publicClient = this.chainService.getPublicClient(chainId);
+    const receipt = await publicClient.getTransactionReceipt({
+      hash: txHash,
     });
 
-    const data = (await response.json()) as {
-      result?: { status?: string; blockNumber?: string };
-    };
-    return data.result ?? null;
+    return receipt;
   }
 }
 

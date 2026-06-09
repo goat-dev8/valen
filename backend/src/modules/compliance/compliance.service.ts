@@ -17,6 +17,24 @@ import { RiskProducer } from '../../queues/producers/index';
 
 const ALLOWED_PROVIDERS = ['trm', 'webacy', 'internal'];
 
+function getOnChainMetadata(execution: { metadata: Record<string, unknown> }) {
+  const metadata = execution.metadata?.onchain;
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw new Error('Execution metadata.onchain is required for compliance processing');
+  }
+  return metadata as Record<string, unknown>;
+}
+
+function requireHex(value: unknown, key: string, bytes = 32): string {
+  if (
+    typeof value !== 'string' ||
+    !new RegExp(`^0x[0-9a-fA-F]{${bytes * 2}}$`).test(value)
+  ) {
+    throw new Error(`metadata.onchain.${key} must be ${bytes} bytes`);
+  }
+  return value;
+}
+
 @Injectable()
 export class ComplianceService {
   constructor(
@@ -146,14 +164,26 @@ export class ComplianceWorkerService {
     const execution = await this.executionsRepository.findById(executionId);
     if (!execution) return;
 
-    await this.complianceChecksRepository.createCheck({
-      organizationId: execution.organization_id,
-      executionId,
-      reasonCode: 'SCREENING_PASSED',
-      provider: 'internal',
-      subjectType: 'transaction',
-      subjectRef: executionId,
-    });
+    try {
+      const onchain = getOnChainMetadata(execution);
+      await this.complianceChecksRepository.createCheck({
+        organizationId: execution.organization_id,
+        executionId,
+        reasonCode: 'ONCHAIN_ENGINE_DEFERRED',
+        provider: 'onchain-stylus',
+        subjectType: 'transaction',
+        subjectRef: executionId,
+        status: 'pending',
+        resultHash: requireHex(onchain.complianceHash, 'complianceHash'),
+        attestationHash: Array.isArray(onchain.attestationHashes) && onchain.attestationHashes.length > 0
+          ? requireHex(onchain.attestationHashes[0], 'attestationHashes[0]')
+          : undefined,
+        checkedAt: new Date(),
+      });
+    } catch (error) {
+      await this.executionsRepository.updateStatus(executionId, 'compliance_failed');
+      throw error;
+    }
 
     await this.executionsRepository.updateStatus(executionId, 'validated');
     await this.riskProducer.enqueue({

@@ -17,9 +17,9 @@ async function buildClientConfig(): Promise<ClientConfig> {
   let resolvedHost = host;
   try {
     const result = await lookup(host, { all: true });
-    const ipv6 = result.find((r) => r.family === 6);
     const ipv4 = result.find((r) => r.family === 4);
-    resolvedHost = (ipv6 ?? ipv4)?.address ?? host;
+    const ipv6 = result.find((r) => r.family === 6);
+    resolvedHost = (ipv4 ?? ipv6)?.address ?? host;
     console.log(`resolved ${host} -> ${resolvedHost}`);
   } catch {
     console.warn(`DNS lookup failed for ${host}, using hostname directly`);

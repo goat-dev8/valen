@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { POLICY_QUEUE } from '../../common/constants/queues.constant';
 import { ExecutionsRepository } from '../../database/repositories/executions.repository';
+import { RiskScoresRepository } from '../../database/repositories/risk-scores.repository';
 import { NotificationProducer } from '../producers/index';
 
 @Processor(POLICY_QUEUE)
@@ -11,6 +12,7 @@ export class PolicyProcessor extends WorkerHost {
 
   constructor(
     private readonly executionsRepository: ExecutionsRepository,
+    private readonly riskScoresRepository: RiskScoresRepository,
     private readonly notificationProducer: NotificationProducer,
   ) {
     super();
@@ -18,6 +20,22 @@ export class PolicyProcessor extends WorkerHost {
 
   async process(job: Job<{ organizationId: string; executionId: string }>) {
     this.logger.log(`Processing policy job ${job.id}`);
+    const score = await this.riskScoresRepository.findLatestByExecution(
+      job.data.executionId,
+    );
+    if (!score) {
+      await this.executionsRepository.updateStatus(
+        job.data.executionId,
+        'policy_rejected',
+      );
+      throw new Error('Risk score is required before policy processing');
+    }
+
+    if (!score.requires_approval) {
+      await this.executionsRepository.updateStatus(job.data.executionId, 'approved');
+      return;
+    }
+
     await this.executionsRepository.updateStatus(
       job.data.executionId,
       'approval_required',

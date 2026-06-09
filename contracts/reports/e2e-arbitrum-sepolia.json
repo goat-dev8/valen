@@ -1,7 +1,7 @@
 {
   "network": "arbitrum-sepolia",
   "chainId": "421614",
-  "timestamp": "2026-06-09T02:24:21.014Z",
+  "timestamp": "2026-06-09T23:48:34.259Z",
   "settlement": "0x993622D55Ea095aB71165Caf191B21E6e3A71D4A",
   "engines": {
     "ComplianceEngine": {
@@ -33,7 +33,7 @@
       "package": "policy-engine"
     }
   },
-  "settlementId": "0x9bfbf1da9e13228b3a748995642d7793e6bb6bab62d65d129e1804bb952c3c63",
+  "settlementId": "0x614b1d903afa289d03070dfc6fafbeb7c473c574cb2e48a5c503cd2fcbb46b62",
   "steps": [
     {
       "step": "Registry.ComplianceEngine",
@@ -78,8 +78,8 @@
     {
       "step": "Mandate.setup",
       "status": "pass",
-      "detail": "0xcaab3099964c493ae8aecb292bf00dfd6e3cb9ddd8135c8a8356e5ac3735e84e",
-      "txHash": "0x4cb5e40547fddf7cecddcda74cc858a6c262015bde7289202ac83574bd8b1326"
+      "detail": "0x23e3209f96362dbc619ac08582c3d9233336feb8ace4b5cef676c30995254676",
+      "txHash": "0xfcb5d1295de6621b0c897bcd6c2d5fe7fe56a696a0796f1fef077abe5ef742ad"
     },
     {
       "step": "Policy.activate",
@@ -89,30 +89,30 @@
     {
       "step": "Engines.liveProbe",
       "status": "pass",
-      "detail": "compliance=0x63b7011a risk=0x87c57163 policy=0xb02733c8"
+      "detail": "compliance=0x1d63d277 risk=0xce58d8ba policy=0x9290483e"
     },
     {
       "step": "Settlement.submit",
       "status": "pass",
       "detail": "Settlement submitted with live Stylus engine validation",
-      "txHash": "0x9734e4647c2f068231fb412990d115d030d449aeb7f32fe9095c7fadecad24fb"
+      "txHash": "0xb3d5ed767fc33aec63537f4d125d3cf0777a5e47353a8a7fd0c05c8031ffb50f"
     },
     {
       "step": "Settlement.approve",
       "status": "pass",
-      "detail": "0x9bfbf1da9e13228b3a748995642d7793e6bb6bab62d65d129e1804bb952c3c63",
-      "txHash": "0x0e20db3fef88ea7db85d345e6d5cbe5aebfc1b331103bff8db9b2b5b71dfc233"
+      "detail": "0x614b1d903afa289d03070dfc6fafbeb7c473c574cb2e48a5c503cd2fcbb46b62",
+      "txHash": "0xf6e15cbaac8771eaf035fe3457d340ece82b80fc38c3b71f7789f604ef0984f7"
     },
     {
       "step": "Settlement.execute",
       "status": "pass",
       "detail": "Executed with 0.001 ETH",
-      "txHash": "0xef68536cce885ec1e795567b6c853dcae910dc648c8e825700505d367589ae5b"
+      "txHash": "0xb1879944e763b0bae62fe460a95a3e5fa5efa1fa0f577aa9290a08a4b32fad8f"
     },
     {
       "step": "Audit.commitment",
       "status": "pass",
-      "detail": "0xc16fd951c221a60bdf55faf118150ca3ee57c86acaae825ff85f0b5411c28b8e"
+      "detail": "0xed31fe520f76ddf133dea4f739c7845666fa637c82997eab2d4517320142be69"
     }
   ],
   "passed": true
