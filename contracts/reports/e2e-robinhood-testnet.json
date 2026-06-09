@@ -1,0 +1,119 @@
+{
+  "network": "robinhood-testnet",
+  "chainId": "46630",
+  "timestamp": "2026-06-09T02:26:39.875Z",
+  "settlement": "0x91CdD9a481C732bEB09Ce039da23DC11e83547a4",
+  "engines": {
+    "ComplianceEngine": {
+      "address": "0x2c1db0c436b72d94a4112f321dfbd13a976d8831",
+      "version": "1.0.0",
+      "activated": true,
+      "deploymentTx": "0xfc66681f72344d706bed898bc5b272592567b86441fc37883e298f3d5be7d00a",
+      "package": "compliance-engine"
+    },
+    "RiskEngine": {
+      "address": "0xae57003e42e3548a9d39cd55bcdfac04363b1d63",
+      "version": "1.0.0",
+      "activated": true,
+      "deploymentTx": "0x9a3bac13f721714d027fd7e570c9aba470c0a2f73208c5a1679cd8f2e49f5b3a",
+      "package": "risk-engine"
+    },
+    "EligibilityEngine": {
+      "address": "0x1f3fb438824140b7e1125502f80b686d95072939",
+      "version": "1.0.0",
+      "activated": true,
+      "deploymentTx": "0x69585647dc39680780044f49426c236c0d9e98cee95722e644e8503b7e4e797a",
+      "package": "eligibility-engine"
+    },
+    "PolicyEngine": {
+      "address": "0xe1ae5ec5b4416e7d725981946e11af0a44bf4ecd",
+      "version": "1.0.0",
+      "activated": true,
+      "deploymentTx": "0xef050ff2f0aabf2c31c798ca3e9789245bf65ea7421d211035b0771db4e47b5d",
+      "package": "policy-engine"
+    }
+  },
+  "settlementId": "0xbd3a6f9729b935668cdc6840c41d553b23cc967a87c03d0e31fb1b7daa76257f",
+  "steps": [
+    {
+      "step": "Registry.ComplianceEngine",
+      "status": "skip",
+      "detail": "Already registered at 0x2c1db0c436b72d94a4112f321dfbd13a976d8831"
+    },
+    {
+      "step": "Registry.RiskEngine",
+      "status": "skip",
+      "detail": "Already registered at 0xae57003e42e3548a9d39cd55bcdfac04363b1d63"
+    },
+    {
+      "step": "Registry.EligibilityEngine",
+      "status": "skip",
+      "detail": "Already registered at 0x1f3fb438824140b7e1125502f80b686d95072939"
+    },
+    {
+      "step": "Registry.PolicyEngine",
+      "status": "skip",
+      "detail": "Already registered at 0xe1ae5ec5b4416e7d725981946e11af0a44bf4ecd"
+    },
+    {
+      "step": "Init.ComplianceEngine",
+      "status": "skip",
+      "detail": "Already initialized"
+    },
+    {
+      "step": "Init.RiskEngine",
+      "status": "skip",
+      "detail": "Already initialized"
+    },
+    {
+      "step": "Init.EligibilityEngine",
+      "status": "skip",
+      "detail": "Already initialized"
+    },
+    {
+      "step": "Init.PolicyEngine",
+      "status": "skip",
+      "detail": "Already initialized"
+    },
+    {
+      "step": "Mandate.setup",
+      "status": "pass",
+      "detail": "0x3293933327ad12c5474bd8af7d3ba75c32b00d3ae4b6bbd0b759a9f79f5bedd5",
+      "txHash": "0x7835df752d076e01f9dd6bb26337ed3f5ca21ffc33f329c8a2ade900e893cc58"
+    },
+    {
+      "step": "Policy.activate",
+      "status": "skip",
+      "detail": "Policy already active"
+    },
+    {
+      "step": "Engines.liveProbe",
+      "status": "pass",
+      "detail": "compliance=0x054d6df9 risk=0x901757a9 policy=0xc5e19cdc"
+    },
+    {
+      "step": "Settlement.submit",
+      "status": "pass",
+      "detail": "Settlement submitted with live Stylus engine validation",
+      "txHash": "0x21b0ee1cbecf876de02bc87aea913b3ff33c96f649ea4fe02d4a26654ebc11e3"
+    },
+    {
+      "step": "Settlement.approve",
+      "status": "pass",
+      "detail": "0xbd3a6f9729b935668cdc6840c41d553b23cc967a87c03d0e31fb1b7daa76257f",
+      "txHash": "0x0497a593e875b495f7d55c6858b264597d95de1c650532c3c805470b842a2bdb"
+    },
+    {
+      "step": "Settlement.execute",
+      "status": "pass",
+      "detail": "Executed with 0.001 ETH",
+      "txHash": "0xab2b9e57b9dcbe808b2658d9c90d0c657e6ad88d9b82032385c0b26f729f28ac"
+    },
+    {
+      "step": "Audit.commitment",
+      "status": "pass",
+      "detail": "0xe94b48e31d3392a5a42e633b779ce010d92d1121409d74231f2076719f3e0f86"
+    }
+  ],
+  "passed": true
+}

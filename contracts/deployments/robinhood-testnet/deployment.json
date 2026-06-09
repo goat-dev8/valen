@@ -1,0 +1,45 @@
+{
+  "network": "robinhood-testnet",
+  "chainId": "46630",
+  "deployer": "0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3",
+  "timestamp": "2026-06-08T23:31:26.823Z",
+  "contracts": {
+    "ValenTimelock": {
+      "address": "0x05545F026b75f03aE9Cf1eA8a8373473c94ed323"
+    },
+    "ValenRegistry": {
+      "address": "0x8A80D270dd7028536ecB6f92b04eec11F929d603",
+      "implementation": "0x068bB96e849F0DE3D49944Ec0F4aEd3D6B165770"
+    },
+    "ValenPolicyManager": {
+      "address": "0x2741bAF6F51e5Ab67E81DdDCb1439679Bebd2d2F",
+      "implementation": "0x92b8815A17D85E45DB5Da9952764Ee2ce072A973"
+    },
+    "ValenMandateRegistry": {
+      "address": "0x3122B8446044E87A683C1104dc80f32d3Eb28CE4",
+      "implementation": "0xc05238b304409bC549fd8138301a2E977BaD8Cb3"
+    },
+    "ValenSettlement": {
+      "address": "0x91CdD9a481C732bEB09Ce039da23DC11e83547a4",
+      "implementation": "0xD15770A24447677D42dF6cfD09bd2fb96b34E712"
+    },
+    "ValenTreasury": {
+      "address": "0xd9aDaab0E9660777B979D4C44294bE07E10470c8",
+      "implementation": "0xa1fF40D70089A6AE45BC6824bca5C54bB7E7059A"
+    },
+    "ValenEscrow": {
+      "address": "0xf88690425201906eDcA2CDe0427055590eDfDc20",
+      "implementation": "0x05A434b4672A4384FA0Ae88B6f84B952Aec614c4"
+    },
+    "ValenGovernance": {
+      "address": "0x8c263B12e0d511e5a612b4090cFEa0c758A2af6b",
+      "implementation": "0x4d507779cCCb46a4DF9eD4505368f21c6b875981"
+    },
+    "ValenAuditLog": {
+      "address": "0x21EC2E12865b5a307A3708ACbA85f2FE2a98B8BF"
+    },
+    "ValenEmergencyGuardian": {
+      "address": "0xb6a36B53E46A0D9ee3c1D589e936b0214aFA9303"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "network": "arbitrum-sepolia",
+  "chainId": "421614",
+  "deployer": "0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3",
+  "timestamp": "2026-06-08T23:28:50.010Z",
+  "contracts": {
+    "ValenTimelock": {
+      "address": "0xAe853e326bCF38f6f9131eA0f5298C88084D72bc"
+    },
+    "ValenRegistry": {
+      "address": "0x53EeC68c869E06B659A87b9e049a379ba3a5FA0F",
+      "implementation": "0x73d7D07F6AB85154b0c97c61C1089F9C708D69b7"
+    },
+    "ValenPolicyManager": {
+      "address": "0x72eB4D7e57D4b582c5B05d255c1faE723507a03d",
+      "implementation": "0xa11fecD62a5731a869E6dBce5D23c476bE82ae26"
+    },
+    "ValenMandateRegistry": {
+      "address": "0xC3B422d77aBE0B7D3c8930d7f1FCFCa4657d41F2",
+      "implementation": "0x1f65fdE8C4EC8E136D8D223C9a568b58DA7fECcc"
+    },
+    "ValenSettlement": {
+      "address": "0x993622D55Ea095aB71165Caf191B21E6e3A71D4A",
+      "implementation": "0x4E53C16BA458Dc527448B002AfFCb5D2325317EF"
+    },
+    "ValenTreasury": {
+      "address": "0x094B10D817f4603e9a4734B52c4c7A1Bf389658D",
+      "implementation": "0x1ad332bcC2b3aa29eeEbBAcB6DB762DA57f25159"
+    },
+    "ValenEscrow": {
+      "address": "0x485eba92e9Bf0e035216726A0EC194dd397311BC",
+      "implementation": "0x9DF87f518eFAc159cd1F0A638412EB2De2529194"
+    },
+    "ValenGovernance": {
+      "address": "0xF7623E69a21ad43f3678a9FA2bA931e59f7F1574",
+      "implementation": "0x4E05B60F660676DF2294F41fd9e75e34C2bF85e1"
+    },
+    "ValenAuditLog": {
+      "address": "0xBe1b5F1055C21D715185612947f681059B585cEE"
+    },
+    "ValenEmergencyGuardian": {
+      "address": "0x3424a2ea234Ba819FceF1Beea32Ab39C42e235d9"
+    }
+  }
+}

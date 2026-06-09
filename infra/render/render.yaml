@@ -1,0 +1,46 @@
+# VALEN Render Blueprint
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: valen-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health/live
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - fromGroup: valen-production
+
+  - type: worker
+    name: valen-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile.worker
+    envVars:
+      - fromGroup: valen-production
+
+  - type: cron
+    name: valen-scheduler
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile.scheduler
+    schedule: "*/5 * * * *"
+    envVars:
+      - fromGroup: valen-production
+
+envVarGroups:
+  - name: valen-production
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: PRIVY_APP_ID
+        sync: false
+      - key: PRIVY_APP_SECRET
+        sync: false
+      - key: ALCHEMY_API_KEY
+        sync: false

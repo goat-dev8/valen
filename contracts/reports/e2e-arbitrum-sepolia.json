@@ -1,0 +1,119 @@
+{
+  "network": "arbitrum-sepolia",
+  "chainId": "421614",
+  "timestamp": "2026-06-09T02:24:21.014Z",
+  "settlement": "0x993622D55Ea095aB71165Caf191B21E6e3A71D4A",
+  "engines": {
+    "ComplianceEngine": {
+      "address": "0xf6d515f09b1e14adb891c72605e1df12c7f5db6b",
+      "version": "1.0.0",
+      "activated": true,
+      "deploymentTx": "0xb2d80412e669510b9a65826e71a211021a72f359616bcb1561bf74b933067204",
+      "package": "compliance-engine"
+    },
+    "RiskEngine": {
+      "address": "0x8eb252ff6f05b1ee767bb816e5786ad72e5b4073",
+      "version": "1.0.0",
+      "activated": true,
+      "deploymentTx": "0xfcc33315b39c80407718fa12235d86daaf47edbbde98c58cfc86424e6842cab4",
+      "package": "risk-engine"
+    },
+    "EligibilityEngine": {
+      "address": "0x03e00644c2bbb45ab4566e34c30929dd017ee5bd",
+      "version": "1.0.0",
+      "activated": true,
+      "deploymentTx": "0xdecbe4bf2c2a8b56d2d35de12f72f03e94895f25cc7538d80f8482b589d038dd",
+      "package": "eligibility-engine"
+    },
+    "PolicyEngine": {
+      "address": "0x3eb88dde893288faea417b413a55a5b4d3256108",
+      "version": "1.0.0",
+      "activated": true,
+      "deploymentTx": "0x664d19e6b9491167f582610d9b3773af91707c197d98a083f63bf8932b05a1bf",
+      "package": "policy-engine"
+    }
+  },
+  "settlementId": "0x9bfbf1da9e13228b3a748995642d7793e6bb6bab62d65d129e1804bb952c3c63",
+  "steps": [
+    {
+      "step": "Registry.ComplianceEngine",
+      "status": "skip",
+      "detail": "Already registered at 0xf6d515f09b1e14adb891c72605e1df12c7f5db6b"
+    },
+    {
+      "step": "Registry.RiskEngine",
+      "status": "skip",
+      "detail": "Already registered at 0x8eb252ff6f05b1ee767bb816e5786ad72e5b4073"
+    },
+    {
+      "step": "Registry.EligibilityEngine",
+      "status": "skip",
+      "detail": "Already registered at 0x03e00644c2bbb45ab4566e34c30929dd017ee5bd"
+    },
+    {
+      "step": "Registry.PolicyEngine",
+      "status": "skip",
+      "detail": "Already registered at 0x3eb88dde893288faea417b413a55a5b4d3256108"
+    },
+    {
+      "step": "Init.ComplianceEngine",
+      "status": "skip",
+      "detail": "Already initialized"
+    },
+    {
+      "step": "Init.RiskEngine",
+      "status": "skip",
+      "detail": "Already initialized"
+    },
+    {
+      "step": "Init.EligibilityEngine",
+      "status": "skip",
+      "detail": "Already initialized"
+    },
+    {
+      "step": "Init.PolicyEngine",
+      "status": "skip",
+      "detail": "Already initialized"
+    },
+    {
+      "step": "Mandate.setup",
+      "status": "pass",
+      "detail": "0xcaab3099964c493ae8aecb292bf00dfd6e3cb9ddd8135c8a8356e5ac3735e84e",
+      "txHash": "0x4cb5e40547fddf7cecddcda74cc858a6c262015bde7289202ac83574bd8b1326"
+    },
+    {
+      "step": "Policy.activate",
+      "status": "skip",
+      "detail": "Policy already active"
+    },
+    {
+      "step": "Engines.liveProbe",
+      "status": "pass",
+      "detail": "compliance=0x63b7011a risk=0x87c57163 policy=0xb02733c8"
+    },
+    {
+      "step": "Settlement.submit",
+      "status": "pass",
+      "detail": "Settlement submitted with live Stylus engine validation",
+      "txHash": "0x9734e4647c2f068231fb412990d115d030d449aeb7f32fe9095c7fadecad24fb"
+    },
+    {
+      "step": "Settlement.approve",
+      "status": "pass",
+      "detail": "0x9bfbf1da9e13228b3a748995642d7793e6bb6bab62d65d129e1804bb952c3c63",
+      "txHash": "0x0e20db3fef88ea7db85d345e6d5cbe5aebfc1b331103bff8db9b2b5b71dfc233"
+    },
+    {
+      "step": "Settlement.execute",
+      "status": "pass",
+      "detail": "Executed with 0.001 ETH",
+      "txHash": "0xef68536cce885ec1e795567b6c853dcae910dc648c8e825700505d367589ae5b"
+    },
+    {
+      "step": "Audit.commitment",
+      "status": "pass",
+      "detail": "0xc16fd951c221a60bdf55faf118150ca3ee57c86acaae825ff85f0b5411c28b8e"
+    }
+  ],
+  "passed": true
+}

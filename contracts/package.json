@@ -1,0 +1,33 @@
+{
+  "name": "@valen/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VALEN onchain contracts — registry, settlement, governance",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "clean": "hardhat clean",
+    "deploy:local": "hardhat run script/deploy-local.ts --network localhost",
+    "deploy:sepolia": "hardhat run script/deploy-sepolia.ts --network arbitrum-sepolia",
+    "deploy:robinhood-testnet": "hardhat run script/deploy-robinhood-testnet.ts --network robinhood-testnet",
+    "post-deploy:sepolia": "hardhat run script/post-deploy-check.ts --network arbitrum-sepolia",
+    "post-deploy:robinhood-testnet": "hardhat run script/post-deploy-check.ts --network robinhood-testnet",
+    "verify-live:sepolia": "hardhat run script/verify-live-state.ts --network arbitrum-sepolia",
+    "verify-live:robinhood-testnet": "hardhat run script/verify-live-state.ts --network robinhood-testnet",
+    "register-engines:sepolia": "hardhat run script/register-engines.ts --network arbitrum-sepolia",
+    "register-engines:robinhood-testnet": "hardhat run script/register-engines.ts --network robinhood-testnet",
+    "init-engines:sepolia": "hardhat run script/init-engines.ts --network arbitrum-sepolia",
+    "init-engines:robinhood-testnet": "hardhat run script/init-engines.ts --network robinhood-testnet",
+    "e2e:sepolia": "hardhat run script/e2e-validation.ts --network arbitrum-sepolia",
+    "e2e:robinhood-testnet": "hardhat run script/e2e-validation.ts --network robinhood-testnet",
+    "verify:sepolia": "hardhat run script/verify.ts --network arbitrum-sepolia"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.2",
+    "@openzeppelin/contracts-upgradeable": "^5.0.2",
+    "dotenv": "^17.4.2",
+    "hardhat": "^2.22.17",
+    "typescript": "^5.7.2"
+  }
+}

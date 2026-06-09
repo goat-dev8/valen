@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/valen-stylus-common",
+    "engines/compliance-engine",
+    "engines/risk-engine",
+    "engines/eligibility-engine",
+    "engines/policy-engine",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/valen/valen"
+keywords = ["arbitrum", "ethereum", "stylus", "valen"]
+
+[workspace.dependencies]
+stylus-sdk = "0.10.2"
+alloy-primitives = "=1.5.7"
+alloy-sol-types = "=1.5.7"
+valen-stylus-common = { path = "crates/valen-stylus-common" }
+
+[profile.release]
+codegen-units = 1
+strip = true
+lto = true
+panic = "abort"
+opt-level = "s"

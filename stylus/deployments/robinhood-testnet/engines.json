@@ -1,0 +1,6 @@
+{
+  "ComplianceEngine": { "address": "0x2c1db0c436b72d94a4112f321dfbd13a976d8831", "version": "1.0.0", "activated": true, "deploymentTx": "0xfc66681f72344d706bed898bc5b272592567b86441fc37883e298f3d5be7d00a", "package": "compliance-engine" },
+  "RiskEngine": { "address": "0xae57003e42e3548a9d39cd55bcdfac04363b1d63", "version": "1.0.0", "activated": true, "deploymentTx": "0x9a3bac13f721714d027fd7e570c9aba470c0a2f73208c5a1679cd8f2e49f5b3a", "package": "risk-engine" },
+  "EligibilityEngine": { "address": "0x1f3fb438824140b7e1125502f80b686d95072939", "version": "1.0.0", "activated": true, "deploymentTx": "0x69585647dc39680780044f49426c236c0d9e98cee95722e644e8503b7e4e797a", "package": "eligibility-engine" },
+  "PolicyEngine": { "address": "0xe1ae5ec5b4416e7d725981946e11af0a44bf4ecd", "version": "1.0.0", "activated": true, "deploymentTx": "0xef050ff2f0aabf2c31c798ca3e9789245bf65ea7421d211035b0771db4e47b5d", "package": "policy-engine" }
+}
