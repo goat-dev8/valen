@@ -1,9 +1,24 @@
 import { PolicyProcessor } from './policy.processor';
 
 describe('PolicyProcessor', () => {
-  it('approves execution when latest risk score does not require approval', async () => {
+  const settlementsRepository = {
+    create: jest.fn().mockResolvedValue({ id: 'settlement-id' }),
+  };
+  const settlementProducer = {
+    enqueue: jest.fn().mockResolvedValue(undefined),
+  };
+  const chainService = {
+    getSettlementAddress: jest.fn().mockReturnValue('0x993622D55Ea095aB71165Caf191B21E6e3A71D4A'),
+  };
+
+  it('approves execution and enqueues settlement when risk score does not require approval', async () => {
     const executionsRepository = {
       updateStatus: jest.fn().mockResolvedValue({}),
+      findById: jest.fn().mockResolvedValue({
+        id: 'execution-id',
+        target_chain_id: 421614,
+        target_address: '0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3',
+      }),
     };
     const riskScoresRepository = {
       findLatestByExecution: jest.fn().mockResolvedValue({
@@ -17,6 +32,9 @@ describe('PolicyProcessor', () => {
     const processor = new PolicyProcessor(
       executionsRepository as never,
       riskScoresRepository as never,
+      settlementsRepository as never,
+      settlementProducer as never,
+      chainService as never,
       notificationProducer as never,
     );
 
@@ -29,12 +47,15 @@ describe('PolicyProcessor', () => {
       'execution-id',
       'approved',
     );
+    expect(settlementsRepository.create).toHaveBeenCalled();
+    expect(settlementProducer.enqueue).toHaveBeenCalled();
     expect(notificationProducer.enqueue).not.toHaveBeenCalled();
   });
 
   it('rejects policy processing when no risk score exists', async () => {
     const executionsRepository = {
       updateStatus: jest.fn().mockResolvedValue({}),
+      findById: jest.fn(),
     };
     const riskScoresRepository = {
       findLatestByExecution: jest.fn().mockResolvedValue(null),
@@ -46,6 +67,9 @@ describe('PolicyProcessor', () => {
     const processor = new PolicyProcessor(
       executionsRepository as never,
       riskScoresRepository as never,
+      settlementsRepository as never,
+      settlementProducer as never,
+      chainService as never,
       notificationProducer as never,
     );
 
