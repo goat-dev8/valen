@@ -44,3 +44,25 @@ envVarGroups:
         sync: false
       - key: ALCHEMY_API_KEY
         sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: OPERATOR_DASHBOARD_SECRET
+        sync: false
+      - key: ARBITRUM_SEPOLIA_RPC_URL
+        sync: false
+      - key: ROBINHOOD_TESTNET_RPC_URL
+        sync: false
+      - key: ARBITRUM_SEPOLIA_VALEN_REGISTRY
+        sync: false
+      - key: ARBITRUM_SEPOLIA_VALEN_SETTLEMENT
+        sync: false
+      - key: ROBINHOOD_TESTNET_VALEN_REGISTRY
+        sync: false
+      - key: ROBINHOOD_TESTNET_VALEN_SETTLEMENT
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: POSTHOG_API_KEY
+        sync: false
+      - key: POSTHOG_HOST
+        sync: false
