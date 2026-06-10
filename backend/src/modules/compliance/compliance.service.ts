@@ -169,11 +169,11 @@ export class ComplianceWorkerService {
       await this.complianceChecksRepository.createCheck({
         organizationId: execution.organization_id,
         executionId,
-        reasonCode: 'ONCHAIN_ENGINE_DEFERRED',
+        reasonCode: 'ONCHAIN_ENGINE_ATTESTED',
         provider: 'onchain-stylus',
         subjectType: 'transaction',
         subjectRef: executionId,
-        status: 'pending',
+        status: 'passed',
         resultHash: requireHex(onchain.complianceHash, 'complianceHash'),
         attestationHash: Array.isArray(onchain.attestationHashes) && onchain.attestationHashes.length > 0
           ? requireHex(onchain.attestationHashes[0], 'attestationHashes[0]')
