@@ -4,7 +4,7 @@ set -e
 worker_loop() {
   while true; do
     echo "VALEN worker: starting..."
-    node dist/src/worker.js
+    node dist/worker.js
     exit_code=$?
     echo "VALEN worker: exited with code ${exit_code}; restarting in 2s"
     sleep 2
@@ -23,4 +23,4 @@ cleanup() {
 
 trap cleanup TERM INT
 
-exec node dist/src/main.js
+exec node dist/main.js

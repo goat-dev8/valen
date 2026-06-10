@@ -83,6 +83,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-10 23:45 | **Phase 6 live deploy** — Blueprint `valen-production` on Render | `render.yaml`, Dockerfiles, `backend/scripts/render-start.sh`, `.gitattributes` | Fixes: `REDISMS_DISABLE_POSTINSTALL`, `pnpm deploy`, `render-start.sh`, bundle `/contracts` + `/stylus` deployments (`e359d4b`); live tests vs `https://valen-api-m3g4.onrender.com` | **PARTIAL RENDER READY** — infra PASS; settlement E2E on Render failed until `e359d4b` redeploy (see live section) |
 | 2026-06-11 00:54 | **Phase 6 production re-test** — Post-`e359d4b` live proof on Render | `docs/summary.md` | `GET /health/*`, governance, operator auth; `PROVE_API_URL=https://valen-api-m3g4.onrender.com prove-backend-settlement.ts` (~17 min); DB checks for executions `720d3621…`, `fff7f803…` | **PARTIAL RENDER READY** — attestation **PASS** (live Stylus hash, not placeholder); settlement pipeline **FAIL** — execution stays `created`, 0 compliance rows, 1 audit row (`execution.attested`); `/v1/operator/queues*` times out >90s; Render logs show `ECONNRESET` on Redis reads |
 | 2026-06-11 01:17 | **Phase 6.1** — Render production hardening + governance role fix | `backend/src/redis/redis-connection.ts`, `backend/src/queues/{bullmq.config,pipeline-recovery,worker-heartbeat,worker-options}.*`, `backend/src/queues/processors/*`, `backend/scripts/render-start.sh`, `backend/scripts/grant-governance-timelock-roles.ts`, `backend/src/modules/operator/operator-queue.service.ts`, `contracts/script/lib/deploy-valen.ts`, `docs/summary.md` | `pnpm build`; backend tests 9/9; `grant-governance-timelock-roles.ts`; `prove-governance-lifecycle.ts`; local `prove-backend-settlement.ts`; local `POST /v1/operator/validate/full`; commit `a2ffa9f` (push blocked — no GitHub credentials in env) | **PARTIAL** — local settlement + governance queue **PASS**; Render redeploy + E2E **PENDING PUSH**; governance execute blocked by 86400s timelock |
+| 2026-06-11 01:24 | **Phase 6.1 deploy failure fix** — Render API runtime path | `backend/scripts/render-start.sh`, `backend/package.json`, `backend/Dockerfile.scheduler`, `backend/Dockerfile.worker`, `docs/summary.md` | Render build log for commit `441284d`; local `pnpm build`; `test -f dist/main.js && test -f dist/worker.js && test -f dist/scheduler.js`; `rg "dist/src/(main\|worker\|scheduler)" backend` | **PASS (code fix)** — root cause: Nest build emits `dist/main.js`, `dist/worker.js`, `dist/scheduler.js`, but Render entrypoints used `dist/src/*.js`; fixed all runtime entrypoints to `dist/*.js`; Render redeploy required |
 
 ---
 
@@ -1060,11 +1061,11 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 | Settlement on Render | **FAIL** (pre-6.1); **PENDING** retest |
 | Audit on Render settlement path | **FAIL** (pre-6.1); **PENDING** retest |
 | GitHub updated | **FAIL** — `git push origin main` failed (no credentials); commit **`a2ffa9f`** local only |
-| Render redeployed | **NOT RUN** — blocked on push |
+| Render redeployed | **FAIL** — commit `441284d` built but API exited (`MODULE_NOT_FOUND` for `/app/dist/src/main.js` and `/app/dist/src/worker.js`); fixed by changing entrypoints to `dist/*.js` |
 
 ### Action required
 
-1. Push commit **`a2ffa9f`** to `goat-dev8/valen` `main` (GitHub PAT or SSH).
+1. Push the runtime path fix after `441284d`.
 2. Render blueprint **Manual sync** → wait for `valen-api` green.
 3. Re-run:
 
