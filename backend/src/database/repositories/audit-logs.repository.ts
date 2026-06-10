@@ -126,6 +126,13 @@ export class AuditLogsRepository extends BaseRepository {
     );
   }
 
+  async listRecent(limit: number): Promise<AuditLogRow[]> {
+    return this.queryMany<AuditLogRow>(
+      `SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT $1`,
+      [limit],
+    );
+  }
+
   async timelineForEntity(
     organizationId: string,
     entityType: string,

@@ -19,4 +19,5 @@ export interface AppConfig {
   arbitrumSepoliaValenSettlement: `0x${string}`;
   robinhoodTestnetValenRegistry: `0x${string}`;
   robinhoodTestnetValenSettlement: `0x${string}`;
+  operatorDashboardSecret?: string;
 }

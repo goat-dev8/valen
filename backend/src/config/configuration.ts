@@ -35,5 +35,6 @@ export function configuration(env: EnvSchema): AppConfig {
       env.ROBINHOOD_TESTNET_VALEN_REGISTRY as `0x${string}`,
     robinhoodTestnetValenSettlement:
       env.ROBINHOOD_TESTNET_VALEN_SETTLEMENT as `0x${string}`,
+    operatorDashboardSecret: env.OPERATOR_DASHBOARD_SECRET,
   };
 }

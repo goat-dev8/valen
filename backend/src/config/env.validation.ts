@@ -33,6 +33,7 @@ export const envSchema = z.object({
     .regex(/^0x[0-9a-fA-F]{40}$/, 'ROBINHOOD_TESTNET_VALEN_REGISTRY must be an EVM address'),
   ROBINHOOD_TESTNET_VALEN_SETTLEMENT: trimmedString()
     .regex(/^0x[0-9a-fA-F]{40}$/, 'ROBINHOOD_TESTNET_VALEN_SETTLEMENT must be an EVM address'),
+  OPERATOR_DASHBOARD_SECRET: trimmedString().min(16).optional(),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

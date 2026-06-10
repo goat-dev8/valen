@@ -36,6 +36,13 @@ export class ExecutionsRepository extends BaseRepository {
     );
   }
 
+  async listRecent(limit: number): Promise<ExecutionRow[]> {
+    return this.queryMany<ExecutionRow>(
+      `SELECT * FROM executions ORDER BY created_at DESC LIMIT $1`,
+      [limit],
+    );
+  }
+
   async findByOrgAndId(
     organizationId: string,
     executionId: string,
