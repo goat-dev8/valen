@@ -13,6 +13,9 @@ export interface SettlementRow {
   tx_hash: string | null;
   user_operation_hash: string | null;
   block_number: string | null;
+  on_chain_settlement_id: string | null;
+  submit_tx_hash: string | null;
+  approve_tx_hash: string | null;
   failure_reason: string | null;
   submitted_at: Date | null;
   confirmed_at: Date | null;
@@ -67,6 +70,9 @@ export class SettlementsRepository extends BaseRepository {
     status: string,
     extras?: {
       txHash?: string;
+      submitTxHash?: string;
+      approveTxHash?: string;
+      onChainSettlementId?: string;
       failureReason?: string;
       submittedAt?: Date;
       confirmedAt?: Date;
@@ -80,6 +86,18 @@ export class SettlementsRepository extends BaseRepository {
     if (extras?.txHash) {
       sets.push(`tx_hash = $${idx++}`);
       params.push(extras.txHash);
+    }
+    if (extras?.submitTxHash) {
+      sets.push(`submit_tx_hash = $${idx++}`);
+      params.push(extras.submitTxHash);
+    }
+    if (extras?.approveTxHash) {
+      sets.push(`approve_tx_hash = $${idx++}`);
+      params.push(extras.approveTxHash);
+    }
+    if (extras?.onChainSettlementId) {
+      sets.push(`on_chain_settlement_id = $${idx++}`);
+      params.push(extras.onChainSettlementId);
     }
     if (extras?.failureReason) {
       sets.push(`failure_reason = $${idx++}`);
