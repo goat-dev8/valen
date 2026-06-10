@@ -132,6 +132,7 @@ interface OnChainSettlementMetadata {
 export interface OnChainSettlementResult {
   settlementId: Bytes32;
   submitTxHash: Hex;
+  approveTxHash: Hex;
   executeTxHash: Hex;
   executeBlockNumber: bigint;
 }
@@ -369,6 +370,7 @@ export class SettlementChainService {
     return {
       settlementId,
       submitTxHash,
+      approveTxHash,
       executeTxHash,
       executeBlockNumber: receipt.blockNumber,
     };
