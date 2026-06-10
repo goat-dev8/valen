@@ -86,6 +86,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-11 01:24 | **Phase 6.1 deploy failure fix** — Render API runtime path | `backend/scripts/render-start.sh`, `backend/package.json`, `backend/Dockerfile.scheduler`, `backend/Dockerfile.worker`, `docs/summary.md` | Render build log for commit `441284d`; local `pnpm build`; `test -f dist/main.js && test -f dist/worker.js && test -f dist/scheduler.js`; `rg "dist/src/(main\|worker\|scheduler)" backend` | **PASS (code fix)** — root cause: Nest build emits `dist/main.js`, `dist/worker.js`, `dist/scheduler.js`, but Render entrypoints used `dist/src/*.js`; fixed all runtime entrypoints to `dist/*.js`; Render redeploy required |
 | 2026-06-11 01:49 | **Phase 6.1 production retest + follow-up fix** — worker up, queue/policy recovery still needed | `backend/scripts/render-start.sh`, `backend/src/modules/operator/operator-queue.service.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `docs/summary.md` | Render `GET /health/live`, `/health/ready`, bad auth, governance status, `/v1/operator/queues`, `POST /v1/operator/validate/full`; `prove-backend-settlement.ts` execution `9259f2f0…`; DB trace for execution/compliance/risk/settlement; local `pnpm build` | **PARTIAL** — health/ready/auth/governance **PASS**; worker heartbeat **PASS**; queues **FAIL** (`valen-intent job counts timed out after 8000ms`); settlement improved to `validated` with compliance+risk rows but no settlement; fixed queue stats to direct Redis counts and recovery to create/enqueue settlement for stale low-risk `validated` executions |
 | 2026-06-11 02:03 | **Phase 6.1 deploy `2d08541` production retest** — queues/validate PASS; settlement E2E still FAIL | `docs/summary.md` | Render health/ready/auth/governance; `GET /v1/operator/queues` (~0.6s); `POST /v1/operator/validate/full` 12/12; `prove-backend-settlement.ts` (~17 min) executions `9259f2f0…`, `cf2fcab3…`; DB settlement duplicate trace | **PARTIAL** — infra + operator validation **PASS**; prove **FAIL** — fresh execution stuck `created` after attestation; prior execution recovered to `executed` but duplicate `pending` settlement row caused false FAIL; follow-up fix: deterministic BullMQ re-enqueue + prefer `confirmed` settlement |
+| 2026-06-11 02:31 | **Phase 6.1 deploy `4567f7b` production retest** — infra PASS; prove still FAIL | `docs/summary.md` | Post-redeploy smoke (health/ready/auth/queues/validate 12/12); prove `8fd53e07…`; DB re-check `cf2fcab3…` | **PARTIAL** — mid-redeploy curls hit **502** (transient); stable service **PASS**; prove **FAIL** — `8fd53e07…` stuck `created`; `cf2fcab3…` later reached `executed`+`confirmed` via recovery (prove timed out before recovery) |
 
 ---
 
@@ -1048,6 +1049,20 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 
 **Local `POST /v1/operator/validate/full`:** **PASS** (12/12 steps, ~16s)
 
+### Release gate (Mission G) — post-`4567f7b` (2026-06-11 02:31 UTC)
+
+| Gate | Status |
+|------|--------|
+| Render health live | **PASS** — HTTP 200 (~0.5s) |
+| Render health ready | **PASS** — DB + Redis ok |
+| Render validate/full | **PASS** — 12/12 (~13s) |
+| Queue endpoints on Render | **PASS** — 12 queues, 1 worker each |
+| Settlement on Render | **FAIL** — fresh proof `8fd53e07…` stuck `created`; recovery eventually completes older proofs (`cf2fcab3…` → `executed` + settlement `confirmed`) but after prove script 15m timeout |
+| GitHub updated | **PASS** — `4567f7b` pushed |
+| Render redeployed | **PASS** — `4567f7b` live |
+
+**Note:** Health/validate curls run during redeploy returned **502** — not a product failure, just hit the restart window.
+
 ### Release gate (Mission G) — post-`2d08541` (2026-06-11 02:03 UTC)
 
 | Gate | Status |
@@ -1371,4 +1386,4 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 
 **End state (planning):** Blueprint ready; live deploy completed separately above.
 
-**End state (live):** **PARTIAL RENDER READY** — `2d08541` on Render: health/queues/validate **PASS**; settlement E2E **FAIL** on fresh executions; dedup + deterministic enqueue fix pushed next; governance queue fixed on-chain; local settlement E2E **PASS**.
+**End state (live):** **PARTIAL RENDER READY** — `4567f7b` on Render: health/queues/validate **PASS**; settlement E2E **FAIL** on fresh executions within 15m (recovery completes later); compliance enqueue after attestation still the blocker.
