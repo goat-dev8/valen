@@ -159,6 +159,20 @@ export class ExecutionsRepository extends BaseRepository {
     );
   }
 
+  async mergeMetadata(
+    id: string,
+    patch: Record<string, unknown>,
+  ): Promise<ExecutionRow | null> {
+    return this.queryOne<ExecutionRow>(
+      `UPDATE executions
+       SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+           updated_at = now()
+       WHERE id = $2
+       RETURNING *`,
+      [JSON.stringify(patch), id],
+    );
+  }
+
   async recordIdempotencyKey(
     organizationId: string,
     idempotencyKey: string,
