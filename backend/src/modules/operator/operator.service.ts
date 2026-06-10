@@ -358,9 +358,10 @@ export class OperatorService {
     await runStep('Workers', async () => {
       const count = await this.queueService.getWorkerCount();
       if (count <= 0) {
-        throw new Error('No active worker heartbeat detected');
+        throw new Error('No active worker heartbeat or BullMQ consumer health detected');
       }
-      return `${count} worker heartbeat(s) active`;
+      const backlog = await this.queueService.getPipelineBacklog();
+      return `${count} worker(s) active; pipeline backlog=${backlog}`;
     });
 
     await runStep('Queues', async () => {

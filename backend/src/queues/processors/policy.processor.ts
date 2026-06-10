@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { POLICY_QUEUE } from '../../common/constants/queues.constant';
@@ -7,13 +7,16 @@ import { RiskScoresRepository } from '../../database/repositories/risk-scores.re
 import { SettlementsRepository } from '../../database/repositories/settlements.repository';
 import { NotificationProducer, SettlementProducer } from '../producers/index';
 import { ChainService } from '../../modules/settlement/chain.service';
+import { PipelineWorkerProcessor } from '../pipeline-worker.processor';
+import { WorkerConsumerHealthService } from '../worker-consumer-health.service';
 import { PIPELINE_WORKER_OPTIONS } from '../worker-options.constant';
 
 @Processor(POLICY_QUEUE, PIPELINE_WORKER_OPTIONS)
-export class PolicyProcessor extends WorkerHost {
+export class PolicyProcessor extends PipelineWorkerProcessor {
   private readonly logger = new Logger(PolicyProcessor.name);
 
   constructor(
+    consumerHealth: WorkerConsumerHealthService,
     private readonly executionsRepository: ExecutionsRepository,
     private readonly riskScoresRepository: RiskScoresRepository,
     private readonly settlementsRepository: SettlementsRepository,
@@ -21,10 +24,10 @@ export class PolicyProcessor extends WorkerHost {
     private readonly chainService: ChainService,
     private readonly notificationProducer: NotificationProducer,
   ) {
-    super();
+    super(consumerHealth);
   }
 
-  async process(job: Job<{ organizationId: string; executionId: string }>) {
+  protected async handleJob(job: Job<{ organizationId: string; executionId: string }>) {
     this.logger.log(`Processing policy job ${job.id}`);
     const score = await this.riskScoresRepository.findLatestByExecution(
       job.data.executionId,

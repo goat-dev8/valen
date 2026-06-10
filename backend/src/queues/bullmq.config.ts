@@ -6,8 +6,10 @@ import {
   shouldReconnectOnRedisError,
 } from '../redis/redis-connection';
 
-export function createBullMqConnection(configService: ConfigService<AppConfig, true>) {
-  const redisUrl = configService.get('redisUrl', { infer: true });
+type BullMqConnectionConfig = ReturnType<typeof buildBullMqConnectionConfig>;
+let cachedConnection: BullMqConnectionConfig | null = null;
+
+function buildBullMqConnectionConfig(redisUrl: string) {
   const parsed = new URL(redisUrl);
   const shared = createProductionRedisOptions(redisUrl);
   return {
@@ -23,6 +25,15 @@ export function createBullMqConnection(configService: ConfigService<AppConfig, t
     retryStrategy: createRedisRetryStrategy(),
     reconnectOnError: shouldReconnectOnRedisError,
   };
+}
+
+export function createBullMqConnection(configService: ConfigService<AppConfig, true>) {
+  if (cachedConnection) {
+    return cachedConnection;
+  }
+  const redisUrl = configService.get('redisUrl', { infer: true });
+  cachedConnection = buildBullMqConnectionConfig(redisUrl);
+  return cachedConnection;
 }
 
 export const DEFAULT_JOB_OPTIONS = {

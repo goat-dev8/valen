@@ -87,6 +87,85 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-11 01:49 | **Phase 6.1 production retest + follow-up fix** — worker up, queue/policy recovery still needed | `backend/scripts/render-start.sh`, `backend/src/modules/operator/operator-queue.service.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `docs/summary.md` | Render `GET /health/live`, `/health/ready`, bad auth, governance status, `/v1/operator/queues`, `POST /v1/operator/validate/full`; `prove-backend-settlement.ts` execution `9259f2f0…`; DB trace for execution/compliance/risk/settlement; local `pnpm build` | **PARTIAL** — health/ready/auth/governance **PASS**; worker heartbeat **PASS**; queues **FAIL** (`valen-intent job counts timed out after 8000ms`); settlement improved to `validated` with compliance+risk rows but no settlement; fixed queue stats to direct Redis counts and recovery to create/enqueue settlement for stale low-risk `validated` executions |
 | 2026-06-11 02:03 | **Phase 6.1 deploy `2d08541` production retest** — queues/validate PASS; settlement E2E still FAIL | `docs/summary.md` | Render health/ready/auth/governance; `GET /v1/operator/queues` (~0.6s); `POST /v1/operator/validate/full` 12/12; `prove-backend-settlement.ts` (~17 min) executions `9259f2f0…`, `cf2fcab3…`; DB settlement duplicate trace | **PARTIAL** — infra + operator validation **PASS**; prove **FAIL** — fresh execution stuck `created` after attestation; prior execution recovered to `executed` but duplicate `pending` settlement row caused false FAIL; follow-up fix: deterministic BullMQ re-enqueue + prefer `confirmed` settlement |
 | 2026-06-11 02:31 | **Phase 6.1 deploy `4567f7b` production retest** — infra PASS; prove still FAIL | `docs/summary.md` | Post-redeploy smoke (health/ready/auth/queues/validate 12/12); prove `8fd53e07…`; DB re-check `cf2fcab3…` | **PARTIAL** — mid-redeploy curls hit **502** (transient); stable service **PASS**; prove **FAIL** — `8fd53e07…` stuck `created`; `cf2fcab3…` later reached `executed`+`confirmed` via recovery (prove timed out before recovery) |
+| 2026-06-11 03:00 | **Phase 7 root-cause investigation + reliability fix** — BullMQ consumers not draining | `backend/src/queues/*`, `backend/src/worker.module.ts`, `backend/Dockerfile`, `infra/render/render.yaml`, `docs/summary.md` | DB+Redis queue trace for `8fd53e07…`, `cf2fcab3…`; Render operator queue API; worker heartbeat vs job pickup; `pnpm build` | **FIX PUSHED (pending deploy)** — proven stop point: intent job **waiting** in Redis, 0 active jobs, heartbeat OK; recovery gap for pre-attestation `created`; enqueue skip on stale `active`; 12→5 pipeline workers; consumer health key |
+
+---
+
+## Phase 7 — Production Reliability Root Cause (2026-06-11)
+
+### Phase 1 — Pipeline trace (evidence)
+
+**Execution `8fd53e07-557a-4bc0-8fd3-621cfdc58476` (post-`4567f7b`, FAIL):**
+
+| Stage | Verdict | Evidence |
+|-------|---------|----------|
+| A Job creation | **PASS** | API created execution; Redis `intent-8fd53e07…` in `valen-intent` **wait** list |
+| B Job persistence | **PASS** | Operator API: job hash present, `attemptsMade=0`, state **waiting** |
+| C Job pickup | **FAIL** | 0 **active** jobs across all 12 queues for >15 min; worker heartbeat **PASS** |
+| D Job completion | **FAIL** | DB: status `created`, `has_onchain=false`, 0 compliance/risk/settlement rows |
+| E Next-stage enqueue | **N/A** | Never reached attestation |
+| F Settlement | **FAIL** | No settlement row |
+
+**Execution `cf2fcab3-352c-44a2-b930-41973158b442` (eventually PASS via recovery):**
+
+| Stage | Stop point | Evidence |
+|-------|------------|----------|
+| Intent/attestation | **PASS** @ 22:04:14 | `execution.attested` audit; `metadata.onchain.complianceHash` stored |
+| Compliance | **DELAYED ~20 min** | Prove timed out at `created`; later 1 compliance row appeared |
+| Risk/policy/settlement | **PASS** @ 22:25:03 | Final `executed` + settlement `confirmed` tx `0x60719be1…` |
+
+**Proven stop point (primary):** BullMQ **workers not consuming** despite live worker process heartbeat — jobs accumulate in **wait**, pipeline never starts or stalls after attestation until recovery/backfill.
+
+### Phase 2 — Infra audit
+
+| Item | Finding |
+|------|---------|
+| Render layout | API + worker in one container (`render-start.sh`); Render Key Value Redis; prefix `{valen}` |
+| Worker startup | `node dist/worker.js` background loop + `node dist/main.js` foreground |
+| Redis | PING ok (~1–5 ms); prior `ECONNRESET` in logs |
+| BullMQ | 12 worker processors + 12 queue clients in one container → high connection fan-out vs Key Value **50 conn** limit |
+| Heartbeat | `valen:worker:heartbeat` updated — **does not prove BullMQ consumers connected** |
+| Recovery | Required `onchain` metadata — missed pre-attestation `created` stalls; `enqueueDeterministicJob` skipped re-enqueue when job **active** |
+
+### Phase 3 — Free plan analysis
+
+| Item | Verdict | Evidence |
+|------|---------|----------|
+| Render Free sleep | **NOT root cause** | Health/validate respond during failure window |
+| CPU throttling | **UNPROVEN** | No metrics; jobs never enter **active** |
+| Memory limits | **UNPROVEN** | Worker process stays up (heartbeat) |
+| Redis connection limits | **CONTRIBUTING** | Blueprint: Key Value free **50 conn**; 12 BullMQ workers × blocking connections + API queues likely exhausts pool |
+| Redis idle disconnects | **CONTRIBUTING** | `ECONNRESET` observed; reconnect code merged but consumers can still fail to re-subscribe |
+| Worker termination | **NOT sole cause** | Heartbeat fresh while queues not draining |
+
+**Paid plan required?** **Not proven as mandatory.** Connection/worker footprint reduction is the first fix; upgrade Redis plan only if connection audit still fails post-fix.
+
+### Phase 4 — Fixes (commit pending push)
+
+| Fix | Purpose |
+|-----|---------|
+| `VALEN_WORKER_MODE=pipeline` | 5 pipeline workers instead of 12 (Render Dockerfile + blueprint) |
+| `WorkerConsumerHealthService` + validate check | Fail readiness when heartbeat ok but consumers stale |
+| `enqueueDeterministicJob` stale-active handling | Replace jobs stuck **active** > lock duration |
+| `PipelineRecoveryService` intent re-enqueue | Recover `created` executions **without** onchain metadata |
+| Cached BullMQ connection config | Reduce duplicate connection option churn |
+
+### Phase 5 — Live validation
+
+**Status:** **PENDING** — fixes must deploy to Render, then `prove-backend-settlement.ts` **10/10** required.
+
+### Phase 6 — Readiness scores (pre-deploy)
+
+| Score | Value |
+|-------|-------|
+| RENDER | **62/100** |
+| BACKEND | **85/100** |
+| QUEUE | **45/100** |
+| REDIS | **70/100** |
+| SETTLEMENT | **55/100** (local PASS; Render E2E unproven at speed) |
+| AUDIT | **80/100** |
+
+**Verdict: NOT RENDER READY** — BullMQ consumers not reliably draining on Render; 10/10 settlement proofs not yet achieved post-fix.
 
 ---
 
@@ -1386,4 +1465,4 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 
 **End state (planning):** Blueprint ready; live deploy completed separately above.
 
-**End state (live):** **PARTIAL RENDER READY** — `4567f7b` on Render: health/queues/validate **PASS**; settlement E2E **FAIL** on fresh executions within 15m (recovery completes later); compliance enqueue after attestation still the blocker.
+**End state (live):** **NOT RENDER READY** — Phase 7 root cause: BullMQ jobs wait in Redis while worker heartbeat is alive (consumers not draining). Fix pending deploy; 10/10 `prove-backend-settlement.ts` on Render still required.

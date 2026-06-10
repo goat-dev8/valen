@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import {
-  ComplianceProducer,
+import { ComplianceProducer,
+  IntentProducer,
   PolicyProducer,
   RiskProducer,
   SettlementProducer,
@@ -25,6 +25,7 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly complianceProducer: ComplianceProducer,
+    private readonly intentProducer: IntentProducer,
     private readonly riskProducer: RiskProducer,
     private readonly policyProducer: PolicyProducer,
     private readonly settlementProducer: SettlementProducer,
@@ -54,8 +55,11 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
       `SELECT id, organization_id, status
        FROM executions
        WHERE status IN ('created', 'validated', 'approved', 'settlement_submitted')
-         AND metadata->'onchain'->>'complianceHash' IS NOT NULL
          AND updated_at < now() - interval '45 seconds'
+         AND (
+           metadata->'onchain'->>'complianceHash' IS NOT NULL
+           OR status = 'created'
+         )
        ORDER BY updated_at ASC
        LIMIT 20`,
     );
@@ -86,6 +90,15 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
 
     switch (execution.status) {
       case 'created': {
+        const hasOnchain = await this.databaseService.query(
+          `SELECT metadata->'onchain'->>'complianceHash' AS hash FROM executions WHERE id = $1`,
+          [execution.id],
+        );
+        if (!hasOnchain.rows[0]?.hash) {
+          await this.intentProducer.enqueue(payload);
+          this.logger.warn(`Re-enqueued intent for ${execution.id}`);
+          return;
+        }
         const compliance = await this.databaseService.query(
           `SELECT 1 FROM compliance_checks WHERE execution_id = $1 LIMIT 1`,
           [execution.id],

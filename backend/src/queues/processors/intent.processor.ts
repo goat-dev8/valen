@@ -1,10 +1,12 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { INTENT_QUEUE } from '../../common/constants/queues.constant';
 import { ComplianceProducer } from '../producers/index';
 import { OnChainAttestationService } from '../../modules/stylus/onchain-attestation.service';
 import { ExecutionsRepository } from '../../database/repositories/executions.repository';
+import { PipelineWorkerProcessor } from '../pipeline-worker.processor';
+import { WorkerConsumerHealthService } from '../worker-consumer-health.service';
 import { PIPELINE_WORKER_OPTIONS } from '../worker-options.constant';
 
 async function sleep(ms: number): Promise<void> {
@@ -12,18 +14,19 @@ async function sleep(ms: number): Promise<void> {
 }
 
 @Processor(INTENT_QUEUE, PIPELINE_WORKER_OPTIONS)
-export class IntentProcessor extends WorkerHost {
+export class IntentProcessor extends PipelineWorkerProcessor {
   private readonly logger = new Logger(IntentProcessor.name);
 
   constructor(
+    consumerHealth: WorkerConsumerHealthService,
     private readonly onChainAttestationService: OnChainAttestationService,
     private readonly complianceProducer: ComplianceProducer,
     private readonly executionsRepository: ExecutionsRepository,
   ) {
-    super();
+    super(consumerHealth);
   }
 
-  async process(job: Job<{ organizationId: string; executionId: string }>) {
+  protected async handleJob(job: Job<{ organizationId: string; executionId: string }>) {
     this.logger.log(`Processing intent job ${job.id}`);
     try {
       await this.onChainAttestationService.attestExecution(job.data.executionId);

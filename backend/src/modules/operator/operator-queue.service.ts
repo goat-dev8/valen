@@ -11,6 +11,10 @@ import {
   WORKER_HEARTBEAT_KEY,
   WORKER_HEARTBEAT_TTL_SECONDS,
 } from '../../redis/redis-connection';
+import {
+  WORKER_CONSUMER_KEY,
+  WorkerConsumerHealthService,
+} from '../../queues/worker-consumer-health.service';
 
 export interface QueueStats {
   name: string;
@@ -128,8 +132,42 @@ export class OperatorQueueService implements OnModuleDestroy {
     return stats;
   }
 
+  async isWorkerConsumerFresh(): Promise<boolean> {
+    try {
+      const payload = await withRedisTimeout(
+        this.redisService.get(WORKER_CONSUMER_KEY),
+        REDIS_OP_TIMEOUT_MS,
+        'worker consumer read',
+      );
+      return WorkerConsumerHealthService.isFresh(
+        payload,
+        WORKER_HEARTBEAT_TTL_SECONDS * 1000,
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  async getPipelineBacklog(): Promise<number> {
+    const pipelineQueues = [
+      'valen-intent',
+      'valen-compliance',
+      'valen-risk',
+      'valen-policy',
+      'valen-settlement',
+    ];
+    const stats = await Promise.all(
+      pipelineQueues.map((name) => this.getQueueStats(name, 0)),
+    );
+    return stats.reduce((sum, q) => sum + q.waiting + q.active, 0);
+  }
+
   async getWorkerCount(): Promise<number> {
-    return (await this.isWorkerHeartbeatFresh()) ? 1 : 0;
+    const [heartbeat, consumer] = await Promise.all([
+      this.isWorkerHeartbeatFresh(),
+      this.isWorkerConsumerFresh(),
+    ]);
+    return heartbeat && consumer ? 1 : 0;
   }
 
   async listJobs(
