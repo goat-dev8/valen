@@ -89,6 +89,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-11 02:31 | **Phase 6.1 deploy `4567f7b` production retest** — infra PASS; prove still FAIL | `docs/summary.md` | Post-redeploy smoke (health/ready/auth/queues/validate 12/12); prove `8fd53e07…`; DB re-check `cf2fcab3…` | **PARTIAL** — mid-redeploy curls hit **502** (transient); stable service **PASS**; prove **FAIL** — `8fd53e07…` stuck `created`; `cf2fcab3…` later reached `executed`+`confirmed` via recovery (prove timed out before recovery) |
 | 2026-06-11 03:00 | **Phase 7 root-cause investigation + reliability fix** — BullMQ consumers not draining | `backend/src/queues/*`, `backend/src/worker.module.ts`, `backend/Dockerfile`, `infra/render/render.yaml`, `docs/summary.md` | DB+Redis queue trace for `8fd53e07…`, `cf2fcab3…`; Render operator queue API; worker heartbeat vs job pickup; `pnpm build` | **FIX PUSHED (pending deploy)** — proven stop point: intent job **waiting** in Redis, 0 active jobs, heartbeat OK; recovery gap for pre-attestation `created`; enqueue skip on stale `active`; 12→5 pipeline workers; consumer health key |
 | 2026-06-11 03:17 | **Phase 7 deploy `a23809b` production validation** — **RENDER READY** | `docs/summary.md` | `validate/full` 12/12; consumer health + backlog=0; `prove-backend-settlement.ts` **10/10** (~43–50s each); sample execution `6f16ad02…` → `executed` + settlement `confirmed` tx `0x69a5314a…` | **RENDER READY** — full pipeline intent→settlement→audit proven on Render; governance execute still blocked by 86400s timelock |
+| 2026-06-11 03:35 | **Post-`c1080fd` redeploy validation** — test-only commit, prod unchanged | `docs/summary.md`, `backend/src/queues/producers/index.spec.ts` | `validate/full` 12/12; `pnpm test` 9/9; `prove-backend-settlement.ts` exit 0 (~47s) execution `223813f9…` tx `0xee3d1793…` | **RENDER READY** — `c1080fd` fixed producer spec mocks only; production settlement path still PASS |
 
 ---
 
@@ -1495,4 +1496,4 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 
 **End state (planning):** Blueprint ready; live deploy completed separately above.
 
-**End state (live):** **RENDER READY** — `a23809b` on `https://valen-api-m3g4.onrender.com`: validate/full 12/12; settlement E2E **10/10** on Render (~43–50s each); full intent→compliance→risk→policy→settlement→audit pipeline proven.
+**End state (live):** **RENDER READY** — latest deploy `c1080fd` (test-only); production on `https://valen-api-m3g4.onrender.com`: validate/full 12/12; unit tests 9/9; settlement E2E **10/10** on `a23809b` + post-deploy proof `223813f9…` (~47s).
