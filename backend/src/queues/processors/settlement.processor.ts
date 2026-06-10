@@ -5,8 +5,9 @@ import { SETTLEMENT_QUEUE } from '../../common/constants/queues.constant';
 import { SettlementWorkerService } from '../../modules/settlement/settlement.service';
 import { OnChainAttestationService } from '../../modules/stylus/onchain-attestation.service';
 import { ExecutionsRepository } from '../../database/repositories/executions.repository';
+import { PIPELINE_WORKER_OPTIONS } from '../worker-options.constant';
 
-@Processor(SETTLEMENT_QUEUE)
+@Processor(SETTLEMENT_QUEUE, PIPELINE_WORKER_OPTIONS)
 export class SettlementProcessor extends WorkerHost {
   private readonly logger = new Logger(SettlementProcessor.name);
 

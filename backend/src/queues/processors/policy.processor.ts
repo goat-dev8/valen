@@ -7,8 +7,9 @@ import { RiskScoresRepository } from '../../database/repositories/risk-scores.re
 import { SettlementsRepository } from '../../database/repositories/settlements.repository';
 import { NotificationProducer, SettlementProducer } from '../producers/index';
 import { ChainService } from '../../modules/settlement/chain.service';
+import { PIPELINE_WORKER_OPTIONS } from '../worker-options.constant';
 
-@Processor(POLICY_QUEUE)
+@Processor(POLICY_QUEUE, PIPELINE_WORKER_OPTIONS)
 export class PolicyProcessor extends WorkerHost {
   private readonly logger = new Logger(PolicyProcessor.name);
 

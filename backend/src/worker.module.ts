@@ -24,6 +24,8 @@ import { VendorProcessor } from './queues/processors/vendor.processor';
 import { IndexerProcessor } from './queues/processors/indexer.processor';
 import { MaintenanceProcessor } from './queues/processors/maintenance.processor';
 import { DeadLetterProcessor } from './queues/processors/dead-letter.processor';
+import { PipelineRecoveryService } from './queues/pipeline-recovery.service';
+import { WorkerHeartbeatService } from './queues/worker-heartbeat.service';
 import { ChainService, AlchemyService } from './modules/settlement/chain.service';
 
 const processors = [
@@ -57,6 +59,12 @@ const processors = [
     AuditModule,
     NotificationsModule,
   ],
-  providers: [...processors, ChainService, AlchemyService],
+  providers: [
+    ...processors,
+    PipelineRecoveryService,
+    WorkerHeartbeatService,
+    ChainService,
+    AlchemyService,
+  ],
 })
 export class WorkerModule {}

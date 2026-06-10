@@ -3,8 +3,9 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { COMPLIANCE_QUEUE } from '../../common/constants/queues.constant';
 import { ComplianceWorkerService } from '../../modules/compliance/compliance.service';
+import { PIPELINE_WORKER_OPTIONS } from '../worker-options.constant';
 
-@Processor(COMPLIANCE_QUEUE)
+@Processor(COMPLIANCE_QUEUE, PIPELINE_WORKER_OPTIONS)
 export class ComplianceProcessor extends WorkerHost {
   private readonly logger = new Logger(ComplianceProcessor.name);
 

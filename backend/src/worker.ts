@@ -12,6 +12,15 @@ async function bootstrap() {
   const logger = new Logger('WorkerBootstrap');
   logger.log('VALEN worker started');
 
+  process.on('uncaughtException', (error) => {
+    logger.error(`Uncaught exception: ${error.message}`, error.stack);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    const message = reason instanceof Error ? reason.message : String(reason);
+    logger.error(`Unhandled rejection: ${message}`);
+  });
+
   process.on('SIGTERM', async () => {
     logger.log('SIGTERM received; shutting down worker');
     await app.close();
@@ -19,4 +28,7 @@ async function bootstrap() {
   });
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('VALEN worker bootstrap failed', error);
+  process.exit(1);
+});

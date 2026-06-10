@@ -4,6 +4,13 @@ import { Job, Queue } from 'bullmq';
 import { ALL_QUEUES } from '../../common/constants/queues.constant';
 import { AppConfig } from '../../config/config.types';
 import { createBullMqConnection } from '../../queues/bullmq.config';
+import { RedisService } from '../../redis/redis.service';
+import {
+  REDIS_OP_TIMEOUT_MS,
+  withRedisTimeout,
+  WORKER_HEARTBEAT_KEY,
+  WORKER_HEARTBEAT_TTL_SECONDS,
+} from '../../redis/redis-connection';
 
 export interface QueueStats {
   name: string;
@@ -20,7 +27,10 @@ export interface QueueStats {
 export class OperatorQueueService {
   private readonly connection: ReturnType<typeof createBullMqConnection>;
 
-  constructor(private readonly configService: ConfigService<AppConfig, true>) {
+  constructor(
+    private readonly configService: ConfigService<AppConfig, true>,
+    private readonly redisService: RedisService,
+  ) {
     this.connection = createBullMqConnection(configService);
   }
 
@@ -34,47 +44,61 @@ export class OperatorQueueService {
     });
   }
 
-  async listQueueStats(): Promise<QueueStats[]> {
-    const stats: QueueStats[] = [];
-    for (const name of ALL_QUEUES) {
-      const queue = this.getQueue(name);
-      try {
-        const [counts, workers] = await Promise.all([
-          queue.getJobCounts(
-            'waiting',
-            'active',
-            'delayed',
-            'completed',
-            'failed',
-            'paused',
-          ),
-          queue.getWorkers(),
-        ]);
-        stats.push({
-          name,
-          waiting: counts.waiting ?? 0,
-          active: counts.active ?? 0,
-          delayed: counts.delayed ?? 0,
-          completed: counts.completed ?? 0,
-          failed: counts.failed ?? 0,
-          paused: counts.paused ?? 0,
-          workers: workers.length,
-        });
-      } finally {
-        await queue.close();
-      }
+  async isWorkerHeartbeatFresh(): Promise<boolean> {
+    try {
+      const heartbeat = await withRedisTimeout(
+        this.redisService.get(WORKER_HEARTBEAT_KEY),
+        REDIS_OP_TIMEOUT_MS,
+        'worker heartbeat read',
+      );
+      if (!heartbeat) return false;
+      const ageMs = Date.now() - parseInt(heartbeat, 10);
+      return ageMs >= 0 && ageMs <= WORKER_HEARTBEAT_TTL_SECONDS * 1000;
+    } catch {
+      return false;
     }
+  }
+
+  private async getQueueStats(name: string, workerCount: number): Promise<QueueStats> {
+    const queue = this.getQueue(name);
+    try {
+      const counts = await withRedisTimeout(
+        queue.getJobCounts(
+          'waiting',
+          'active',
+          'delayed',
+          'completed',
+          'failed',
+          'paused',
+        ),
+        REDIS_OP_TIMEOUT_MS,
+        `${name} job counts`,
+      );
+      return {
+        name,
+        waiting: counts.waiting ?? 0,
+        active: counts.active ?? 0,
+        delayed: counts.delayed ?? 0,
+        completed: counts.completed ?? 0,
+        failed: counts.failed ?? 0,
+        paused: counts.paused ?? 0,
+        workers: workerCount,
+      };
+    } finally {
+      await queue.close();
+    }
+  }
+
+  async listQueueStats(): Promise<QueueStats[]> {
+    const workerCount = (await this.isWorkerHeartbeatFresh()) ? 1 : 0;
+    const stats = await Promise.all(
+      ALL_QUEUES.map((name) => this.getQueueStats(name, workerCount)),
+    );
     return stats;
   }
 
   async getWorkerCount(): Promise<number> {
-    const settlementQueue = this.getQueue('valen-settlement');
-    try {
-      const workers = await settlementQueue.getWorkers();
-      return workers.length;
-    } finally {
-      await settlementQueue.close();
-    }
+    return (await this.isWorkerHeartbeatFresh()) ? 1 : 0;
   }
 
   async listJobs(
@@ -85,7 +109,11 @@ export class OperatorQueueService {
   ) {
     const queue = this.getQueue(queueName);
     try {
-      const jobs = await queue.getJobs([state], start, end, false);
+      const jobs = await withRedisTimeout(
+        queue.getJobs([state], start, end, false),
+        REDIS_OP_TIMEOUT_MS,
+        `${queueName} list jobs`,
+      );
       return Promise.all(
         jobs.map(async (job) => ({
           id: job.id,
@@ -107,11 +135,19 @@ export class OperatorQueueService {
   async getJob(queueName: string, jobId: string) {
     const queue = this.getQueue(queueName);
     try {
-      const job = await queue.getJob(jobId);
+      const job = await withRedisTimeout(
+        queue.getJob(jobId),
+        REDIS_OP_TIMEOUT_MS,
+        `${queueName} get job`,
+      );
       if (!job) {
         throw new NotFoundException(`Job ${jobId} not found in ${queueName}`);
       }
-      const state = await job.getState();
+      const state = await withRedisTimeout(
+        job.getState(),
+        REDIS_OP_TIMEOUT_MS,
+        `${queueName} job state`,
+      );
       return {
         id: job.id,
         name: job.name,
@@ -133,11 +169,15 @@ export class OperatorQueueService {
   async retryJob(queueName: string, jobId: string) {
     const queue = this.getQueue(queueName);
     try {
-      const job = await queue.getJob(jobId);
+      const job = await withRedisTimeout(
+        queue.getJob(jobId),
+        REDIS_OP_TIMEOUT_MS,
+        `${queueName} retry lookup`,
+      );
       if (!job) {
         throw new NotFoundException(`Job ${jobId} not found in ${queueName}`);
       }
-      await job.retry();
+      await withRedisTimeout(job.retry(), REDIS_OP_TIMEOUT_MS, `${queueName} retry`);
       return { id: job.id, state: await job.getState() };
     } finally {
       await queue.close();
@@ -147,11 +187,15 @@ export class OperatorQueueService {
   async removeJob(queueName: string, jobId: string) {
     const queue = this.getQueue(queueName);
     try {
-      const job = await queue.getJob(jobId);
+      const job = await withRedisTimeout(
+        queue.getJob(jobId),
+        REDIS_OP_TIMEOUT_MS,
+        `${queueName} remove lookup`,
+      );
       if (!job) {
         throw new NotFoundException(`Job ${jobId} not found in ${queueName}`);
       }
-      await job.remove();
+      await withRedisTimeout(job.remove(), REDIS_OP_TIMEOUT_MS, `${queueName} remove`);
       return { removed: true, id: jobId };
     } finally {
       await queue.close();
