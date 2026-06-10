@@ -84,6 +84,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-11 00:54 | **Phase 6 production re-test** — Post-`e359d4b` live proof on Render | `docs/summary.md` | `GET /health/*`, governance, operator auth; `PROVE_API_URL=https://valen-api-m3g4.onrender.com prove-backend-settlement.ts` (~17 min); DB checks for executions `720d3621…`, `fff7f803…` | **PARTIAL RENDER READY** — attestation **PASS** (live Stylus hash, not placeholder); settlement pipeline **FAIL** — execution stays `created`, 0 compliance rows, 1 audit row (`execution.attested`); `/v1/operator/queues*` times out >90s; Render logs show `ECONNRESET` on Redis reads |
 | 2026-06-11 01:17 | **Phase 6.1** — Render production hardening + governance role fix | `backend/src/redis/redis-connection.ts`, `backend/src/queues/{bullmq.config,pipeline-recovery,worker-heartbeat,worker-options}.*`, `backend/src/queues/processors/*`, `backend/scripts/render-start.sh`, `backend/scripts/grant-governance-timelock-roles.ts`, `backend/src/modules/operator/operator-queue.service.ts`, `contracts/script/lib/deploy-valen.ts`, `docs/summary.md` | `pnpm build`; backend tests 9/9; `grant-governance-timelock-roles.ts`; `prove-governance-lifecycle.ts`; local `prove-backend-settlement.ts`; local `POST /v1/operator/validate/full`; commit `a2ffa9f` (push blocked — no GitHub credentials in env) | **PARTIAL** — local settlement + governance queue **PASS**; Render redeploy + E2E **PENDING PUSH**; governance execute blocked by 86400s timelock |
 | 2026-06-11 01:24 | **Phase 6.1 deploy failure fix** — Render API runtime path | `backend/scripts/render-start.sh`, `backend/package.json`, `backend/Dockerfile.scheduler`, `backend/Dockerfile.worker`, `docs/summary.md` | Render build log for commit `441284d`; local `pnpm build`; `test -f dist/main.js && test -f dist/worker.js && test -f dist/scheduler.js`; `rg "dist/src/(main\|worker\|scheduler)" backend` | **PASS (code fix)** — root cause: Nest build emits `dist/main.js`, `dist/worker.js`, `dist/scheduler.js`, but Render entrypoints used `dist/src/*.js`; fixed all runtime entrypoints to `dist/*.js`; Render redeploy required |
+| 2026-06-11 01:49 | **Phase 6.1 production retest + follow-up fix** — worker up, queue/policy recovery still needed | `backend/scripts/render-start.sh`, `backend/src/modules/operator/operator-queue.service.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `docs/summary.md` | Render `GET /health/live`, `/health/ready`, bad auth, governance status, `/v1/operator/queues`, `POST /v1/operator/validate/full`; `prove-backend-settlement.ts` execution `9259f2f0…`; DB trace for execution/compliance/risk/settlement; local `pnpm build` | **PARTIAL** — health/ready/auth/governance **PASS**; worker heartbeat **PASS**; queues **FAIL** (`valen-intent job counts timed out after 8000ms`); settlement improved to `validated` with compliance+risk rows but no settlement; fixed queue stats to direct Redis counts and recovery to create/enqueue settlement for stale low-risk `validated` executions |
 
 ---
 
@@ -1050,22 +1051,22 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 
 | Gate | Status |
 |------|--------|
-| Render health live | **PASS** (pre-6.1 deploy) |
-| Render health ready | **PASS** (pre-6.1 deploy) |
-| Render validate/full | **NOT RUN** (needs 6.1 deploy) |
-| Redis stable on Render | **PENDING** (6.1 deploy) |
-| Workers stable on Render | **PENDING** (6.1 deploy) |
-| Queue endpoints on Render | **FAIL** (pre-6.1; fixed in code) |
+| Render health live | **PASS** — HTTP 200 (~0.96s) on 2026-06-11 01:50 |
+| Render health ready | **PASS** — database ok (~1305ms), Redis PONG (~1ms) |
+| Render validate/full | **FAIL** — 11/12 pass; queue stats fail (`valen-intent job counts timed out after 8000ms`) |
+| Redis stable on Render | **PARTIAL** — PING fast; BullMQ introspection path slow/failing |
+| Workers stable on Render | **PASS** — `validate/full` reported `1 worker heartbeat(s) active` |
+| Queue endpoints on Render | **FAIL** — `/v1/operator/queues` HTTP 500 after bounded 8s timeout; direct Redis stats fix pending deploy |
 | Governance queue | **PASS** (on-chain role grant applied) |
 | Governance execute | **BLOCKED** (86400s delay) |
-| Settlement on Render | **FAIL** (pre-6.1); **PENDING** retest |
-| Audit on Render settlement path | **FAIL** (pre-6.1); **PENDING** retest |
-| GitHub updated | **FAIL** — `git push origin main` failed (no credentials); commit **`a2ffa9f`** local only |
-| Render redeployed | **FAIL** — commit `441284d` built but API exited (`MODULE_NOT_FOUND` for `/app/dist/src/main.js` and `/app/dist/src/worker.js`); fixed by changing entrypoints to `dist/*.js` |
+| Settlement on Render | **FAIL** — execution `9259f2f0…` reached `validated`; compliance+risk rows exist; no settlement row |
+| Audit on Render settlement path | **FAIL** — only `execution.attested` for the Render proof; no settlement submit/approve/execute audit rows |
+| GitHub updated | **PENDING** — push follow-up fix after this summary update |
+| Render redeployed | **PARTIAL** — `e35d01a` deployed enough for worker heartbeat; follow-up fix pending deploy |
 
 ### Action required
 
-1. Push the runtime path fix after `441284d`.
+1. Push follow-up fix for direct Redis queue stats + validated execution settlement recovery.
 2. Render blueprint **Manual sync** → wait for `valen-api` green.
 3. Re-run:
 

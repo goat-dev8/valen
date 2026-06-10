@@ -2,11 +2,14 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { DatabaseService } from '../database/database.service';
 import {
   ComplianceProducer,
-  IntentProducer,
   PolicyProducer,
   RiskProducer,
   SettlementProducer,
 } from './producers/index';
+import { ExecutionsRepository } from '../database/repositories/executions.repository';
+import { RiskScoresRepository } from '../database/repositories/risk-scores.repository';
+import { SettlementsRepository } from '../database/repositories/settlements.repository';
+import { ChainService } from '../modules/settlement/chain.service';
 
 type StuckExecutionRow = {
   id: string;
@@ -21,11 +24,14 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly databaseService: DatabaseService,
-    private readonly intentProducer: IntentProducer,
     private readonly complianceProducer: ComplianceProducer,
     private readonly riskProducer: RiskProducer,
     private readonly policyProducer: PolicyProducer,
     private readonly settlementProducer: SettlementProducer,
+    private readonly executionsRepository: ExecutionsRepository,
+    private readonly riskScoresRepository: RiskScoresRepository,
+    private readonly settlementsRepository: SettlementsRepository,
+    private readonly chainService: ChainService,
   ) {}
 
   onModuleInit() {
@@ -94,50 +100,90 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       case 'validated': {
-        const risk = await this.databaseService.query(
-          `SELECT 1 FROM risk_scores WHERE execution_id = $1 LIMIT 1`,
-          [execution.id],
+        const score = await this.riskScoresRepository.findLatestByExecution(
+          execution.id,
         );
-        if (risk.rowCount === 0) {
+        if (!score) {
           await this.riskProducer.enqueue(payload);
           this.logger.warn(`Re-enqueued risk for ${execution.id}`);
           return;
         }
-        await this.policyProducer.enqueue(payload);
-        this.logger.warn(`Re-enqueued policy for ${execution.id}`);
+        if (score.requires_approval) {
+          await this.policyProducer.enqueue(payload);
+          this.logger.warn(`Re-enqueued approval policy for ${execution.id}`);
+          return;
+        }
+        await this.createSettlementAndEnqueue(payload);
+        this.logger.warn(`Recovered policy stage directly for ${execution.id}`);
         return;
       }
       case 'approved': {
-        await this.policyProducer.enqueue(payload);
-        this.logger.warn(`Re-enqueued policy for ${execution.id}`);
+        await this.createSettlementAndEnqueue(payload);
+        this.logger.warn(`Recovered approved execution directly for ${execution.id}`);
         return;
       }
       case 'settlement_submitted': {
-        const settlement = await this.databaseService.query<{
-          id: string;
-        }>(
-          `SELECT id FROM settlements
-           WHERE execution_id = $1
-           ORDER BY created_at DESC
-           LIMIT 1`,
-          [execution.id],
-        );
-        const settlementId = settlement.rows[0]?.id;
-        if (!settlementId) {
-          await this.policyProducer.enqueue(payload);
-          this.logger.warn(`Re-enqueued policy for settlement-less ${execution.id}`);
-          return;
-        }
-        await this.settlementProducer.enqueue({
-          ...payload,
-          settlementId,
-          idempotencyKey: `auto-settle-${execution.id}`,
-        });
-        this.logger.warn(`Re-enqueued settlement for ${execution.id}`);
+        await this.enqueueExistingSettlement(payload);
         return;
       }
       default:
         return;
     }
+  }
+
+  private async createSettlementAndEnqueue(payload: {
+    organizationId: string;
+    executionId: string;
+  }): Promise<void> {
+    const execution = await this.executionsRepository.findById(payload.executionId);
+    if (!execution) throw new Error('Execution not found for recovery');
+
+    const existing = await this.settlementsRepository.findByExecution(
+      payload.executionId,
+    );
+    const settlement =
+      existing ??
+      (await this.settlementsRepository.create({
+        organizationId: payload.organizationId,
+        executionId: payload.executionId,
+        chainId: execution.target_chain_id,
+        contractAddress: this.chainService.getSettlementAddress(
+          execution.target_chain_id,
+        ),
+        targetAddress: execution.target_address ?? undefined,
+      }));
+
+    await this.executionsRepository.updateStatus(
+      payload.executionId,
+      'settlement_submitted',
+    );
+    await this.settlementProducer.enqueue({
+      ...payload,
+      settlementId: settlement.id,
+      idempotencyKey: `auto-settle-${payload.executionId}`,
+    });
+  }
+
+  private async enqueueExistingSettlement(payload: {
+    organizationId: string;
+    executionId: string;
+  }): Promise<void> {
+    const settlement = await this.settlementsRepository.findByExecution(
+      payload.executionId,
+    );
+    if (!settlement) {
+      await this.createSettlementAndEnqueue(payload);
+      this.logger.warn(`Created missing settlement for ${payload.executionId}`);
+      return;
+    }
+
+    if (settlement.status === 'confirmed') return;
+
+    await this.settlementProducer.enqueue({
+      ...payload,
+      settlementId: settlement.id,
+      idempotencyKey: `auto-settle-${payload.executionId}`,
+    });
+    this.logger.warn(`Re-enqueued settlement for ${payload.executionId}`);
   }
 }

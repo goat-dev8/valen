@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Job, Queue } from 'bullmq';
+import { Queue } from 'bullmq';
 import { ALL_QUEUES } from '../../common/constants/queues.constant';
 import { AppConfig } from '../../config/config.types';
 import { createBullMqConnection } from '../../queues/bullmq.config';
@@ -54,6 +54,35 @@ export class OperatorQueueService implements OnModuleDestroy {
     await Promise.all([...this.queues.values()].map((queue) => queue.close()));
   }
 
+  private queueKey(name: string, suffix: string): string {
+    return `{valen}:${name}:${suffix}`;
+  }
+
+  private async countList(name: string, suffix: string): Promise<number> {
+    return withRedisTimeout(
+      this.redisService.getClient().llen(this.queueKey(name, suffix)),
+      REDIS_OP_TIMEOUT_MS,
+      `${name} ${suffix} count`,
+    );
+  }
+
+  private async countZset(name: string, suffix: string): Promise<number> {
+    return withRedisTimeout(
+      this.redisService.getClient().zcard(this.queueKey(name, suffix)),
+      REDIS_OP_TIMEOUT_MS,
+      `${name} ${suffix} count`,
+    );
+  }
+
+  private parseJobData(value: string | undefined): unknown {
+    if (!value) return undefined;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
   async isWorkerHeartbeatFresh(): Promise<boolean> {
     try {
       const heartbeat = await withRedisTimeout(
@@ -70,27 +99,23 @@ export class OperatorQueueService implements OnModuleDestroy {
   }
 
   private async getQueueStats(name: string, workerCount: number): Promise<QueueStats> {
-    const queue = this.getQueue(name);
-    const counts = await withRedisTimeout(
-      queue.getJobCounts(
-        'waiting',
-        'active',
-        'delayed',
-        'completed',
-        'failed',
-        'paused',
-      ),
-      REDIS_OP_TIMEOUT_MS,
-      `${name} job counts`,
-    );
+    const [waiting, active, delayed, completed, failed, paused] =
+      await Promise.all([
+        this.countList(name, 'wait'),
+        this.countList(name, 'active'),
+        this.countZset(name, 'delayed'),
+        this.countZset(name, 'completed'),
+        this.countZset(name, 'failed'),
+        this.countList(name, 'paused'),
+      ]);
     return {
       name,
-      waiting: counts.waiting ?? 0,
-      active: counts.active ?? 0,
-      delayed: counts.delayed ?? 0,
-      completed: counts.completed ?? 0,
-      failed: counts.failed ?? 0,
-      paused: counts.paused ?? 0,
+      waiting,
+      active,
+      delayed,
+      completed,
+      failed,
+      paused,
       workers: workerCount,
     };
   }
@@ -113,53 +138,69 @@ export class OperatorQueueService implements OnModuleDestroy {
     start = 0,
     end = 49,
   ) {
-    const queue = this.getQueue(queueName);
-    const jobs = await withRedisTimeout(
-      queue.getJobs([state], start, end, false),
-      REDIS_OP_TIMEOUT_MS,
-      `${queueName} list jobs`,
-    );
+    const redis = this.redisService.getClient();
+    const ids =
+      state === 'waiting' || state === 'active'
+        ? await withRedisTimeout(
+            redis.lrange(
+              this.queueKey(queueName, state === 'waiting' ? 'wait' : 'active'),
+              start,
+              end,
+            ),
+            REDIS_OP_TIMEOUT_MS,
+            `${queueName} ${state} jobs`,
+          )
+        : await withRedisTimeout(
+            redis.zrange(this.queueKey(queueName, state), start, end),
+            REDIS_OP_TIMEOUT_MS,
+            `${queueName} ${state} jobs`,
+          );
+
     return Promise.all(
-      jobs.map(async (job) => ({
-        id: job.id,
-        name: job.name,
-        state,
-        attemptsMade: job.attemptsMade,
-        timestamp: job.timestamp,
-        processedOn: job.processedOn,
-        finishedOn: job.finishedOn,
-        failedReason: job.failedReason,
-        data: job.data,
-      })),
+      ids.map(async (id) => {
+        const job = await withRedisTimeout(
+          redis.hgetall(`{valen}:${queueName}:${id}`),
+          REDIS_OP_TIMEOUT_MS,
+          `${queueName} ${id} job hash`,
+        );
+        return {
+          id,
+          name: job.name,
+          state,
+          attemptsMade: Number(job.attemptsMade ?? job.atm ?? 0),
+          timestamp: job.timestamp ? Number(job.timestamp) : undefined,
+          processedOn: job.processedOn ? Number(job.processedOn) : undefined,
+          finishedOn: job.finishedOn ? Number(job.finishedOn) : undefined,
+          failedReason: job.failedReason,
+          data: this.parseJobData(job.data),
+        };
+      }),
     );
   }
 
   async getJob(queueName: string, jobId: string) {
-    const queue = this.getQueue(queueName);
+    if (!ALL_QUEUES.includes(queueName as (typeof ALL_QUEUES)[number])) {
+      throw new NotFoundException(`Unknown queue: ${queueName}`);
+    }
     const job = await withRedisTimeout(
-      queue.getJob(jobId),
+      this.redisService.getClient().hgetall(`{valen}:${queueName}:${jobId}`),
       REDIS_OP_TIMEOUT_MS,
       `${queueName} get job`,
     );
-    if (!job) {
+    if (!job || Object.keys(job).length === 0) {
       throw new NotFoundException(`Job ${jobId} not found in ${queueName}`);
     }
-    const state = await withRedisTimeout(
-      job.getState(),
-      REDIS_OP_TIMEOUT_MS,
-      `${queueName} job state`,
-    );
     return {
-      id: job.id,
+      id: jobId,
       name: job.name,
-      state,
-      attemptsMade: job.attemptsMade,
-      timestamp: job.timestamp,
-      processedOn: job.processedOn,
-      finishedOn: job.finishedOn,
+      state: 'unknown',
+      attemptsMade: Number(job.attemptsMade ?? job.atm ?? 0),
+      timestamp: job.timestamp ? Number(job.timestamp) : undefined,
+      processedOn: job.processedOn ? Number(job.processedOn) : undefined,
+      finishedOn: job.finishedOn ? Number(job.finishedOn) : undefined,
       failedReason: job.failedReason,
-      stacktrace: job.stacktrace,
-      data: job.data,
+      stacktrace: this.parseJobData(job.stacktrace) ?? [],
+      data: this.parseJobData(job.data),
       returnvalue: job.returnvalue,
     };
   }
