@@ -7,11 +7,10 @@ ENV REDISMS_DISABLE_POSTINSTALL=true
 RUN pnpm install --frozen-lockfile --filter backend
 COPY backend ./backend
 RUN pnpm --filter backend build
+RUN pnpm deploy --filter backend --prod /prod/backend
 
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/backend/dist ./dist
-COPY --from=builder /app/backend/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /prod/backend/ ./
 CMD ["node", "dist/src/worker.js"]

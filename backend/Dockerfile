@@ -3,19 +3,17 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY backend/package.json ./backend/
-# redis-memory-server is dev-only (local embedded Redis); skip binary compile in CI/Render.
 ENV REDISMS_DISABLE_POSTINSTALL=true
 RUN pnpm install --frozen-lockfile --filter backend
 COPY backend ./backend
 RUN pnpm --filter backend build
+RUN pnpm deploy --filter backend --prod /prod/backend
 
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/backend/dist ./dist
-COPY --from=builder /app/backend/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /prod/backend/ ./
 COPY backend/scripts/render-start.sh ./render-start.sh
 RUN chmod +x ./render-start.sh
 EXPOSE 3000
-CMD ["./render-start.sh"]
+CMD ["sh", "./render-start.sh"]
