@@ -153,6 +153,10 @@ export class AuditWorkerService {
     eventName: string;
     relatedEntityType: string;
     relatedEntityId: string;
+    chainId?: number;
+    txHash?: string;
+    actorType?: string;
+    actorId?: string;
   }): Promise<void> {
     await this.auditLogsRepository.appendEvent({
       organizationId: payload.organizationId,
@@ -160,6 +164,18 @@ export class AuditWorkerService {
       eventHash: hashPayload(payload),
       relatedEntityType: payload.relatedEntityType,
       relatedEntityId: payload.relatedEntityId,
+    });
+
+    await this.auditLogsRepository.append({
+      organizationId: payload.organizationId,
+      actorType: payload.actorType ?? 'system',
+      actorId: payload.actorId,
+      action: payload.eventName,
+      entityType: payload.relatedEntityType,
+      entityId: payload.relatedEntityId,
+      eventHash: hashPayload(payload),
+      chainId: payload.chainId,
+      txHash: payload.txHash,
     });
   }
 }
