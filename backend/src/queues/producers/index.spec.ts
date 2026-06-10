@@ -1,8 +1,13 @@
 import { IntentProducer, SettlementProducer } from './index';
 
 describe('queue producers', () => {
+  const createQueueMock = () => ({
+    add: jest.fn().mockResolvedValue({}),
+    getJob: jest.fn().mockResolvedValue(undefined),
+  });
+
   it('uses BullMQ-safe job IDs for intent jobs', async () => {
-    const queue = { add: jest.fn().mockResolvedValue({}) };
+    const queue = createQueueMock();
     const producer = new IntentProducer(queue as never);
 
     await producer.enqueue({ organizationId: 'org-id', executionId: 'execution-id' });
@@ -15,7 +20,7 @@ describe('queue producers', () => {
   });
 
   it('uses BullMQ-safe job IDs for settlement jobs', async () => {
-    const queue = { add: jest.fn().mockResolvedValue({}) };
+    const queue = createQueueMock();
     const producer = new SettlementProducer(queue as never);
 
     await producer.enqueue({
