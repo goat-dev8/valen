@@ -1,8 +1,8 @@
 # VALEN Implementation Summary
 
 **Last updated:** 2026-06-10  
-**Phase:** 6 — Render Production Deployment **audited** (deploy blocked — see below)  
-**Current status:** ✅ **TESTNET LIVE (backend + protocol proven locally)** — pre-deploy tests PASS; **Render deploy BLOCKED** until Render account + secret paste + production `REDIS_URL` strategy applied
+**Phase:** 6 — Render Production Deployment **live on Render** (re-sync `e359d4b` for full settlement path)  
+**Current status:** ✅ **Render infra deployed** — API live at https://valen-api-m3g4.onrender.com; health + Supabase + Redis **PASS**; settlement pipeline fix pushed — **Manual sync required** for end-to-end execution proof on Render
 
 **Deployer EOA:** `0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3`
 
@@ -80,6 +80,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-10 21:28 | **Phase 5.3 Mission G** — Tests + live verification | None | `pnpm test` (backend 6/6 suites 9/9); `pnpm run verify-live:sepolia`; `pnpm run e2e:sepolia`; `POST /v1/operator/validate/full`; health checks | **PASS** — full validation 12/12; Sepolia verify-live + e2e report updated |
 | 2026-06-10 21:30 | **Phase 5.3 Mission H** — Final verdict written | `docs/summary.md` only | This section | **See Phase 5.3 verdict below.** Production score **78/100**. Launch: **NOT READY** (Render). Mainnet: **NOT MAINNET READY**. |
 | 2026-06-10 22:10 | **Phase 6** — Render production deployment audit + blueprint | `infra/render/render.yaml`, `docs/summary.md` | Read env files + `env.validation.ts`; audit all vars; architecture/redis decision; `pnpm build/test` (backend 9/9, contracts 19/19, stylus 4/4); health + `validate/full` PASS; Render CLI absent — deploy not run | **BLOCKED** — local `REDIS_URL` is localhost; use Render Key Value `fromService` or Upstash; paste secrets in Render Dashboard; see **Render Production Deployment** section |
+| 2026-06-10 23:45 | **Phase 6 live deploy** — Blueprint `valen-production` on Render | `render.yaml`, Dockerfiles, `backend/scripts/render-start.sh`, `.gitattributes` | Fixes: `REDISMS_DISABLE_POSTINSTALL`, `pnpm deploy`, `render-start.sh`, bundle `/contracts` + `/stylus` deployments (`e359d4b`); live tests vs `https://valen-api-m3g4.onrender.com` | **PARTIAL RENDER READY** — infra PASS; settlement E2E on Render failed until `e359d4b` redeploy (see live section) |
 
 ---
 
@@ -929,7 +930,7 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 | Explorer verification (`verify.ts`) | 🔜 |
 | CI/CD GitHub Actions | 🔜 |
 | Production Redis (Upstash/Render) | 🔜 Blueprint uses Render Key Value free; deploy + paste secrets |
-| Complete Render env group + deploy | ✅ blueprint / 🔜 Render Dashboard deploy |
+| Complete Render env group + deploy | ✅ live at https://valen-api-m3g4.onrender.com / 🔜 re-sync `e359d4b` for settlement on Render |
 | Governance queue + timelock execute | 🔜 P0 (grant timelock roles to governance proxy) |
 | Frontend operator dashboard | ✅ |
 | Multisig/timelock role migration | 🔜 |
@@ -960,9 +961,113 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 
 # Render Production Deployment (Phase 6)
 
-**Verdict:** **BLOCKED WITH THESE EXACT MISSING VALUES**
+## Live deployment — 2026-06-10
 
-Deployment was **not executed** — no Render CLI/API key in this environment, and `backend/.env` `REDIS_URL` points to localhost (invalid for cloud). Blueprint and pre-deploy checks are ready.
+**Verdict:** **PARTIAL RENDER READY** — platform live; **re-sync blueprint to commit `e359d4b`** then re-run settlement proof for full pipeline PASS on Render.
+
+### Production URLs
+
+| Resource | URL / ID |
+|----------|----------|
+| **API (public)** | https://valen-api-m3g4.onrender.com |
+| Swagger | https://valen-api-m3g4.onrender.com/docs |
+| Health live | https://valen-api-m3g4.onrender.com/health/live |
+| Health ready | https://valen-api-m3g4.onrender.com/health/ready |
+| Blueprint | `valen-production` (`exs-d8kremvlkimo73c9acm0`) |
+| GitHub | `goat-dev8/valen` branch `main` |
+
+### Render services (blueprint)
+
+| Service | Type | Plan | Status (2026-06-10) |
+|---------|------|------|---------------------|
+| `valen-redis` | Key Value (Valkey 8) | Free | **Available** |
+| `valen-api` | Web (Docker, API+worker) | Free | **Deployed** |
+| `valen-scheduler` | Cron (Docker) | Starter | **Successful build** |
+
+### Environment group `valen-production`
+
+18 variables configured in Render (secrets not logged). Paste from `backend/.env`:
+
+| Variable | Paste from `backend/.env`? |
+|----------|----------------------------|
+| `DATABASE_URL` | Yes |
+| `SUPABASE_URL` | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes |
+| `PRIVY_APP_ID` | Yes |
+| `PRIVY_APP_SECRET` | Yes |
+| `ALCHEMY_API_KEY` | Yes |
+| `PRIVATE_KEY` | Yes |
+| `OPERATOR_DASHBOARD_SECRET` | Yes (must match key used for operator calls) |
+| `ARBITRUM_SEPOLIA_RPC_URL` | Yes |
+| `ROBINHOOD_TESTNET_RPC_URL` | Yes |
+| `ARBITRUM_SEPOLIA_VALEN_REGISTRY` | Yes |
+| `ARBITRUM_SEPOLIA_VALEN_SETTLEMENT` | Yes |
+| `ROBINHOOD_TESTNET_VALEN_REGISTRY` | Yes |
+| `ROBINHOOD_TESTNET_VALEN_SETTLEMENT` | Yes |
+| `REDIS_URL` | **No** — auto from `valen-redis` via blueprint |
+| `NODE_ENV` | **Remove from group** if set to `development` — blueprint sets `production` |
+| `PORT` | Optional — blueprint sets `3000` |
+| `SENTRY_DSN` / `POSTHOG_*` | Optional — omit if unused |
+
+**Redis provider:** Render Key Value (free, Oregon), wired with `fromService` → `REDIS_URL`.
+
+### Post-deploy test results (`https://valen-api-m3g4.onrender.com`)
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| `GET /health/live` | **PASS** | HTTP 200, `status: ok` (~0.8s) |
+| `GET /health/ready` | **PASS** | HTTP 200, database ok (~1136ms), redis ok (~1ms) |
+| `GET /docs` | **PASS** | Swagger UI HTML served |
+| Operator auth (bad key) | **PASS** | HTTP 401 |
+| Operator auth (missing key) | **PASS** | HTTP 401 |
+| `POST …/executions` (operator) | **PASS** | Execution created on Render API |
+| `POST /v1/operator/validate/full` | **PARTIAL** | Times out >5 min on free tier (many RPC/on-chain probes); use per-endpoint checks instead |
+| `prove-backend-settlement.ts` vs Render | **FAIL** (before `e359d4b`) | Executions `466496ed…`, `16c04642…` → `failed`, empty `metadata.onchain` — attestation could not read `/contracts/deployments` in container |
+| Local `prove-backend-settlement.ts` | **PASS** (Phase 5.3) | Proven on localhost, not regressed |
+
+**Root cause (settlement fail on Render):** Docker image did not include `contracts/deployments` and `stylus/deployments`. Attestation resolves paths as `join(process.cwd(), '..')` → `/contracts/...` when `WORKDIR=/app`.
+
+**Fix:** commit **`e359d4b`** — COPY deployment manifests into image at `/contracts/deployments` and `/stylus/deployments`.
+
+### Action required for full Render PASS
+
+1. Render Dashboard → blueprint **`valen-production`** → **Manual sync** (pull `e359d4b`).
+2. Wait for **`valen-api`** redeploy (green).
+3. Re-run:
+
+```bash
+curl https://valen-api-m3g4.onrender.com/health/ready
+cd backend && PROVE_API_URL=https://valen-api-m3g4.onrender.com node -r dotenv/config scripts/prove-backend-settlement.ts
+```
+
+Expect: execution `executed`, settlement `confirmed`, audit_logs populated (same as Phase 5.3 local proof).
+
+### Docker / Render fixes applied (commits)
+
+| Commit | Fix |
+|--------|-----|
+| `342e468` | `REDISMS_DISABLE_POSTINSTALL=true` — skip local Redis compile on Alpine |
+| `300c430` | `render-start.sh` entrypoint (API+worker) |
+| `02a6a32` | LF line endings + `pnpm deploy` for production `node_modules` |
+| `e359d4b` | Bundle `contracts/deployments` + `stylus/deployments` in Docker images |
+
+### Free-tier operational notes
+
+- API **spins down after 15 min** idle; first request ~1 min cold start.
+- Worker runs **inside `valen-api`** — queue processing pauses when API sleeps.
+- Free Key Value **non-persistent** — queue state lost on Redis restart.
+- `valen-scheduler` cron ~**$1/mo** minimum.
+
+### Remaining blockers before **RENDER READY (full product)**
+
+1. **Redeploy `e359d4b`** and confirm settlement proof PASS on Render URL.
+2. Rotate `OPERATOR_DASHBOARD_SECRET` for production (optional but recommended).
+3. Upgrade Redis plan when queue durability required (Upstash or Render Key Value Starter).
+4. Governance queue timelock roles (on-chain, unchanged from Phase 5.3).
+
+---
+
+## Phase 6 planning archive (pre-deploy audit)
 
 ## Mission 1 — Environment Audit
 
@@ -1110,4 +1215,6 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 5. Deploy; wait for `valen-redis` then `valen-api` healthy.
 6. Run post-deploy verification commands above.
 
-**End state:** **BLOCKED WITH THESE EXACT MISSING VALUES** — production `REDIS_URL` (use Render Key Value at deploy, not localhost), Render account deploy + secret paste, post-deploy validation on live URL.
+**End state (planning):** Blueprint ready; live deploy completed separately above.
+
+**End state (live):** **PARTIAL RENDER READY** — sync **`e359d4b`**, re-run settlement proof on https://valen-api-m3g4.onrender.com for **RENDER READY**.
