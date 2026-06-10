@@ -81,6 +81,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-10 21:30 | **Phase 5.3 Mission H** — Final verdict written | `docs/summary.md` only | This section | **See Phase 5.3 verdict below.** Production score **78/100**. Launch: **NOT READY** (Render). Mainnet: **NOT MAINNET READY**. |
 | 2026-06-10 22:10 | **Phase 6** — Render production deployment audit + blueprint | `infra/render/render.yaml`, `docs/summary.md` | Read env files + `env.validation.ts`; audit all vars; architecture/redis decision; `pnpm build/test` (backend 9/9, contracts 19/19, stylus 4/4); health + `validate/full` PASS; Render CLI absent — deploy not run | **BLOCKED** — local `REDIS_URL` is localhost; use Render Key Value `fromService` or Upstash; paste secrets in Render Dashboard; see **Render Production Deployment** section |
 | 2026-06-10 23:45 | **Phase 6 live deploy** — Blueprint `valen-production` on Render | `render.yaml`, Dockerfiles, `backend/scripts/render-start.sh`, `.gitattributes` | Fixes: `REDISMS_DISABLE_POSTINSTALL`, `pnpm deploy`, `render-start.sh`, bundle `/contracts` + `/stylus` deployments (`e359d4b`); live tests vs `https://valen-api-m3g4.onrender.com` | **PARTIAL RENDER READY** — infra PASS; settlement E2E on Render failed until `e359d4b` redeploy (see live section) |
+| 2026-06-11 00:54 | **Phase 6 production re-test** — Post-`e359d4b` live proof on Render | `docs/summary.md` | `GET /health/*`, governance, operator auth; `PROVE_API_URL=https://valen-api-m3g4.onrender.com prove-backend-settlement.ts` (~17 min); DB checks for executions `720d3621…`, `fff7f803…` | **PARTIAL RENDER READY** — attestation **PASS** (live Stylus hash, not placeholder); settlement pipeline **FAIL** — execution stays `created`, 0 compliance rows, 1 audit row (`execution.attested`); `/v1/operator/queues*` times out >90s; Render logs show `ECONNRESET` on Redis reads |
 
 ---
 
@@ -963,7 +964,7 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 
 ## Live deployment — 2026-06-10
 
-**Verdict:** **PARTIAL RENDER READY** — platform live; **re-sync blueprint to commit `e359d4b`** then re-run settlement proof for full pipeline PASS on Render.
+**Verdict:** **PARTIAL RENDER READY** — platform live, attestation fixed on Render (`e359d4b`+); **settlement E2E still FAIL** — pipeline stalls after intent attestation (compliance→settlement never runs). See **2026-06-11 re-test** below.
 
 ### Production URLs
 
@@ -1013,34 +1014,50 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 
 ### Post-deploy test results (`https://valen-api-m3g4.onrender.com`)
 
+#### 2026-06-11 re-test (post-`e359d4b` deploy)
+
 | Test | Result | Evidence |
 |------|--------|----------|
-| `GET /health/live` | **PASS** | HTTP 200, `status: ok` (~0.8s) |
-| `GET /health/ready` | **PASS** | HTTP 200, database ok (~1136ms), redis ok (~1ms) |
-| `GET /docs` | **PASS** | Swagger UI HTML served |
+| `GET /health/live` | **PASS** | HTTP 200 (~0.4s) |
+| `GET /health/ready` | **PASS** | HTTP 200, database ok (~1010ms), redis ok (~7ms) |
+| `GET /v1/operator/governance/status?chainId=421614` | **PASS** | Timelock linked, `minDelaySeconds: 86400` |
 | Operator auth (bad key) | **PASS** | HTTP 401 |
-| Operator auth (missing key) | **PASS** | HTTP 401 |
-| `POST …/executions` (operator) | **PASS** | Execution created on Render API |
-| `POST /v1/operator/validate/full` | **PARTIAL** | Times out >5 min on free tier (many RPC/on-chain probes); use per-endpoint checks instead |
-| `prove-backend-settlement.ts` vs Render | **FAIL** (before `e359d4b`) | Executions `466496ed…`, `16c04642…` → `failed`, empty `metadata.onchain` — attestation could not read `/contracts/deployments` in container |
-| Local `prove-backend-settlement.ts` | **PASS** (Phase 5.3) | Proven on localhost, not regressed |
+| Live Stylus attestation on Render | **PASS** | Executions `720d3621…` compliance hash `0x65185f61…`; `fff7f803…` hash `0xf62fbecf…` — real on-chain attestation, not placeholder |
+| `prove-backend-settlement.ts` vs Render | **FAIL** | Exit 1 after ~17 min poll; execution `fff7f803…` → status `created`; settlement `null`; audit: only `execution.attested` |
+| Compliance / risk / policy pipeline | **FAIL** | 0 rows in `compliance_checks` for both Render test executions; status never advances past `created` |
+| `GET /v1/operator/queues` | **FAIL** | HTTP timeout >120s (empty response) |
+| `GET /v1/operator/queues/valen-compliance/jobs` | **FAIL** | HTTP timeout >90s |
+| Render service logs | **WARN** | Repeated `Error: read ECONNRESET` on Redis TCP reads |
+| Local `prove-backend-settlement.ts` | **PASS** (Phase 5.3) | Not regressed on localhost |
 
-**Root cause (settlement fail on Render):** Docker image did not include `contracts/deployments` and `stylus/deployments`. Attestation resolves paths as `join(process.cwd(), '..')` → `/contracts/...` when `WORKDIR=/app`.
+**Attestation fix (resolved):** commit **`e359d4b`** — COPY `contracts/deployments` + `stylus/deployments` into Docker image. Attestation now succeeds on Render.
 
-**Fix:** commit **`e359d4b`** — COPY deployment manifests into image at `/contracts/deployments` and `/stylus/deployments`.
+**Current blocker (settlement fail on Render):** Intent job completes attestation (`execution.attested` audit row + `metadata.onchain`), but **compliance queue never runs** — no `compliance_checks`, execution stays `created`, no settlement. Likely causes:
+
+1. BullMQ worker in `render-start.sh` stops processing after intent (Redis `ECONNRESET` on Render Key Value free tier; worker background process may exit while API process stays up).
+2. Operator queue introspection hangs on Redis → cannot confirm waiting job counts from API.
+3. Free-tier API spin-down pauses co-located worker when idle (mitigated during active polling but still a risk).
+
+**Not yet verified on Render:** full path compliance → risk → policy → settlement → audit txs (proven locally in Phase 5.3).
+
+#### Earlier tests (pre-`e359d4b`)
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| `prove-backend-settlement.ts` vs Render | **FAIL** | Executions `466496ed…`, `16c04642…` → `failed`, empty `metadata.onchain` — missing deployment manifests in container |
+| `POST /v1/operator/validate/full` | **PARTIAL** | Times out >5 min on free tier; use per-endpoint checks instead |
 
 ### Action required for full Render PASS
 
-1. Render Dashboard → blueprint **`valen-production`** → **Manual sync** (pull `e359d4b`).
-2. Wait for **`valen-api`** redeploy (green).
-3. Re-run:
+1. Harden worker reliability on Render: reconnect on `ECONNRESET`, worker restart loop in `render-start.sh`, or separate worker service (paid tier).
+2. Re-run after fix:
 
 ```bash
 curl https://valen-api-m3g4.onrender.com/health/ready
 cd backend && PROVE_API_URL=https://valen-api-m3g4.onrender.com node -r dotenv/config scripts/prove-backend-settlement.ts
 ```
 
-Expect: execution `executed`, settlement `confirmed`, audit_logs populated (same as Phase 5.3 local proof).
+Expect: execution `executed`, settlement `confirmed`, audit_logs with submit/approve/execute txs (same as Phase 5.3 local proof).
 
 ### Docker / Render fixes applied (commits)
 
@@ -1060,10 +1077,11 @@ Expect: execution `executed`, settlement `confirmed`, audit_logs populated (same
 
 ### Remaining blockers before **RENDER READY (full product)**
 
-1. **Redeploy `e359d4b`** and confirm settlement proof PASS on Render URL.
-2. Rotate `OPERATOR_DASHBOARD_SECRET` for production (optional but recommended).
-3. Upgrade Redis plan when queue durability required (Upstash or Render Key Value Starter).
-4. Governance queue timelock roles (on-chain, unchanged from Phase 5.3).
+1. **Fix post-attestation queue processing on Render** — compliance→settlement pipeline stalls; worker/Redis `ECONNRESET` (see 2026-06-11 re-test).
+2. Confirm `prove-backend-settlement.ts` **PASS** on `https://valen-api-m3g4.onrender.com`.
+3. Rotate `OPERATOR_DASHBOARD_SECRET` for production (optional but recommended).
+4. Upgrade Redis plan when queue durability required (Upstash or Render Key Value Starter).
+5. Governance queue timelock roles (on-chain, unchanged from Phase 5.3).
 
 ---
 
@@ -1217,4 +1235,4 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 
 **End state (planning):** Blueprint ready; live deploy completed separately above.
 
-**End state (live):** **PARTIAL RENDER READY** — sync **`e359d4b`**, re-run settlement proof on https://valen-api-m3g4.onrender.com for **RENDER READY**.
+**End state (live):** **PARTIAL RENDER READY** — attestation PASS on Render after **`e359d4b`**; settlement E2E **FAIL** (pipeline stalls after `execution.attested`); fix worker/Redis reliability then re-run proof for **RENDER READY**.
