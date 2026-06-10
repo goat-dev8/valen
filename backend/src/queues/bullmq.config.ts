@@ -11,6 +11,12 @@ export function createBullMqConnection(configService: ConfigService<AppConfig, t
     username: parsed.username || undefined,
     tls: parsed.protocol === 'rediss:' ? {} : undefined,
     maxRetriesPerRequest: null as null,
+    enableReadyCheck: true,
+    retryStrategy: (times: number) => Math.min(times * 200, 5000),
+    reconnectOnError: (error: Error) => {
+      const message = error.message.toLowerCase();
+      return message.includes('readonly') || message.includes('connect');
+    },
   };
 }
 
