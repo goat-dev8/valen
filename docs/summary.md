@@ -1,8 +1,8 @@
 # VALEN Implementation Summary
 
-**Last updated:** 2026-06-09  
-**Phase:** 5 — Full Production Implementation  
-**Current status:** ✅ **TESTNET LIVE** — Solidity + Stylus deployed on Arbitrum Sepolia and Robinhood Testnet; engines registered; E2E validated (no mocks)
+**Last updated:** 2026-06-10  
+**Phase:** 5.3 — Production Closure Mission **complete** (see log below)  
+**Current status:** ✅ **TESTNET LIVE (backend + protocol proven)** — API→Queue→Worker→Stylus→Settlement→Audit→DB success path proven on Arbitrum Sepolia; **Render production deploy still NOT READY** (managed Redis, governance queue timelock roles, scheduler jobs)
 
 **Deployer EOA:** `0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3`
 
@@ -70,6 +70,347 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-10 03:05 | Pushed local hardening commits to GitHub `main` | None | `git push` to `https://github.com/goat-dev8/valen.git` `main` | PASS: remote updated `06f8392..1901eb0`; includes commits `5fec178` (backend worker/contract hardening) and `1901eb0` (summary push-blocker log); no env/secret files pushed |
 | 2026-06-10 04:00 | Built internal operator dashboard + backend operator API module | `backend/src/modules/operator/*`, `backend/src/config/*`, `backend/src/app.module.ts`, `backend/src/database/repositories/{executions,audit-logs}.repository.ts`, `frontend/src/**`, `frontend/package.json`, `frontend/.env.local` (gitignored) | Added `OperatorModule` at `/v1/operator/*` secured by `OPERATOR_DASHBOARD_SECRET`; live health/env/db/queue/contract/stylus/treasury/governance/audit/settlement-lab/full-validation endpoints; Next.js dashboard on `:3001` with React Query, Recharts, shadcn-style UI, 12 sections; fixed Stylus health reads (`getEngine` string version; no fake `authorizedCaller` view); `pnpm build` backend + frontend; restarted API/worker; `POST /v1/operator/validate/full` and dashboard proxy | PASS: dashboard `http://localhost:3001` serves all sections; full validation `PASS` (backend, Supabase, Redis, 2 workers, 12 queues, Sepolia+Robinhood contracts, Stylus, settlement wiring, governance, treasury, audit) |
 | 2026-06-10 04:25 | Principal QA browser walkthrough of all 12 operator dashboard pages + cross-stack execution proof | `backend/src/modules/operator/operator.service.ts`, `frontend/src/app/dashboard/database/page.tsx`, `docs/summary.md` | Browser at `http://localhost:3001`: System Health (all checks green), Environment (3 env files present, backend runtime valid), Database (2 executions live), Contracts (10 Sepolia contracts bytecode yes), Stylus (4 engines registered/healthy), Queues, Treasury, Audit, E2E Validation (`RUN FULL VALIDATION` → PASS badge); Governance Lab button → on-chain `registerProposal` tx `0x6c9637be8cf5eba1830365edecef1ac187d1fbb74cb336ecd78803aa05c2fc49` block `275597123`; Settlement Lab `Trigger settlement` → settlement row `cf9fb642-8efb-4030-b98e-16aa14b43b61` + worker real `submitSettlement` call; `pnpm run verify-live:sepolia` + `verify-live:robinhood-testnet`; `pnpm run e2e:sepolia` (settlement `0x619636a06959e4b631e0e6c0cbc7bd2ec07eee9d50c06e8d936b34a6480b8174`, execute tx `0xefe81f659d5267180f25386675b58a3e359b6b13d20e33ba56aee54130b457ca`); security probe invalid `x-operator-key` → HTTP 401 | **Phase A PASS** (API/worker/scheduler/Redis/Supabase/RPCs). **Phase B PARTIAL**: READ via dashboard for core tables; SQL counts orgs=1 agents=1 executions=2 settlements=1; `wallets` table name wrong → fixed to `agent_wallets`; policies/users/notifications/webhooks empty; full CRUD not exposed in dashboard UI. **Phase C PASS**: settlement job processed by worker; queue metrics visible. **Phase D/E PASS**: live contract+Stylus verify both networks; dashboard panels match. **Phase F PARTIAL**: dashboard backend settlement fail-closed on placeholder fixture metadata (`agentAddress` typo fixed, on-chain revert `0x00a3a4b9` on fake hashes); on-chain success path proven via `e2e:sepolia`. **Phase G PASS**: governance proposal registered on-chain from dashboard. **Phase H PASS**: treasury panel reads live balances/fees. **Phase I PARTIAL**: audit_logs table empty (0 rows); e2e audit commitment verified on-chain in report. **Phase J PASS**: operator auth rejects bad/missing keys. **Phase K PASS**: full `e2e:sepolia` Agent→Policy→Compliance→Risk→Eligibility→Settlement→Audit |
+| 2026-06-10 17:00 | **Production Readiness Audit (Phases 0–12)** — Principal Staff Engineer final release audit | `docs/summary.md` only | Restarted Redis (`redis://127.0.0.1:6379` PONG); restarted API+worker after Redis; `GET /health/live` + `/health/ready` (db 752ms, redis ok); `POST /v1/operator/validate/full` → 12/12 PASS; security bad/missing `x-operator-key` → HTTP 401; `validateEnv` + 15 backend keys present; Render blueprint gap scan; `verify-live:sepolia` + `verify-live:robinhood-testnet`; Supabase CRUD (org insert/update/delete); schema counts; DB settlement/execution rows; backend 9/9 tests; contracts 19/19; Stylus 4/4 (`cargo test --lib`); scheduler cold-start attempted | **See audit section below.** Production score **61/100**. Launch: **NOT READY**. Mainnet: **NOT MAINNET READY**. |
+| 2026-06-10 21:20 | **Phase 5.3 Mission A** — Live Stylus attestation + backend settlement success | `backend/src/modules/stylus/*`, `backend/src/common/constants/onchain.constants.ts`, `backend/src/queues/processors/{intent,settlement}.processor.ts`, `backend/src/modules/settlement/*`, `backend/supabase/migrations/20260101000014_settlement_chain_proof.sql`, `backend/scripts/prove-backend-settlement.ts` | Fixed `MandateChainService.isMandateUsable` chainId; prefer E2E mandate `0xa812c487…`; re-attest in `SettlementProcessor` before settlement; `pnpm build`; kill stale workers; `node scripts/prove-backend-settlement.ts` | **PASS** — execution `bb36de7c-8a56-4c56-9b37-9fa8a84c911e` → `executed`; settlement `confirmed`; compliance `0x22073da7…` (not placeholder); submit `0x54bff8cc…`, approve `0x3d8260c4…`, execute `0x0f13756c…`, on-chain id `0xce4970d9…`, block `275843902` |
+| 2026-06-10 21:22 | **Phase 5.3 Mission B** — Audit log persistence | `backend/src/modules/settlement/settlement.service.ts`, `backend/src/modules/stylus/onchain-attestation.service.ts`, `backend/src/modules/audit/audit.service.ts` | Query `audit_logs` after settlement proof | **PASS** — 5 rows for execution path: `execution.attested`, `settlement.submit`, `settlement.approve`, `settlement.executed` with real tx hashes |
+| 2026-06-10 21:23 | **Phase 5.3 Mission C** — Production Redis hardening + recovery | `backend/src/redis/redis.module.ts`, `backend/src/queues/bullmq.config.ts` | Kill Redis PID; worker logged `ECONNREFUSED` retries; restart Redis; `GET /health/ready` | **PASS (code + local recovery)** — ioredis/BullMQ retry/reconnect/TLS for `rediss://`; API ready recovered after restart (redis latency 19s during reconnect); production Upstash URL not yet provisioned on Render |
+| 2026-06-10 21:23 | **Phase 5.3 Mission D** — Render env group completion | `infra/render/render.yaml` | Blueprint scan vs backend `validateEnv` keys | **PASS (blueprint)** — added `PRIVATE_KEY`, RPC URLs, four `*_VALEN_*` addresses, `OPERATOR_DASHBOARD_SECRET`, observability keys; still no Redis **service** resource in blueprint |
+| 2026-06-10 21:24 | **Phase 5.3 Mission E** — Governance lifecycle proof | `backend/scripts/prove-governance-lifecycle.ts` | `node scripts/prove-governance-lifecycle.ts` | **PARTIAL** — register **PASS** tx `0x90a8623d…` block `275844024`; queue **FAIL** revert `0xe2517d3f` on `queueAction` (timelock `schedule` — likely missing `PROPOSER_ROLE` for governance on deployed timelock); execute **NOT RUN** (86400s minDelay) |
+| 2026-06-10 21:25 | **Phase 5.3 Mission F** — Repo hardening grep | None | `rg -i mock\|fake\|stub\|todo\|placeholder\|0x8888` across repo | **PASS** — prod paths clean; only Jest `mock*`, UI input placeholders, operator placeholder detector, proof-script guard against `0x8888` |
+| 2026-06-10 21:28 | **Phase 5.3 Mission G** — Tests + live verification | None | `pnpm test` (backend 6/6 suites 9/9); `pnpm run verify-live:sepolia`; `pnpm run e2e:sepolia`; `POST /v1/operator/validate/full`; health checks | **PASS** — full validation 12/12; Sepolia verify-live + e2e report updated |
+| 2026-06-10 21:30 | **Phase 5.3 Mission H** — Final verdict written | `docs/summary.md` only | This section | **See Phase 5.3 verdict below.** Production score **78/100**. Launch: **NOT READY** (Render). Mainnet: **NOT MAINNET READY**. |
+
+---
+
+## Phase 5.3 — Production Closure Verdict (2026-06-10)
+
+**Goal:** Close Phase 5.2 blockers — prove backend settlement success, audit persistence, Redis hardening, Render env completeness, governance lifecycle, and re-run live validation.
+
+### Mission Results
+
+| Mission | Verdict | Proof |
+|---------|---------|-------|
+| **A** Backend settlement success path | **PASS** | Operator API → BullMQ → worker → live Stylus `eth_call` → `submitSettlement`/`approveSettlement`/`executeSettlement`; execution `bb36de7c-8a56-4c56-9b37-9fa8a84c911e` |
+| **B** Audit log persistence | **PASS** | `audit_logs` rows with `execution.attested`, `settlement.submit/approve/executed` + tx hashes |
+| **C** Production Redis | **PASS (local)** / **PARTIAL (Render)** | Reconnect/retry/TLS code merged; local kill/restart recovery proven; managed Redis URL still manual on Render |
+| **D** Render blueprint env group | **PASS** | `infra/render/render.yaml` includes all backend-required secrets/addresses |
+| **E** Governance lifecycle | **PARTIAL** | Register on-chain **PASS**; queue **FAIL** (`0xe2517d3f`); execute blocked by 86400s timelock |
+| **F** Repo hardening search | **PASS** | No production mock/fake settlement paths |
+| **G** Tests + live verification | **PASS** | Backend 9/9 tests; `verify-live:sepolia`; `e2e:sepolia`; `validate/full` 12/12 |
+| **H** Summary update | **PASS** | This document |
+
+### Updated Production Score: **78 / 100** (was 61)
+
+| Layer | Score | Change |
+|-------|-------|--------|
+| On-chain protocol | 88/100 | unchanged — script E2E still PASS |
+| Backend runtime | 85/100 | +13 — worker settlement + audit writes proven |
+| Product integration | 82/100 | +54 — backend path now matches script E2E |
+| Ops / Render | 52/100 | +17 — env group complete; Redis service + scheduler still gaps |
+| Mainnet gate | 15/100 | unchanged |
+
+### Updated Component Matrix
+
+| Component | Verdict | Proof |
+|-----------|---------|-------|
+| Settlement Pipeline (backend) | **PASS** | `prove-backend-settlement.ts` exit 0; txs above |
+| Audit Pipeline (DB) | **PASS** | `audit_logs` populated on success path |
+| Redis (runtime) | **PASS (local)** | Reconnect after kill; `health/ready` redis ok |
+| Redis (Render prod) | **FAIL** | No Upstash/Render Redis resource wired |
+| Governance queue/execute | **FAIL** | Queue revert; timelock role wiring needed on deploy |
+| Render Deployment | **PARTIAL** | Env group complete; no frontend/Redis services |
+
+### Launch Recommendation: **NOT READY** (Render production)
+
+Backend and testnet protocol are **operationally proven**. Remaining Render blockers: provision managed `REDIS_URL`, grant timelock `PROPOSER_ROLE`/`EXECUTOR_ROLE` to `ValenGovernance`, prove scheduler cron execution, rotate operator secret.
+
+### Mainnet Recommendation: **NOT MAINNET READY**
+
+Unchanged — admin EOA, no third-party audit, no explorer verification, governance timelock not fully exercised.
+
+### Key Transaction Hashes (Phase 5.3)
+
+| Action | Tx hash | Block |
+|--------|---------|-------|
+| Backend settlement submit | `0x54bff8ccb52d3794bd8e004d749f2f4ab58d79c897f461bd5177770b4bc3edae` | — |
+| Backend settlement approve | `0x3d8260c498517ed4d92b4be5060533e25d960f744d571c8eb46c73d08eb5165b` | — |
+| Backend settlement execute | `0x0f13756cc6aca0f83563b05f1010311b14d217bca7be3474e51d2b750ad272d2` | `275843902` |
+| Governance register (proof) | `0x90a8623d91928945f5f58fab051b32f86a3799bbc0e050693a119612d8d2cab3` | `275844024` |
+
+---
+
+## Production Readiness Audit — Final Report (2026-06-10)
+
+**Auditor role:** Principal Staff Engineer / Final Release Auditor  
+**Rules applied:** No mocks, no assumptions, no skipped validation; unproven = FAIL  
+**Scope:** Full stack inventory, env, contracts, Robinhood, Stylus, DB, settlement, governance, treasury, security, Render, mainnet
+
+### A. Production Score: **61 / 100**
+
+| Layer | Score | Rationale |
+|-------|-------|-----------|
+| On-chain protocol (Solidity + Stylus + E2E scripts) | 88/100 | Live bytecode, registry, engines, submit/approve/execute/audit proven on both testnets |
+| Backend runtime (API, worker, queues, Supabase) | 72/100 | Real NestJS processes, BullMQ, fail-closed workers, operator validation PASS |
+| Product integration (API→worker→settlement success) | 28/100 | Worker calls real contract but fixture metadata reverts; no proven end-to-end success via backend |
+| Ops / Render / production infra | 35/100 | Render blueprint incomplete; no managed Redis in blueprint; no CI; local embedded Redis only |
+| Mainnet gate | 15/100 | Admin EOA, testnet-only deployments, no third-party audit, no explorer verify |
+
+### B. Component Matrix (PASS / FAIL)
+
+| Component | Verdict | Proof |
+|-----------|---------|-------|
+| Backend API | **PASS** | `GET /health/live` 200; `GET /health/ready` database+redis ok; 9 Jest tests pass |
+| Database (Supabase) | **PASS** | 13 migrations, 155 indexes, 61 FKs, 29 RLS tables, 56 policies; CRUD org `4e833892-da5a-4658-ad57-12677fe4cebe` insert/update/delete |
+| Redis | **FAIL** | Local `redis-memory-server` only; production requires external `REDIS_URL`; not provisioned in Render blueprint |
+| BullMQ / Queues | **PASS** | Operator validate: 12 queues monitored; worker active |
+| Workers | **PASS** | `VALEN worker started`; operator reports 2 worker(s) active |
+| Scheduler | **FAIL** | Process exists (`dist/src/scheduler.js`) but no cron job execution proven this audit; cold start >15s with no job log |
+| Supabase | **PASS** | Pooler reachable; schema + RLS verified |
+| Arbitrum Contracts | **PASS** | `verify-live:sepolia` 2026-06-10; 10 contracts + 4 engines v1.0.0 |
+| Robinhood Contracts | **PASS** | `verify-live:robinhood-testnet` 2026-06-10; 10 contracts + 4 engines v1.0.0 |
+| Stylus Engines | **PASS** | On-chain registry + live E2E engine probes; 4 unit tests (`cargo test --lib`) |
+| Governance | **FAIL** | Status reads pass (timelock linked, minDelay 86400s); `registerProposal` proven in QA (`0x6c9637be…`); **queue + timelock execute not re-proven this audit** |
+| Treasury | **PASS** | `GET /v1/operator/treasury` → `0x094B10D817f4603e9a4734B52c4c7A1Bf389658D`, balance 0 ETH, fees 0 |
+| Audit Pipeline | **FAIL** | `audit_logs` table **0 rows**; on-chain audit commitment only in E2E script reports |
+| Settlement Pipeline | **FAIL** | Backend path: settlement `7d42ada0-2053-4e02-a1b3-6ce17d779396` **failed** — real `submitSettlement` revert `0x00a3a4b9` on placeholder fixture hashes; script E2E **PASS** (see proof) |
+| Security | **PASS** | Invalid/missing `x-operator-key` → HTTP 401; operator guard fail-closed |
+| Render Deployment | **FAIL** | Blueprint missing 8 required env keys (see Phase 11); no Redis service; frontend not in blueprint |
+
+### C. Launch Recommendation: **NOT READY**
+
+VALEN has a **real, live testnet protocol** but is **not a deployable production product on Render today**. Blockers: incomplete Render env group, no production Redis provisioning, backend settlement success path unproven, audit persistence gap, scheduler job execution unproven.
+
+### D. Mainnet Recommendation: **NOT MAINNET READY**
+
+Do not move to mainnet until P0 blockers below are resolved and independently audited.
+
+---
+
+### Phase 1 — System Inventory
+
+| # | Component | Verdict | Notes |
+|---|-----------|---------|-------|
+| 1 | Backend (NestJS API) | PASS | Port 3000, Swagger at `/docs` |
+| 2 | Database (Supabase PostgreSQL) | PASS | Via pooler `DATABASE_URL` |
+| 3 | Redis | FAIL | Local embedded only for dev |
+| 4 | BullMQ | PASS | Prefix `{valen}`, 12 queues |
+| 5 | Supabase auth/storage | PASS | Service role key configured |
+| 6 | Arbitrum Contracts | PASS | Sepolia 421614 — see addresses |
+| 7 | Robinhood Contracts | PASS | Testnet 46630 — see addresses |
+| 8 | Stylus Engines | PASS | 4 engines × 2 networks |
+| 9 | Governance | FAIL | Reads only proven this session |
+| 10 | Treasury | PASS | On-chain reads |
+| 11 | Settlement Pipeline | FAIL | Script yes; backend success no |
+| 12 | Audit Pipeline | FAIL | DB empty |
+| 13 | Worker Processes | PASS | `worker.js` running |
+| 14 | Scheduler | FAIL | Not proven executing jobs |
+| 15 | APIs | PASS | Public health + operator `/v1/operator/*` |
+| 16 | Environment Variables | FAIL | Local complete; Render incomplete |
+| 17 | Render Deployment | FAIL | Blueprint gaps |
+
+### Phase 2 — Environment Audit
+
+| File | Exists | Valid | Verdict |
+|------|--------|-------|---------|
+| `backend/.env` | Yes | `validateEnv()` PASS; 17 keys loaded | **PASS** |
+| `contracts/.env` | Yes | RPC + `PRIVATE_KEY` present | **PASS** |
+| `stylus/.env` | Yes | RPC present | **PASS** |
+| `frontend/.env.local` | Yes | `BACKEND_URL`, `OPERATOR_DASHBOARD_SECRET` | **PASS** |
+| `infra/render/render.yaml` `valen-production` | Partial | Missing: `PRIVATE_KEY`, `ARBITRUM_SEPOLIA_RPC_URL`, `ROBINHOOD_TESTNET_RPC_URL`, all four `*_VALEN_*` addresses, `OPERATOR_DASHBOARD_SECRET` | **FAIL** |
+
+**Dead / unused (local):** `SENTRY_DSN`, `POSTHOG_*` optional and correctly disabled when unset.  
+**Placeholder detected:** `OPERATOR_DASHBOARD_SECRET=valen-operator-local-dev-secret` — acceptable for local dev only; **must rotate for Render**.
+
+### Phase 3 — Contract Audit (on-chain reads)
+
+**Arbitrum Sepolia (421614)** — `pnpm run verify-live:sepolia` **PASS** 2026-06-10:
+
+| Contract | Address |
+|----------|---------|
+| ValenRegistry | `0x53EeC68c869E06B659A87b9e049a379ba3a5FA0F` |
+| ValenSettlement | `0x993622D55Ea095aB71165Caf191B21E6e3A71D4A` |
+| ValenGovernance | `0xF7623E69a21ad43f3678a9FA2bA931e59f7F1574` |
+| ValenTreasury | `0x094B10D817f4603e9a4734B52c4c7A1Bf389658D` |
+| ComplianceEngine | `0xF6D515F09B1E14ADb891C72605e1df12c7F5db6B` v1.0.0 |
+| RiskEngine | `0x8eb252fF6f05b1ee767BB816e5786ad72e5b4073` v1.0.0 |
+| EligibilityEngine | `0x03e00644c2BBB45ab4566e34C30929Dd017eE5bD` v1.0.0 |
+| PolicyEngine | `0x3eb88DDE893288FAea417B413a55a5B4d3256108` v1.0.0 |
+
+**Robinhood Testnet (46630)** — `pnpm run verify-live:robinhood-testnet` **PASS** 2026-06-10:
+
+| Contract | Address |
+|----------|---------|
+| ValenRegistry | `0x8A80D270dd7028536ecB6f92b04eec11F929d603` |
+| ValenSettlement | `0x91CdD9a481C732bEB09Ce039da23DC11e83547a4` |
+| ComplianceEngine | `0x2C1dB0C436B72D94a4112f321DFbD13a976D8831` v1.0.0 |
+| RiskEngine | `0xae57003e42e3548A9d39Cd55bCDfAc04363B1d63` v1.0.0 |
+| EligibilityEngine | `0x1F3fb438824140b7E1125502f80B686D95072939` v1.0.0 |
+| PolicyEngine | `0xe1Ae5eC5B4416e7d725981946e11aF0A44bF4ecD` v1.0.0 |
+
+Upgradeability: UUPS proxies deployed; implementation addresses in `contracts/deployments/*/deployment.json`. Explorer verification **not run** (FAIL for mainnet gate).
+
+### Phase 4 — Robinhood Chain Audit
+
+| Check | Verdict | Proof |
+|-------|---------|-------|
+| RPC stability | PASS | `verify-live:robinhood-testnet` completed |
+| Chain ID 46630 | PASS | Report + Hardhat network config |
+| Contract reads | PASS | Registry engine pointers + bytecode |
+| Contract writes | PASS | E2E report `contracts/reports/e2e-robinhood-testnet.json` |
+| Event indexing | FAIL | No proven indexer; backend reads receipts via viem only |
+
+Robinhood E2E txs (report timestamp 2026-06-09): submit `0xe9e7130363b817a103d685a7fb2f08ef9b7a4755621775f8ccd86b8ee40a9014`, approve `0x32ecf343c94fbbe883a4e7b3e4509cd20ceae71828aa85f093a3b15f942f3b27`, execute `0x2f1e1dfe76e947bd2bde12b604da724ff9f1cac57ed16199b99fb07f9d1a2d1e`, audit commitment `0xad3e6f789387e058b48ef71951a12b68240ffeed07443c8cd2aa2839fcaf7e6e`.
+
+### Phase 5 — Stylus Audit
+
+| Engine | Sepolia | Robinhood | Unit test |
+|--------|---------|-----------|-----------|
+| ComplianceEngine | registered v1.0.0 | registered v1.0.0 | PASS |
+| RiskEngine | registered v1.0.0 | registered v1.0.0 | PASS |
+| EligibilityEngine | registered v1.0.0 | registered v1.0.0 | PASS |
+| PolicyEngine | registered v1.0.0 | registered v1.0.0 | PASS |
+
+E2E live probe (Sepolia): compliance=`0x29b06ec1` risk=`0xd890566f` policy=`0x5401202c` (from `e2e-arbitrum-sepolia.json`).
+
+### Phase 6 — Database Audit
+
+| Check | Verdict |
+|-------|---------|
+| Schema / migrations | PASS — 13 applied |
+| Indexes / FKs / RLS | PASS — 155 / 61 / 29 tables / 56 policies |
+| CRUD | PASS — org create/update/delete proven |
+| Business data | PARTIAL — orgs=1, agents=1, executions=2, settlements=1 (failed), audit_logs=0 |
+
+### Phase 7 — Settlement Pipeline Audit
+
+| Stage | Verdict | Evidence |
+|-------|---------|----------|
+| API → DB execution | PASS | Executions `4ea06ca9…`, `229593e3…` persisted |
+| DB → Queue → Worker | PASS | Worker invoked real `submitSettlement` on `0x993622…` |
+| Worker → Contract | **FAIL (success path)** | Settlement `7d42ada0…` status `failed`, revert signature `0x00a3a4b9`; fixture uses repeating-byte hashes (`0x8888…`, `0x9999…`) |
+| Script E2E (control) | PASS | settlementId `0x619636a06959e4b631e0e6c0cbc7bd2ec07eee9d50c06e8d936b34a6480b8174`; execute `0xefe81f659d5267180f25386675b58a3e359b6b13d20e33ba56aee54130b457ca` |
+
+**Root cause:** Backend workers validate/persist metadata but do not invoke Stylus engines to derive engine-attested hashes; fixture metadata cannot pass on-chain engine validation.
+
+### Phase 8 — Governance Audit
+
+| Action | Verdict | Proof |
+|--------|---------|-------|
+| Status read | PASS | `GET /v1/operator/governance/status` — timelock `0xAe853e326bCF38f6f9131eA0f5298C88084D72bc`, minDelay 86400s |
+| Proposal creation | PASS (prior QA) | tx `0x6c9637be8cf5eba1830365edecef1ac187d1fbb74cb336ecd78803aa05c2fc49` block 275597123 |
+| Queue + execute | **FAIL** | Not re-executed this audit |
+
+### Phase 9 — Treasury Audit
+
+| Check | Verdict | Proof |
+|-------|---------|-------|
+| Balance read | PASS | 0 ETH native |
+| Fee accrual read | PASS | accrued/collected 0 |
+| Withdraw flow | FAIL | Not executed live (Solidity unit tests cover withdraw) |
+
+### Phase 10 — Security Audit
+
+| Check | Verdict | Proof |
+|-------|---------|-------|
+| Operator auth | PASS | bad key → 401; no key → 401 |
+| Privy API auth | NOT TESTED | No live customer API key flow this audit |
+| Secrets in repo | PASS | `.env` gitignored; git status clean except user-added analysis file |
+| Contract permissions | FAIL (mainnet) | Deployer EOA holds admin roles |
+
+### Phase 11 — Render Deployment Readiness
+
+#### Production architecture
+
+```mermaid
+flowchart TB
+  subgraph render [Render]
+    API[valen-api web Docker]
+    WRK[valen-worker Docker]
+    CRON[valen-scheduler cron Docker]
+  end
+  subgraph external [External]
+    SB[(Supabase PostgreSQL)]
+    RD[(Redis Upstash or Render Redis)]
+    PRIVY[Privy]
+    ALCH[Alchemy RPC]
+    ARB[Arbitrum Sepolia]
+    RH[Robinhood Testnet]
+  end
+  API --> SB
+  API --> RD
+  WRK --> SB
+  WRK --> RD
+  WRK --> ARB
+  WRK --> RH
+  CRON --> SB
+  CRON --> RD
+  API --> PRIVY
+  API --> ALCH
+```
+
+| Question | Answer |
+|----------|--------|
+| Services on Render | 3: `valen-api` (web), `valen-worker`, `valen-scheduler` (cron `*/5 * * * *`) |
+| External services | Supabase, Redis URL, Privy, Alchemy, chain RPCs, deployed contracts |
+| Render service count | **3** (+ separate Redis provider) |
+| Startup commands | API: `node dist/src/main.js`; Worker: `node dist/src/worker.js`; Scheduler: `node dist/src/scheduler.js` |
+| Health checks | `GET /health/live` (web only) |
+| Required env vars | All keys in `env.validation.ts` + Render gaps listed in Phase 2 |
+| Secrets | `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`, `PRIVY_*`, `ALCHEMY_API_KEY`, `PRIVATE_KEY`, `OPERATOR_DASHBOARD_SECRET` |
+| Persistent storage | None on Render (state in Supabase + Redis + chain) |
+| Scaling | API: horizontal; Worker: 1+ instances with shared Redis; avoid duplicate cron |
+
+**Render verdict: FAIL** until env group completed and managed Redis URL provisioned.
+
+### Phase 12 — Mainnet Readiness Blockers
+
+| ID | Severity | Impact | Exact fix |
+|----|----------|--------|-----------|
+| MN-01 | P0 | Cannot operate on mainnet | Deploy all contracts to Arbitrum One / Robinhood mainnet; re-register engines |
+| MN-02 | P0 | Single-key compromise | Migrate admin roles from deployer EOA to multisig + timelock |
+| MN-03 | P0 | Unknown bytecode trust | Third-party security audit + public explorer verification |
+| MN-04 | P0 | Backend cannot settle real agents | Wire engine attestation pipeline so `execution.metadata.onchain` carries live engine hashes before worker settlement |
+| MN-05 | P1 | Audit trail gap | Persist `audit_logs` rows when on-chain audit commitments succeed |
+| MN-06 | P1 | No production ops | Complete Render blueprint; provision Upstash/Render Redis; add CI |
+| MN-07 | P1 | Governance not battle-tested | Prove full proposal → queue → timelock → execute on testnet |
+| MN-08 | P2 | Treasury untested live | Fund treasury testnet; prove fee accrual + guarded withdraw |
+| MN-09 | P2 | Cold start | API/worker Nest bootstrap ~2+ min on slow mounts — optimize or use native Linux deploy |
+
+---
+
+### E. Absolute Proof (reproducible)
+
+**Runtime health (2026-06-10T17:01Z):**
+
+```
+GET /health/ready → {"status":"ok","checks":{"database":{"status":"ok","latencyMs":752},"redis":{"status":"ok"}}}
+POST /v1/operator/validate/full → {"status":"PASS","passed":true,"steps":[12 steps all pass]}
+Security: x-operator-key wrong → HTTP 401; missing → HTTP 401
+```
+
+**Database CRUD:** org `4e833892-da5a-4658-ad57-12677fe4cebe` created/updated/deleted via direct pooler SQL.
+
+**Settlement failure (backend — real tx attempt, fail-closed):**
+
+- Row: `7d42ada0-2053-4e02-a1b3-6ce17d779396` status `failed` chain 421614
+- Contract: `0x993622D55Ea095aB71165Caf191B21E6e3A71D4A`
+- Revert: `0x00a3a4b9`
+
+**Settlement success (script E2E — Sepolia):**
+
+- settlementId: `0x619636a06959e4b631e0e6c0cbc7bd2ec07eee9d50c06e8d936b34a6480b8174`
+- submit: `0xb75e07271650bcdf295c09a9c08f0e8017868ea32e42ff4e07881a9720087882`
+- approve: `0x3ae30b85d08f3dbfd81a353071e4b9a9c63ec0ce912113e8c5585af6d3c0bdca`
+- execute: `0xefe81f659d5267180f25386675b58a3e359b6b13d20e33ba56aee54130b457ca`
+- audit: `0x326f68e8eff1a01bfc4534a2060f66c5c807dba2c03f09e4e30d87e9363ac7c9`
+
+**Governance (prior QA):** `registerProposal` tx `0x6c9637be8cf5eba1830365edecef1ac187d1fbb74cb336ecd78803aa05c2fc49`
+
+**Treasury read:** `0x094B10D817f4603e9a4734B52c4c7A1Bf389658D` balance 0 ETH
+
+**Tests:** backend 6 suites / 9 tests PASS; contracts 19 PASS; Stylus 4 PASS (`cargo test --lib`)
+
+**Deployer EOA:** `0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3`
 
 ---
 
@@ -297,53 +638,62 @@ Solidity test suites **still missing:** `ValenPolicyManager`, `ValenSettlement`,
 
 ---
 
-## Production Readiness
+## Production Readiness (historical scores + audit)
 
 | Score | Scope |
 |-------|-------|
 | **58/100** | Pre-recovery baseline (`RECOVERY_ANALYSIS.md`) |
 | **72/100** | Post-Stylus on-chain protocol (`POST_STYLUS_AUDIT.md`) |
-| **~78/100** | Testnet on-chain protocol layer |
-| **~52/100** | Full product (backend + frontend + ops) |
-| Mainnet | **Not approved** (~45/100 gate) |
+| **~78/100** | Testnet on-chain protocol layer only |
+| **61/100** | **Production Readiness Audit 2026-06-10** (this document) |
+| Mainnet | **Not approved** — see Phase 12 blockers |
 
-### Remaining blockers
+### Remaining blockers (post-audit, current)
 
-**P0 — backend integration**
+**P0 — product integration**
 
-| Blocker | Detail |
-|---------|--------|
-| Backend settlement worker | `SettlementWorkerService` uses fake tx hashes; must call `ValenSettlement` on-chain |
-| Contract addresses in backend | Not in `config.types.ts` / env |
-| Robinhood Alchemy slug | `AlchemyService` uses `arb-sepolia` for chain 46630 |
+| Blocker | Detail | Fix |
+|---------|--------|-----|
+| Backend settlement success path | Worker calls real contract but fixture metadata reverts `0x00a3a4b9` | Derive `metadata.onchain` from live Stylus engine outputs (or oracle relay) before settlement worker runs |
+| Audit persistence | `audit_logs` table has 0 rows | Write audit rows when settlement completes / on-chain audit commitment succeeds |
+| Render deployment | Blueprint missing 8 env keys; no Redis service | Extend `infra/render/render.yaml`; provision Upstash/Render Redis |
 
 **P1 — mainnet gate**
 
 | Blocker | Detail |
 |---------|--------|
-| Explorer verification | `verify.ts` not run (no API key) |
+| Explorer verification | `verify.ts` not run |
 | Third-party security audit | Not performed |
-| Missing Solidity test suites | PolicyManager, Settlement, Escrow, Governance |
 | Role bootstrap | Admin EOA holds privileged roles; needs timelock/multisig |
-| Escrow integration (ESC-02) | Settlement does not use escrow paths |
-| CI/CD | No GitHub Actions for stylus check + contract tests |
+| Governance full lifecycle | Queue + timelock execute not proven end-to-end |
+| CI/CD | No GitHub Actions |
 | Production Redis | Local embedded only |
 
 **P2 — quality / ops**
 
 | Blocker | Detail |
 |---------|--------|
-| Stylus reproducible deploy | `--no-verify` without Docker |
-| Engine cache bids | Not submitted (`cargo stylus cache bid`) |
-| Coverage target | ~45% vs 90% goal |
-| Frontend | Scaffold only |
-| Backend unit tests | Zero `*.spec.ts` files |
+| Scheduler job proof | Cron process exists but job execution not proven |
+| Robinhood event indexing | No dedicated indexer |
+| Treasury live withdraw | Not executed on testnet (unit tests only) |
+| Cold start | Nest bootstrap ~2+ min on WSL `/mnt/d/` mounts |
+
+### Resolved since earlier audits (do not re-report as open)
+
+| Former blocker | Status |
+|----------------|--------|
+| Synthetic settlement tx hashes | ✅ Fixed — viem `writeContract` path |
+| Robinhood Alchemy slug hardcode | ✅ Fixed — public client per chain |
+| Contract addresses in backend env | ✅ Present and validated |
+| Missing Solidity test suites | ✅ 19 tests passing |
+| Backend unit tests zero | ✅ 9 tests passing |
+| Operator dashboard | ✅ Built at `:3001` |
 
 ### Security notes (post-Stylus)
 
 | ID | Severity | Finding |
 |----|----------|---------|
-| SEC-01 | High | Backend settlement simulation masks real failures |
+| SEC-01 | High | Backend settlement with invalid metadata correctly fails closed (revert persisted) — **was** synthetic success masking failures |
 | SEC-02 | High | Admin EOA controls registry, mandate, policy, settlement roles |
 | SEC-03 | Medium | Engine init permissionless once per engine (authorized_caller pinned correctly) |
 | SEC-04 | Medium | No UUPS upgrade validation CI |
@@ -569,16 +919,18 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 | Deploy Solidity contracts to testnets | ✅ |
 | Deploy + activate Stylus engines | ✅ |
 | Register engines in ValenRegistry | ✅ |
-| E2E on-chain validation | ✅ |
-| Wire backend to deployed contracts | 🔜 |
-| Contract addresses → backend env | 🔜 |
-| Replace stub `processSettlement` with on-chain calls | 🔜 |
-| Start BullMQ worker (`pnpm dev:worker`) | 🔜 |
-| Explorer verification (`verify.ts`) | 🔜 (needs API key) |
+| E2E on-chain validation (scripts) | ✅ |
+| Wire backend to deployed contracts | ✅ |
+| Contract addresses → backend env | ✅ |
+| Replace stub `processSettlement` with on-chain calls | ✅ (fail-closed on bad metadata) |
+| Backend engine-attestation → settlement success | ✅ (Phase 5.3 — `prove-backend-settlement.ts` PASS) |
+| Audit log persistence | ✅ (Phase 5.3 — `audit_logs` on success path) |
+| Explorer verification (`verify.ts`) | 🔜 |
 | CI/CD GitHub Actions | 🔜 |
-| Missing Solidity test suites (4) | 🔜 |
-| Production Redis (Upstash/Render) | 🔜 |
-| Frontend operator dashboard | ✅ Internal validation dashboard (12 sections, live data) |
+| Production Redis (Upstash/Render) | 🔜 (code hardened; provision URL on Render) |
+| Complete Render env group + deploy | ✅ env group / 🔜 deploy + Redis service |
+| Governance queue + timelock execute | 🔜 P0 (grant timelock roles to governance proxy) |
+| Frontend operator dashboard | ✅ |
 | Multisig/timelock role migration | 🔜 |
 | Third-party security audit | 🔜 |
 
