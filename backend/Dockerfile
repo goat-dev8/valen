@@ -3,6 +3,8 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY backend/package.json ./backend/
+# redis-memory-server is dev-only (local embedded Redis); skip binary compile in CI/Render.
+ENV REDISMS_DISABLE_POSTINSTALL=true
 RUN pnpm install --frozen-lockfile --filter backend
 COPY backend ./backend
 RUN pnpm --filter backend build
