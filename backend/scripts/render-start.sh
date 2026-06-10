@@ -4,8 +4,10 @@ set -e
 worker_loop() {
   while true; do
     echo "VALEN worker: starting..."
+    set +e
     node dist/worker.js
     exit_code=$?
+    set -e
     echo "VALEN worker: exited with code ${exit_code}; restarting in 2s"
     sleep 2
   done
