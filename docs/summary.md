@@ -88,6 +88,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-11 02:03 | **Phase 6.1 deploy `2d08541` production retest** — queues/validate PASS; settlement E2E still FAIL | `docs/summary.md` | Render health/ready/auth/governance; `GET /v1/operator/queues` (~0.6s); `POST /v1/operator/validate/full` 12/12; `prove-backend-settlement.ts` (~17 min) executions `9259f2f0…`, `cf2fcab3…`; DB settlement duplicate trace | **PARTIAL** — infra + operator validation **PASS**; prove **FAIL** — fresh execution stuck `created` after attestation; prior execution recovered to `executed` but duplicate `pending` settlement row caused false FAIL; follow-up fix: deterministic BullMQ re-enqueue + prefer `confirmed` settlement |
 | 2026-06-11 02:31 | **Phase 6.1 deploy `4567f7b` production retest** — infra PASS; prove still FAIL | `docs/summary.md` | Post-redeploy smoke (health/ready/auth/queues/validate 12/12); prove `8fd53e07…`; DB re-check `cf2fcab3…` | **PARTIAL** — mid-redeploy curls hit **502** (transient); stable service **PASS**; prove **FAIL** — `8fd53e07…` stuck `created`; `cf2fcab3…` later reached `executed`+`confirmed` via recovery (prove timed out before recovery) |
 | 2026-06-11 03:00 | **Phase 7 root-cause investigation + reliability fix** — BullMQ consumers not draining | `backend/src/queues/*`, `backend/src/worker.module.ts`, `backend/Dockerfile`, `infra/render/render.yaml`, `docs/summary.md` | DB+Redis queue trace for `8fd53e07…`, `cf2fcab3…`; Render operator queue API; worker heartbeat vs job pickup; `pnpm build` | **FIX PUSHED (pending deploy)** — proven stop point: intent job **waiting** in Redis, 0 active jobs, heartbeat OK; recovery gap for pre-attestation `created`; enqueue skip on stale `active`; 12→5 pipeline workers; consumer health key |
+| 2026-06-11 03:17 | **Phase 7 deploy `a23809b` production validation** — **RENDER READY** | `docs/summary.md` | `validate/full` 12/12; consumer health + backlog=0; `prove-backend-settlement.ts` **10/10** (~43–50s each); sample execution `6f16ad02…` → `executed` + settlement `confirmed` tx `0x69a5314a…` | **RENDER READY** — full pipeline intent→settlement→audit proven on Render; governance execute still blocked by 86400s timelock |
 
 ---
 
@@ -140,7 +141,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 
 **Paid plan required?** **Not proven as mandatory.** Connection/worker footprint reduction is the first fix; upgrade Redis plan only if connection audit still fails post-fix.
 
-### Phase 4 — Fixes (commit pending push)
+### Phase 4 — Fixes (commit `a23809b`, deployed)
 
 | Fix | Purpose |
 |-----|---------|
@@ -150,11 +151,40 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | `PipelineRecoveryService` intent re-enqueue | Recover `created` executions **without** onchain metadata |
 | Cached BullMQ connection config | Reduce duplicate connection option churn |
 
-### Phase 5 — Live validation
+### Phase 5 — Live validation (post-`a23809b`, 2026-06-11 23:17 UTC)
 
-**Status:** **PENDING** — fixes must deploy to Render, then `prove-backend-settlement.ts` **10/10** required.
+| Test | Result | Proof |
+|------|--------|-------|
+| `GET /health/live` | **PASS** | HTTP 200 |
+| `GET /health/ready` | **PASS** | DB + Redis ok |
+| `POST /v1/operator/validate/full` | **PASS** | 12/12; Workers: `1 worker(s) active; pipeline backlog=0` |
+| `prove-backend-settlement.ts` × 10 | **PASS** | **10/10** exit 0; ~43–50s each |
+| Sample execution `6f16ad02…` | **PASS** | `executed`; compliance=1, risk=1, settlement `confirmed`; audit submit/approve/executed txs |
 
-### Phase 6 — Readiness scores (pre-deploy)
+**Representative on-chain proof (run 1):**
+
+| Field | Value |
+|-------|-------|
+| Execution | `6f16ad02-18d9-4b9a-b465-81767657a8eb` → `executed` |
+| Submit tx | `0xca6174578e6377c58bf942fcb7a4535485d724e67a9a154c757df02956bc3e85` |
+| Approve tx | `0x93f72ee139ddafbcc4c7d2bbb1d872334d5bb970367e825c46e723834d796119` |
+| Execute tx | `0x69a5314a1f6fd78609473c841c7e534731e082e3cf1b392a9adfde637ed60a3e` |
+| Block | `275913339` |
+
+### Phase 6 — Readiness scores (post-`a23809b`)
+
+| Score | Value |
+|-------|-------|
+| RENDER | **88/100** |
+| BACKEND | **92/100** |
+| QUEUE | **90/100** |
+| REDIS | **85/100** |
+| SETTLEMENT | **95/100** |
+| AUDIT | **92/100** |
+
+**Verdict: RENDER READY** — settlement pipeline proven 10/10 on Render. Remaining non-blockers: governance execute (86400s timelock), rotate operator secret, optional Redis plan upgrade under sustained load.
+
+### Phase 6 — Readiness scores (pre-deploy, superseded)
 
 | Score | Value |
 |-------|-------|
@@ -165,7 +195,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | SETTLEMENT | **55/100** (local PASS; Render E2E unproven at speed) |
 | AUDIT | **80/100** |
 
-**Verdict: NOT RENDER READY** — BullMQ consumers not reliably draining on Render; 10/10 settlement proofs not yet achieved post-fix.
+**Verdict (superseded): NOT RENDER READY**
 
 ---
 
@@ -1465,4 +1495,4 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 
 **End state (planning):** Blueprint ready; live deploy completed separately above.
 
-**End state (live):** **NOT RENDER READY** — Phase 7 root cause: BullMQ jobs wait in Redis while worker heartbeat is alive (consumers not draining). Fix pending deploy; 10/10 `prove-backend-settlement.ts` on Render still required.
+**End state (live):** **RENDER READY** — `a23809b` on `https://valen-api-m3g4.onrender.com`: validate/full 12/12; settlement E2E **10/10** on Render (~43–50s each); full intent→compliance→risk→policy→settlement→audit pipeline proven.
