@@ -15,5 +15,7 @@ ENV NODE_ENV=production
 COPY --from=builder /app/backend/dist ./dist
 COPY --from=builder /app/backend/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY backend/scripts/render-start.sh ./render-start.sh
+RUN chmod +x ./render-start.sh
 EXPOSE 3000
-CMD ["node", "dist/src/main.js"]
+CMD ["./render-start.sh"]

@@ -22,8 +22,7 @@ services:
     region: oregon
     dockerfilePath: ./backend/Dockerfile
     healthCheckPath: /health/live
-    # BullMQ worker has no free Render service type — run worker alongside API in one container.
-    dockerCommand: sh -c "node dist/src/worker.js & exec node dist/src/main.js"
+    # API + BullMQ worker in one container (worker has no free Render service type).
     envVars:
       - key: NODE_ENV
         value: production
