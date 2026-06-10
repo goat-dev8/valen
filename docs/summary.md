@@ -1,8 +1,8 @@
 # VALEN Implementation Summary
 
 **Last updated:** 2026-06-10  
-**Phase:** 5.3 — Production Closure Mission **complete** (see log below)  
-**Current status:** ✅ **TESTNET LIVE (backend + protocol proven)** — API→Queue→Worker→Stylus→Settlement→Audit→DB success path proven on Arbitrum Sepolia; **Render production deploy still NOT READY** (managed Redis, governance queue timelock roles, scheduler jobs)
+**Phase:** 6 — Render Production Deployment **audited** (deploy blocked — see below)  
+**Current status:** ✅ **TESTNET LIVE (backend + protocol proven locally)** — pre-deploy tests PASS; **Render deploy BLOCKED** until Render account + secret paste + production `REDIS_URL` strategy applied
 
 **Deployer EOA:** `0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3`
 
@@ -79,6 +79,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-10 21:25 | **Phase 5.3 Mission F** — Repo hardening grep | None | `rg -i mock\|fake\|stub\|todo\|placeholder\|0x8888` across repo | **PASS** — prod paths clean; only Jest `mock*`, UI input placeholders, operator placeholder detector, proof-script guard against `0x8888` |
 | 2026-06-10 21:28 | **Phase 5.3 Mission G** — Tests + live verification | None | `pnpm test` (backend 6/6 suites 9/9); `pnpm run verify-live:sepolia`; `pnpm run e2e:sepolia`; `POST /v1/operator/validate/full`; health checks | **PASS** — full validation 12/12; Sepolia verify-live + e2e report updated |
 | 2026-06-10 21:30 | **Phase 5.3 Mission H** — Final verdict written | `docs/summary.md` only | This section | **See Phase 5.3 verdict below.** Production score **78/100**. Launch: **NOT READY** (Render). Mainnet: **NOT MAINNET READY**. |
+| 2026-06-10 22:10 | **Phase 6** — Render production deployment audit + blueprint | `infra/render/render.yaml`, `docs/summary.md` | Read env files + `env.validation.ts`; audit all vars; architecture/redis decision; `pnpm build/test` (backend 9/9, contracts 19/19, stylus 4/4); health + `validate/full` PASS; Render CLI absent — deploy not run | **BLOCKED** — local `REDIS_URL` is localhost; use Render Key Value `fromService` or Upstash; paste secrets in Render Dashboard; see **Render Production Deployment** section |
 
 ---
 
@@ -927,8 +928,8 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 | Audit log persistence | ✅ (Phase 5.3 — `audit_logs` on success path) |
 | Explorer verification (`verify.ts`) | 🔜 |
 | CI/CD GitHub Actions | 🔜 |
-| Production Redis (Upstash/Render) | 🔜 (code hardened; provision URL on Render) |
-| Complete Render env group + deploy | ✅ env group / 🔜 deploy + Redis service |
+| Production Redis (Upstash/Render) | 🔜 Blueprint uses Render Key Value free; deploy + paste secrets |
+| Complete Render env group + deploy | ✅ blueprint / 🔜 Render Dashboard deploy |
 | Governance queue + timelock execute | 🔜 P0 (grant timelock roles to governance proxy) |
 | Frontend operator dashboard | ✅ |
 | Multisig/timelock role migration | 🔜 |
@@ -954,3 +955,159 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 - `.env` files are gitignored — never commit secrets
 - Rotate credentials if shared in chat or screenshots
 - `SUPABASE_SERVICE_ROLE_KEY` is server-only
+
+---
+
+# Render Production Deployment (Phase 6)
+
+**Verdict:** **BLOCKED WITH THESE EXACT MISSING VALUES**
+
+Deployment was **not executed** — no Render CLI/API key in this environment, and `backend/.env` `REDIS_URL` points to localhost (invalid for cloud). Blueprint and pre-deploy checks are ready.
+
+## Mission 1 — Environment Audit
+
+Source of truth: `backend/src/config/env.validation.ts` + `backend/.env` (secrets not printed here).
+
+| Variable | Required? | Exists in `backend/.env`? | Source | Valid for Render? |
+|----------|-----------|----------------------------|--------|-------------------|
+| `DATABASE_URL` | Yes | Yes | `backend/.env` | Yes (Supabase pooler URL) |
+| `SUPABASE_URL` | Yes | Yes | `backend/.env` | Yes (`https://rxumjewkgkxabpqustkk.supabase.co`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Yes | `backend/.env` | Yes |
+| `REDIS_URL` | Yes | Yes (localhost) | `backend/.env` | **NO — `redis://127.0.0.1:*` is local only** |
+| `PRIVY_APP_ID` | Yes | Yes | `backend/.env` | Yes |
+| `PRIVY_APP_SECRET` | Yes | Yes | `backend/.env` | Yes |
+| `ALCHEMY_API_KEY` | Yes | Yes | `backend/.env` | Yes |
+| `PRIVATE_KEY` | Yes | Yes | `backend/.env`, `contracts/.env`, `stylus/.env` | Yes (same deployer key) |
+| `ARBITRUM_SEPOLIA_RPC_URL` | Optional* | Yes | `backend/.env` | Yes (explicit Alchemy URL set) |
+| `ROBINHOOD_TESTNET_RPC_URL` | Optional* | Yes | `backend/.env` | Yes (`https://rpc.testnet.chain.robinhood.com`) |
+| `OPERATOR_DASHBOARD_SECRET` | Optional | Yes | `backend/.env` | Yes (≥16 chars; **rotate before production**) |
+| `ARBITRUM_SEPOLIA_VALEN_REGISTRY` | Yes | Yes | `backend/.env` | Yes (`0x53EeC68c869E06B659A87b9e049a379ba3a5FA0F`) |
+| `ARBITRUM_SEPOLIA_VALEN_SETTLEMENT` | Yes | Yes | `backend/.env` | Yes (`0x993622D55Ea095aB71165Caf191B21E6e3A71D4A`) |
+| `ROBINHOOD_TESTNET_VALEN_REGISTRY` | Yes | Yes | `backend/.env` | Yes (`0x8A80D270dd7028536ecB6f92b04eec11F929d603`) |
+| `ROBINHOOD_TESTNET_VALEN_SETTLEMENT` | Yes | Yes | `backend/.env` | Yes (`0x91CdD9a481C732bEB09Ce039da23DC11e83547a4`) |
+| `SENTRY_DSN` | Optional | **No** | — | OK omitted (Sentry disabled) |
+| `POSTHOG_API_KEY` | Optional | **No** | — | OK omitted (PostHog disabled) |
+| `POSTHOG_HOST` | Optional | **No** | — | OK omitted (defaults in code) |
+| `NODE_ENV` | Default | Yes (`development`) | `backend/.env` | Set to `production` in blueprint |
+| `PORT` | Default | Yes (`3000`) | `backend/.env` | Set in blueprint |
+
+\*Optional in schema; explicit URLs present and used.
+
+### Blocker — production Redis
+
+| Variable | Why needed | Where to get it | Exact path |
+|----------|------------|-----------------|------------|
+| `REDIS_URL` (production) | BullMQ queues + health checks require reachable Redis | **Option A (recommended for this blueprint):** Render Key Value auto-wired in `infra/render/render.yaml` via `fromService` on `valen-redis` — **do not paste localhost URL** | [Render Dashboard](https://dashboard.render.com) → Blueprint → deploy `valen-redis` → connection string injected automatically |
+| `REDIS_URL` (production) | Same | **Option B (upgrade):** Upstash Redis free database | [Upstash Console](https://console.upstash.com) → **Redis** → **Create Database** → copy **`rediss://…`** endpoint → paste into Render env group **only if not using Render Key Value** |
+
+**Do not copy** `REDIS_URL` from `backend/.env` to Render — it is local-only.
+
+## Mission 2 — Free Render Architecture
+
+| Option | Services | Works on $0 free tier? | Verdict |
+|--------|----------|------------------------|---------|
+| A | API + Worker + Scheduler separate | **No** — background workers have no free plan; cron ≥ ~$1/mo | Rejected for strict free |
+| B | API + Worker separate, Scheduler cron | **No** — worker requires Starter (~$7/mo) | Rejected for strict free |
+| **C (chosen)** | **API+Worker combined** + Render Key Value + optional cron | **Yes** for API+Redis; scheduler optional paid | **Selected** |
+
+### Chosen layout (`infra/render/render.yaml`)
+
+| Service | Type | Plan | Role |
+|---------|------|------|------|
+| `valen-redis` | Key Value (Valkey) | **Free** (25 MB, in-memory only) | Queue backing store; `REDIS_URL` via `fromService` |
+| `valen-api` | Web (Docker) | **Free** (512 MB; spins down after 15 min idle) | HTTP API **and** BullMQ worker (`dockerCommand` runs both) |
+| `valen-scheduler` | Cron (Docker) | **Starter** (~$1/mo min) | Maintenance jobs — **disable for strict $0** |
+
+### Free-tier behavior
+
+| Topic | Behavior |
+|-------|----------|
+| Cost | $0 for API + Key Value if scheduler disabled; 750 instance-hours/mo per workspace |
+| API sleep | Free web spins down after **15 min** no HTTP traffic; ~1 min cold start |
+| Worker | Runs inside `valen-api` container — **stops when API spins down** (queue processing pauses) |
+| Cron | Not free; minimum ~**$1/mo** per cron job |
+| Redis persistence | Free Key Value **does not persist to disk** — queue state lost on restart/upgrade |
+
+## Mission 3 — Redis Production Decision
+
+| Provider | Free tier | Persistence | BullMQ | Render integration | Verdict |
+|----------|-----------|-------------|--------|-------------------|---------|
+| **Render Key Value** | 25 MB, 50 conn | No (free) | Yes (Valkey-compatible) | Native `fromService` | **Selected for Phase 6 blueprint** |
+| Upstash | 256 MB, 500K cmds/mo | Yes | Yes (`rediss://` + TLS) | Manual env paste | **Recommended upgrade** for durable queues |
+| Redis Cloud | 30 MB, 100 ops/sec | Yes | Yes | Manual env paste | 14-day inactivity deletion risk |
+
+**Decision:** **Render Key Value (free)** provisioned in blueprint — real URL at deploy time, zero guessing. Upgrade to **Upstash Fixed $10/mo** or **Render Key Value Starter ($10/mo)** when queue durability matters.
+
+## Mission 4 — Final `render.yaml`
+
+Updated: `infra/render/render.yaml`
+
+- `valen-redis` Key Value (free, internal-only)
+- `valen-api` web (free, API+worker combined `dockerCommand`)
+- `valen-scheduler` cron (starter — paid add-on)
+- `valen-production` env group — all secrets `sync: false` (paste from `backend/.env` in dashboard)
+- `REDIS_URL` removed from env group — wired from `valen-redis`
+
+## Mission 5 — Pre-Deploy Verification (local, 2026-06-10)
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Backend build | `cd backend && pnpm build` | **PASS** |
+| Backend tests | `cd backend && pnpm test` | **PASS** — 6 suites / 9 tests |
+| Contracts tests | `cd contracts && pnpm test` | **PASS** — 19 tests |
+| Stylus tests | `cd stylus && cargo test --lib -p …` | **PASS** — 4 engine tests |
+| Health live | `GET /health/live` | **PASS** |
+| Health ready | `GET /health/ready` | **PASS** — database + redis ok |
+| Full validation | `POST /v1/operator/validate/full` | **PASS** — 12/12 steps |
+
+## Mission 6 — Deployment Execution
+
+**Status:** **NOT RUN**
+
+| Missing item | Why | How to unblock |
+|--------------|-----|----------------|
+| Render account + repo link | No `render` CLI or `RENDER_API_KEY` in environment | [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint** → connect `goat-dev8/valen` |
+| Production secrets in Render | Secrets cannot be committed to git | Dashboard → **Environment Groups** → `valen-production` → paste each key from `backend/.env` (**except `REDIS_URL`**) |
+| Render API key (optional automation) | CLI deploy | Dashboard → **Account Settings** → **API Keys** → create key → `render blueprint launch` |
+
+### Post-deploy verification checklist (run after you deploy)
+
+```bash
+curl https://<valen-api-host>/health/live
+curl https://<valen-api-host>/health/ready
+curl -X POST https://<valen-api-host>/v1/operator/validate/full \
+  -H "content-type: application/json" \
+  -H "x-operator-key: <OPERATOR_DASHBOARD_SECRET from Render>"
+```
+
+Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs in `valen-api`, scheduler runs if enabled.
+
+## Mission 7 — Summary
+
+| Item | Value |
+|------|-------|
+| Render URLs | **Not deployed yet** — no live Render services created in this session |
+| Services in blueprint | `valen-redis`, `valen-api`, `valen-scheduler` (optional paid) |
+| Redis provider | **Render Key Value (free)** via blueprint `fromService` |
+| Env vars | 14 secrets from `backend/.env` → Render env group; `REDIS_URL` from Key Value |
+| Pre-deploy tests | **All PASS** (local) |
+| Post-deploy tests | **Pending** — blocked on Render deploy |
+
+### Remaining blockers before **RENDER READY**
+
+1. Deploy blueprint on Render and paste secrets from `backend/.env` (skip local `REDIS_URL`).
+2. Rotate `OPERATOR_DASHBOARD_SECRET` for production (current value is local-dev style).
+3. Accept free-tier limits (API sleep, non-persistent Redis, worker pauses with API) or upgrade plans.
+4. Optionally disable `valen-scheduler` for strict $0, or accept ~$1/mo cron cost.
+5. Run post-deploy health + `validate/full` against live Render URL.
+
+### Deploy steps (manual)
+
+1. Push `infra/render/render.yaml` (already in repo).
+2. Open [Render Blueprints](https://dashboard.render.com/blueprints).
+3. **New Blueprint Instance** → repo `goat-dev8/valen` → branch `main`.
+4. When prompted for env group secrets, copy from `backend/.env` (not `REDIS_URL`).
+5. Deploy; wait for `valen-redis` then `valen-api` healthy.
+6. Run post-deploy verification commands above.
+
+**End state:** **BLOCKED WITH THESE EXACT MISSING VALUES** — production `REDIS_URL` (use Render Key Value at deploy, not localhost), Render account deploy + secret paste, post-deploy validation on live URL.
