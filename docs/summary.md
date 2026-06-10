@@ -85,6 +85,7 @@ Rule for this phase: previous reports and artifacts are treated as untrusted unt
 | 2026-06-11 01:17 | **Phase 6.1** — Render production hardening + governance role fix | `backend/src/redis/redis-connection.ts`, `backend/src/queues/{bullmq.config,pipeline-recovery,worker-heartbeat,worker-options}.*`, `backend/src/queues/processors/*`, `backend/scripts/render-start.sh`, `backend/scripts/grant-governance-timelock-roles.ts`, `backend/src/modules/operator/operator-queue.service.ts`, `contracts/script/lib/deploy-valen.ts`, `docs/summary.md` | `pnpm build`; backend tests 9/9; `grant-governance-timelock-roles.ts`; `prove-governance-lifecycle.ts`; local `prove-backend-settlement.ts`; local `POST /v1/operator/validate/full`; commit `a2ffa9f` (push blocked — no GitHub credentials in env) | **PARTIAL** — local settlement + governance queue **PASS**; Render redeploy + E2E **PENDING PUSH**; governance execute blocked by 86400s timelock |
 | 2026-06-11 01:24 | **Phase 6.1 deploy failure fix** — Render API runtime path | `backend/scripts/render-start.sh`, `backend/package.json`, `backend/Dockerfile.scheduler`, `backend/Dockerfile.worker`, `docs/summary.md` | Render build log for commit `441284d`; local `pnpm build`; `test -f dist/main.js && test -f dist/worker.js && test -f dist/scheduler.js`; `rg "dist/src/(main\|worker\|scheduler)" backend` | **PASS (code fix)** — root cause: Nest build emits `dist/main.js`, `dist/worker.js`, `dist/scheduler.js`, but Render entrypoints used `dist/src/*.js`; fixed all runtime entrypoints to `dist/*.js`; Render redeploy required |
 | 2026-06-11 01:49 | **Phase 6.1 production retest + follow-up fix** — worker up, queue/policy recovery still needed | `backend/scripts/render-start.sh`, `backend/src/modules/operator/operator-queue.service.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `docs/summary.md` | Render `GET /health/live`, `/health/ready`, bad auth, governance status, `/v1/operator/queues`, `POST /v1/operator/validate/full`; `prove-backend-settlement.ts` execution `9259f2f0…`; DB trace for execution/compliance/risk/settlement; local `pnpm build` | **PARTIAL** — health/ready/auth/governance **PASS**; worker heartbeat **PASS**; queues **FAIL** (`valen-intent job counts timed out after 8000ms`); settlement improved to `validated` with compliance+risk rows but no settlement; fixed queue stats to direct Redis counts and recovery to create/enqueue settlement for stale low-risk `validated` executions |
+| 2026-06-11 02:03 | **Phase 6.1 deploy `2d08541` production retest** — queues/validate PASS; settlement E2E still FAIL | `docs/summary.md` | Render health/ready/auth/governance; `GET /v1/operator/queues` (~0.6s); `POST /v1/operator/validate/full` 12/12; `prove-backend-settlement.ts` (~17 min) executions `9259f2f0…`, `cf2fcab3…`; DB settlement duplicate trace | **PARTIAL** — infra + operator validation **PASS**; prove **FAIL** — fresh execution stuck `created` after attestation; prior execution recovered to `executed` but duplicate `pending` settlement row caused false FAIL; follow-up fix: deterministic BullMQ re-enqueue + prefer `confirmed` settlement |
 
 ---
 
@@ -1047,7 +1048,26 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 
 **Local `POST /v1/operator/validate/full`:** **PASS** (12/12 steps, ~16s)
 
-### Release gate (Mission G)
+### Release gate (Mission G) — post-`2d08541` (2026-06-11 02:03 UTC)
+
+| Gate | Status |
+|------|--------|
+| Render health live | **PASS** — HTTP 200 |
+| Render health ready | **PASS** — database ok, Redis PONG |
+| Render validate/full | **PASS** — 12/12 steps (~13s) |
+| Redis stable on Render | **PASS** — PING fast; direct Redis queue stats avoid BullMQ hang |
+| Workers stable on Render | **PASS** — 1 worker heartbeat active |
+| Queue endpoints on Render | **PASS** — `/v1/operator/queues` HTTP 200 in ~0.6s (12 queues) |
+| Governance queue | **PASS** (on-chain role grant applied) |
+| Governance execute | **BLOCKED** (86400s delay) |
+| Settlement on Render | **FAIL** — fresh proof `cf2fcab3…` stuck `created` after attestation (0 compliance rows); prior `9259f2f0…` reached `executed` via recovery but duplicate settlement rows |
+| Audit on Render settlement path | **FAIL** — fresh proof only `execution.attested`; recovered execution has full settlement audit chain |
+| GitHub updated | **PENDING** — settlement dedup + deterministic enqueue fix push in progress |
+| Render redeployed | **PASS** — `2d08541` live on `valen-api-m3g4.onrender.com` |
+
+**Follow-up fix (pending deploy):** `enqueueDeterministicJob` clears stale BullMQ jobs before re-add; recovery skips when settlement already `confirmed`; settlement queries prefer `confirmed` over newer `pending` duplicates; recovery interval 30s / 45s stale threshold.
+
+### Release gate (Mission G) — pre-`2d08541` (superseded)
 
 | Gate | Status |
 |------|--------|
@@ -1066,9 +1086,8 @@ cd stylus && cargo stylus check --contract compliance-engine -e "$ARB_SEPOLIA_RP
 
 ### Action required
 
-1. Push follow-up fix for direct Redis queue stats + validated execution settlement recovery.
-2. Render blueprint **Manual sync** → wait for `valen-api` green.
-3. Re-run:
+1. Push settlement dedup + deterministic enqueue fix; wait for Render redeploy.
+2. Re-run:
 
 ```bash
 curl https://valen-api-m3g4.onrender.com/health/ready
@@ -1077,9 +1096,9 @@ curl -H "x-operator-key: $OPERATOR_DASHBOARD_SECRET" https://valen-api-m3g4.onre
 cd backend && PROVE_API_URL=https://valen-api-m3g4.onrender.com node -r dotenv/config scripts/prove-backend-settlement.ts
 ```
 
-4. Update this section with Render post-6.1 results → if all PASS, verdict becomes **RENDER READY**.
+3. If prove exits 0 with `executed` + settlement `confirmed` + audit txs → verdict becomes **RENDER READY**.
 
-**Updated production score:** **72/100** (up from 61 pre-Phase-6; local E2E + governance queue fixed; Render full gate not yet proven on `a2ffa9f`).
+**Updated production score:** **78/100** (infra + operator validation PASS on `2d08541`; settlement E2E on Render still unproven for fresh executions).
 
 ---
 
@@ -1352,4 +1371,4 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 
 **End state (planning):** Blueprint ready; live deploy completed separately above.
 
-**End state (live):** **PARTIAL RENDER READY** — Phase 6.1 hardening in commit **`a2ffa9f`** (local); push + Render redeploy pending; governance queue fixed on-chain; settlement E2E proven locally, Render retest required.
+**End state (live):** **PARTIAL RENDER READY** — `2d08541` on Render: health/queues/validate **PASS**; settlement E2E **FAIL** on fresh executions; dedup + deterministic enqueue fix pushed next; governance queue fixed on-chain; local settlement E2E **PASS**.

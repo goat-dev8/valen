@@ -39,7 +39,7 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
       void this.recoverStuckExecutions().catch((error) => {
         this.logger.error(`Pipeline recovery failed: ${(error as Error).message}`);
       });
-    }, 60_000);
+    }, 30_000);
     void this.recoverStuckExecutions().catch((error) => {
       this.logger.error(`Initial pipeline recovery failed: ${(error as Error).message}`);
     });
@@ -55,7 +55,7 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
        FROM executions
        WHERE status IN ('created', 'validated', 'approved', 'settlement_submitted')
          AND metadata->'onchain'->>'complianceHash' IS NOT NULL
-         AND updated_at < now() - interval '2 minutes'
+         AND updated_at < now() - interval '45 seconds'
        ORDER BY updated_at ASC
        LIMIT 20`,
     );
@@ -141,6 +141,9 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
     const existing = await this.settlementsRepository.findByExecution(
       payload.executionId,
     );
+    if (existing?.status === 'confirmed') {
+      return;
+    }
     const settlement =
       existing ??
       (await this.settlementsRepository.create({

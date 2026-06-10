@@ -73,7 +73,12 @@ async function main() {
 
   const settlement = await pool.query(
     `SELECT id, status, tx_hash, submit_tx_hash, approve_tx_hash, on_chain_settlement_id, block_number, failure_reason
-     FROM settlements WHERE execution_id = $1 ORDER BY created_at DESC LIMIT 1`,
+     FROM settlements
+     WHERE execution_id = $1
+     ORDER BY
+       CASE status WHEN 'confirmed' THEN 0 WHEN 'prepared' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END,
+       created_at DESC
+     LIMIT 1`,
     [executionId],
   );
   console.log('SETTLEMENT', JSON.stringify(settlement.rows[0] ?? null));
