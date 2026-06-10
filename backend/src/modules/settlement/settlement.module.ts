@@ -16,6 +16,6 @@ import { QueuesModule } from '../../queues/queues.module';
     AlchemyService,
     SettlementChainService,
   ],
-  exports: [ExecutionsService, SettlementService, SettlementWorkerService],
+  exports: [ExecutionsService, SettlementService, SettlementWorkerService, ChainService, SettlementChainService],
 })
 export class SettlementModule {}

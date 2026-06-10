@@ -23,10 +23,14 @@ describe('SettlementWorkerService', () => {
           new Error('Execution metadata.onchain is required for real settlement'),
         ),
     };
+    const auditLogsRepository = {
+      append: jest.fn().mockResolvedValue({}),
+    };
 
     const worker = new SettlementWorkerService(
       settlementsRepository as never,
       executionsRepository as never,
+      auditLogsRepository as never,
       settlementChainService as never,
     );
 
