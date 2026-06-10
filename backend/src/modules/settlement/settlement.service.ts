@@ -228,6 +228,7 @@ export class SettlementWorkerService {
   constructor(
     private readonly settlementsRepository: SettlementsRepository,
     private readonly executionsRepository: ExecutionsRepository,
+    private readonly auditLogsRepository: AuditLogsRepository,
     private readonly settlementChainService: SettlementChainService,
   ) {}
 
@@ -244,15 +245,15 @@ export class SettlementWorkerService {
 
     await this.settlementsRepository.updateStatus(settlementId, 'prepared');
 
-    await this.settlementsRepository.updateStatus(settlementId, 'submitted', {
-      submittedAt: new Date(),
-    });
-
     try {
       const result = await this.settlementChainService.executeSettlement(execution);
       await this.settlementsRepository.updateStatus(settlementId, 'confirmed', {
         txHash: result.executeTxHash,
+        submitTxHash: result.submitTxHash,
+        approveTxHash: result.approveTxHash,
+        onChainSettlementId: result.settlementId,
         blockNumber: result.executeBlockNumber,
+        submittedAt: new Date(),
         confirmedAt: new Date(),
       });
 
@@ -260,12 +261,59 @@ export class SettlementWorkerService {
         settlement.execution_id,
         'executed',
       );
+
+      await this.auditLogsRepository.append({
+        organizationId: settlement.organization_id,
+        actorType: 'system',
+        actorId: 'settlement-worker',
+        action: 'settlement.executed',
+        entityType: 'settlement',
+        entityId: settlementId,
+        eventHash: result.settlementId,
+        chainId: settlement.chain_id,
+        txHash: result.executeTxHash,
+      });
+
+      await this.auditLogsRepository.append({
+        organizationId: settlement.organization_id,
+        actorType: 'system',
+        actorId: 'settlement-worker',
+        action: 'settlement.submit',
+        entityType: 'settlement',
+        entityId: settlementId,
+        eventHash: result.submitTxHash,
+        chainId: settlement.chain_id,
+        txHash: result.submitTxHash,
+      });
+
+      await this.auditLogsRepository.append({
+        organizationId: settlement.organization_id,
+        actorType: 'system',
+        actorId: 'settlement-worker',
+        action: 'settlement.approve',
+        entityType: 'settlement',
+        entityId: settlementId,
+        eventHash: result.approveTxHash,
+        chainId: settlement.chain_id,
+        txHash: result.approveTxHash,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.settlementsRepository.updateStatus(settlementId, 'failed', {
         failureReason: message.slice(0, 1000),
       });
       await this.executionsRepository.updateStatus(settlement.execution_id, 'failed');
+
+      await this.auditLogsRepository.append({
+        organizationId: settlement.organization_id,
+        actorType: 'system',
+        actorId: 'settlement-worker',
+        action: 'settlement.failed',
+        entityType: 'settlement',
+        entityId: settlementId,
+        eventHash: hashPayload({ settlementId, message: message.slice(0, 200) }),
+        chainId: settlement.chain_id,
+      });
       throw error;
     }
   }
