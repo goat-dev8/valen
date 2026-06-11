@@ -15,6 +15,8 @@ import {
   Users,
   Settings,
   ChevronDown,
+  Landmark,
+  Shield,
 } from 'lucide-react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { cn } from '@/lib/utils';
@@ -33,6 +35,8 @@ const PAGE_ITEMS = [
   { href: '/dashboard/policies', label: 'Policies', icon: FileText },
   { href: '/dashboard/compliance', label: 'Compliance', icon: Scale },
   { href: '/dashboard/audit', label: 'Audit Logs', icon: ScrollText },
+  { href: '/dashboard/governance', label: 'Governance', icon: Shield },
+  { href: '/dashboard/treasury', label: 'Treasury', icon: Landmark },
   { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
   { href: '/dashboard/team', label: 'Team', icon: Users },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },

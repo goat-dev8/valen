@@ -95,6 +95,15 @@ export function usePolicies() {
   });
 }
 
+export function usePolicy(policyId: string) {
+  const { token, orgId, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['policy', orgId, policyId],
+    queryFn: () => api.policies.get(token!, orgId!, policyId),
+    enabled: enabled && Boolean(policyId),
+  });
+}
+
 export function useAuditLogs(params?: { page?: number; limit?: number }) {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({
@@ -172,6 +181,66 @@ export function useActivateAgent() {
   });
 }
 
+export function useSuspendAgent() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ agentId, reason }: { agentId: string; reason: string }) =>
+      api.agents.suspend(token!, orgId!, agentId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['agent', orgId] });
+    },
+  });
+}
+
+export function useRevokeAgent() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ agentId, reason }: { agentId: string; reason: string }) =>
+      api.agents.revoke(token!, orgId!, agentId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['agent', orgId] });
+    },
+  });
+}
+
+export function useLinkAgentWallet() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      agentId,
+      body,
+    }: {
+      agentId: string;
+      body: { chainId: number; walletAddress: string; walletType: string; isPrimary: boolean };
+    }) => api.agents.linkWallet(token!, orgId!, agentId, body),
+    onSuccess: (_data, { agentId }) => {
+      queryClient.invalidateQueries({ queryKey: ['agent', orgId, agentId] });
+    },
+  });
+}
+
+export function useCreateAgentApiKey() {
+  const { token, orgId } = useAuthOrg();
+
+  return useMutation({
+    mutationFn: ({
+      agentId,
+      body,
+    }: {
+      agentId: string;
+      body: { name: string; scopes: string[]; expiresAt?: string };
+    }) => api.agents.createApiKey(token!, orgId!, agentId, body),
+  });
+}
+
 export function useCreateExecution() {
   const { token, orgId } = useAuthOrg();
   const queryClient = useQueryClient();
@@ -180,6 +249,46 @@ export function useCreateExecution() {
     mutationFn: (body: CreateExecutionInput) => api.executions.create(token!, orgId!, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['executions', orgId] });
+    },
+  });
+}
+
+export function useCancelExecution() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ executionId, reason }: { executionId: string; reason: string }) =>
+      api.executions.cancel(token!, orgId!, executionId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['executions', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['execution', orgId] });
+    },
+  });
+}
+
+export function useRetrySettlement() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ settlementId, reason }: { settlementId: string; reason: string }) =>
+      api.settlements.retry(token!, orgId!, settlementId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['execution-settlement', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['executions', orgId] });
+    },
+  });
+}
+
+export function useCreatePolicy() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: { name: string; description?: string }) => api.policies.create(token!, orgId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policies', orgId] });
     },
   });
 }
@@ -203,6 +312,61 @@ export function useTestWebhook() {
 
   return useMutation({
     mutationFn: (webhookId: string) => api.webhooks.test(token!, orgId!, webhookId),
+  });
+}
+
+export function useCreateWebhook() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: { name: string; url: string; subscribedEvents: string[] }) =>
+      api.webhooks.create(token!, orgId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['webhooks', orgId] });
+    },
+  });
+}
+
+export function useUpdateWebhook() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      webhookId,
+      body,
+    }: {
+      webhookId: string;
+      body: { name?: string; url?: string; subscribedEvents?: string[]; status?: string };
+    }) => api.webhooks.update(token!, orgId!, webhookId, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['webhooks', orgId] });
+    },
+  });
+}
+
+export function useDeleteWebhook() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (webhookId: string) => api.webhooks.delete(token!, orgId!, webhookId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['webhooks', orgId] });
+    },
+  });
+}
+
+export function useInviteTeamMember() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: { email: string; role: string }) => api.team.invite(token!, orgId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team', orgId] });
+    },
   });
 }
 

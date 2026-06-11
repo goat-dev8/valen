@@ -2,94 +2,97 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { ChainBadge } from '@/components/app/chain-badge';
+import { PageHeader } from '@/components/app/page-header';
+import { QueryState } from '@/components/app/query-state';
 import { operatorFetch } from '@/lib/api';
-import { keccak256, stringToHex, zeroHash } from 'viem';
 
-export default function GovernanceLabPage() {
-  const [chainId, setChainId] = useState('421614');
-  const [target, setTarget] = useState('0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3');
-  const [result, setResult] = useState<unknown>(null);
-  const [error, setError] = useState<string | null>(null);
+type GovernanceStatus = {
+  chainId?: number;
+  governanceAddress?: string;
+  timelockAddress?: string;
+  minDelaySeconds?: number;
+  governanceHasProposerRole?: boolean;
+  governanceHasExecutorRole?: boolean;
+  queuedActionsCount?: number;
+};
 
-  const { data: status } = useQuery({
+export default function GovernancePage() {
+  const [chainId, setChainId] = useState(421614);
+
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['governance-status', chainId],
-    queryFn: () => operatorFetch<Record<string, unknown>>(`governance/status?chainId=${chainId}`),
+    queryFn: () => operatorFetch<GovernanceStatus>(`governance/status?chainId=${chainId}`),
+    retry: 1,
   });
 
-  async function run(path: string, body: unknown) {
-    setError(null);
-    try {
-      const response = await operatorFetch(path, { method: 'POST', body: JSON.stringify(body) });
-      setResult(response);
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
-
-  const proposalHash = keccak256(stringToHex(`operator-proposal-${Date.now()}`));
-  const metadataHash = keccak256(stringToHex(`operator-metadata-${Date.now()}`));
-  const salt = keccak256(stringToHex(`operator-salt-${Date.now()}`));
+  const delayHours = data?.minDelaySeconds ? Math.round(data.minDelaySeconds / 3600) : null;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Governance Lab</h1>
-        <p className="mt-2 text-neutral-600">Register proposals and queue/execute timelock actions on live testnets.</p>
-      </div>
+      <PageHeader title="Governance" description="ValenGovernance + ValenTimelock on live testnet contracts">
+        <select
+          value={chainId}
+          onChange={(e) => setChainId(Number(e.target.value))}
+          className="app-input w-auto"
+        >
+          <option value={421614}>Arbitrum Sepolia</option>
+          <option value={46630}>Robinhood Testnet</option>
+        </select>
+        <button type="button" className="app-btn app-btn-outline" onClick={() => refetch()}>
+          Refresh
+        </button>
+      </PageHeader>
 
-      <Card>
-        <CardHeader><CardTitle>Timelock status</CardTitle></CardHeader>
-        <CardContent>
-          <pre className="overflow-auto rounded bg-neutral-100 p-3 text-xs">{JSON.stringify(status, null, 2)}</pre>
-        </CardContent>
-      </Card>
+      <QueryState isLoading={isLoading} error={error} isEmpty={!data}>
+        {data && (
+          <>
+            <div className="flex items-center gap-3">
+              <ChainBadge chainId={chainId} />
+              <span className="text-sm text-[#64748b]">On-chain governance read via Render operator API</span>
+            </div>
 
-      <Card>
-        <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <Input value={chainId} onChange={(e) => setChainId(e.target.value)} placeholder="Chain ID" />
-          <Input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Target address" />
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => run('governance/proposal', { chainId: Number(chainId), proposalHash, metadataHash })}>
-              Create proposal
-            </Button>
-            <Button variant="outline" onClick={() => run('governance/queue', {
-              chainId: Number(chainId),
-              target,
-              valueWei: '0',
-              data: '0x',
-              predecessor: zeroHash,
-              salt,
-              delay: 1,
-            })}>
-              Queue proposal
-            </Button>
-            <Button variant="secondary" onClick={() => run('governance/execute', {
-              chainId: Number(chainId),
-              target,
-              valueWei: '0',
-              data: '0x',
-              predecessor: zeroHash,
-              salt,
-            })}>
-              Execute proposal
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="app-card">
+                <h3 className="app-card-title mb-3">Timelock</h3>
+                <dl className="app-detail-list">
+                  <div><dt>Min Delay</dt><dd>{delayHours != null ? `${delayHours}h (${data.minDelaySeconds}s)` : '—'}</dd></div>
+                  <div><dt>Timelock</dt><dd className="font-mono text-xs break-all">{data.timelockAddress ?? '—'}</dd></div>
+                  <div><dt>Governance</dt><dd className="font-mono text-xs break-all">{data.governanceAddress ?? '—'}</dd></div>
+                </dl>
+              </div>
 
-      {error && <p className="text-red-600">{error}</p>}
-      {result !== null && (
-        <Card>
-          <CardHeader><CardTitle>Result</CardTitle></CardHeader>
-          <CardContent>
-            <pre className="overflow-auto rounded bg-neutral-950 p-4 text-xs text-neutral-100">{JSON.stringify(result, null, 2)}</pre>
-          </CardContent>
-        </Card>
-      )}
+              <div className="app-card">
+                <h3 className="app-card-title mb-3">Roles</h3>
+                <dl className="app-detail-list">
+                  <div>
+                    <dt>Proposer on Timelock</dt>
+                    <dd>
+                      <span className={`app-badge ${data.governanceHasProposerRole ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                        {data.governanceHasProposerRole ? 'Granted' : 'Missing'}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Executor on Timelock</dt>
+                    <dd>
+                      <span className={`app-badge ${data.governanceHasExecutorRole ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                        {data.governanceHasExecutorRole ? 'Granted' : 'Missing'}
+                      </span>
+                    </dd>
+                  </div>
+                  <div><dt>Queued Actions</dt><dd>{data.queuedActionsCount ?? 0}</dd></div>
+                </dl>
+              </div>
+            </div>
+
+            <div className="app-card">
+              <h3 className="app-card-title mb-3">Raw Contract State</h3>
+              <pre className="overflow-auto rounded-lg bg-[#f8fafc] p-4 text-xs">{JSON.stringify(data, null, 2)}</pre>
+            </div>
+          </>
+        )}
+      </QueryState>
     </div>
   );
 }

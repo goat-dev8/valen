@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
+import { keccak256, toHex } from 'viem';
 import { PageHeader } from '@/components/app/page-header';
 import { useAgents, useCreateExecution } from '@/hooks/use-valen-api';
 
 export default function SubmitIntentPage() {
   const router = useRouter();
-  const { data: agents } = useAgents({ limit: 100 });
+  const { data: agents, isLoading: agentsLoading } = useAgents({ limit: 100, status: 'active' });
   const createMutation = useCreateExecution();
   const [error, setError] = useState<string | null>(null);
 
@@ -23,15 +24,26 @@ export default function SubmitIntentPage() {
     const targetAddress = formData.get('targetAddress') as string;
     const amount = formData.get('amount') as string;
 
+    const payload = JSON.stringify({
+      actionType,
+      targetChainId,
+      targetAddress,
+      amount: amount || null,
+      submittedAt: new Date().toISOString(),
+    });
+    const payloadHash = keccak256(toHex(payload));
+    const idempotencyKey = `dashboard-${agentId.slice(0, 8)}-${Date.now()}`;
+
     try {
       const result = await createMutation.mutateAsync({
         agentId,
-        idempotencyKey: `manual-${Date.now()}`,
+        idempotencyKey,
         actionType,
         targetChainId,
         targetAddress,
         amount: amount || undefined,
-        payloadHash: `0x${Date.now().toString(16).padStart(64, '0')}`,
+        payloadHash,
+        metadata: { source: 'dashboard', payloadPreview: payload },
       });
       router.push(`/dashboard/executions/${result.id}`);
     } catch (err) {
@@ -46,10 +58,17 @@ export default function SubmitIntentPage() {
         Back to Executions
       </Link>
 
-      <PageHeader title="Submit Intent" description="Manually submit an agent intent for pipeline evaluation" />
+      <PageHeader title="Submit Intent" description="Submit an agent intent for compliance, risk, policy, and on-chain settlement via Render API" />
 
       <div className="app-card max-w-2xl">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {agentsLoading ? (
+          <p className="text-sm text-[#64748b]">Loading agents...</p>
+        ) : !agents?.items.length ? (
+          <p className="text-sm text-[#64748b]">
+            No active agents. <Link href="/dashboard/register-agent" className="app-link">Register an agent</Link> first.
+          </p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="app-form-group">
             <label htmlFor="agent">Agent</label>
             <select id="agent" name="agentId" className="app-input" required>
@@ -89,7 +108,8 @@ export default function SubmitIntentPage() {
           <button type="submit" className="app-btn app-btn-primary" disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Submitting...' : 'Submit for Evaluation'}
           </button>
-        </form>
+          </form>
+        )}
       </div>
     </div>
   );

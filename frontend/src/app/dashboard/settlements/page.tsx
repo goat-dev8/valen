@@ -9,7 +9,7 @@ export default function SettlementsPage() {
   const { data, isLoading, error } = useExecutions({ limit: 50 });
 
   const settlementExecutions = data?.items.filter((ex) =>
-    ['settlement_submitted', 'executed', 'failed'].includes(ex.status),
+    ['settlement_submitted', 'executed', 'failed', 'validated', 'approved', 'approval_required'].includes(ex.status),
   ) ?? [];
 
   return (
@@ -23,10 +23,12 @@ export default function SettlementsPage() {
               <thead>
                 <tr>
                   <th>Execution</th>
+                  <th>Chain</th>
                   <th>Intent Status</th>
                   <th>Settlement Status</th>
                   <th>Tx Hash</th>
                   <th>Created</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>

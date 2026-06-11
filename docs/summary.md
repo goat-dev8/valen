@@ -1615,6 +1615,101 @@ cd frontend && pnpm run dev                              # port 3001
 
 ---
 
+## Frontend Product Transformation (2026-06-11)
+
+**Mission:** Transform dashboard from design-only to fully functional VALEN product backed by Render API, Supabase, Arbitrum, Robinhood, and Stylus — no mocks.
+
+**API:** `https://valen-api-m3g4.onrender.com` · Local UI: `http://localhost:3001` via `/api-proxy`
+
+### Phase 1 — Product Audit Matrix
+
+| Page | Route | UI Complete? | Backend Connected? | Uses Real Data? | Missing Actions | Production Ready? |
+|------|-------|:------------:|:------------------:|:---------------:|-----------------|:-----------------:|
+| Landing | `/` | **PASS** | N/A (marketing) | **PASS** (real architecture copy, contract addresses) | — | **PASS** |
+| Dashboard | `/dashboard` | **PASS** | **PASS** | **PASS** | Date range filters non-functional | **PARTIAL** |
+| Agents list | `/dashboard/agents` | **PASS** | **PASS** | **PASS** | Pagination | **PASS** |
+| Agent detail | `/dashboard/agents/[id]` | **PASS** | **PASS** | **PASS** | Wallet list read (backend has create-only) | **PARTIAL** |
+| Register agent | `/dashboard/register-agent` | **PASS** | **PASS** | **PASS** | Policy picker on create | **PASS** |
+| Executions list | `/dashboard/executions` | **PASS** | **PASS** | **PASS** | Date filter, pagination | **PARTIAL** |
+| Submit intent | `/dashboard/executions/new` | **PASS** | **PASS** | **PASS** (keccak256 payload hash) | Mandate/asset fields | **PASS** |
+| Execution detail | `/dashboard/executions/[id]` | **PASS** | **PASS** | **PASS** | Manual settle trigger (worker auto-runs) | **PASS** |
+| Approvals | `/dashboard/approvals` | **PASS** | **PASS** | **PASS** | Risk preview per row | **PASS** |
+| Settlements | `/dashboard/settlements` | **PASS** | **PASS** | **PASS** | N+1 settlement fetches | **PARTIAL** |
+| Policies list | `/dashboard/policies` | **PASS** | **PASS** | **PASS** | Version create/publish UI | **PARTIAL** |
+| Policy create | `/dashboard/policies/new` | **PASS** | **PASS** | **PASS** | Version workflow | **PARTIAL** |
+| Policy detail | `/dashboard/policies/[id]` | **PASS** | **PASS** | **PASS** | Version submit/publish/activate UI | **PARTIAL** |
+| Compliance | `/dashboard/compliance` | **PASS** | **PASS** | **PASS** | Attestation create form | **PARTIAL** |
+| Audit logs | `/dashboard/audit` | **PASS** | **PASS** | **PASS** | Export file download | **PARTIAL** |
+| Team | `/dashboard/team` | **PASS** | **PASS** | **PASS** | Role edit/remove UI | **PARTIAL** |
+| Webhooks | `/dashboard/webhooks` | **PASS** | **PASS** | **PASS** | Edit URL inline | **PASS** |
+| Settings (Organization) | `/dashboard/settings` | **PASS** | **PASS** | **PASS** | — | **PASS** |
+| Governance | `/dashboard/governance` | **PASS** | **PASS** (operator API) | **PASS** (chain reads) | Proposal queue UI for org users | **PARTIAL** |
+| Treasury | `/dashboard/treasury` | **PASS** | **PASS** (operator API) | **PASS** (chain reads) | Tx history list | **PARTIAL** |
+
+### Phase 12 — Feature Matrix (browser verification pending)
+
+| Feature | Backend | Database | Contracts | Robinhood | Stylus | Frontend | Production Ready |
+|---------|:-------:|:--------:|:---------:|:---------:|:------:|:--------:|:----------------:|
+| Privy auth + org | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Agent CRUD + lifecycle | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Execution submit | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Compliance pipeline | **PASS** | **PASS** | **PASS** | **PASS** | **PASS** | **PASS** (read) | **PENDING E2E** |
+| Risk scoring | **PASS** | **PASS** | — | — | **PASS** | **PASS** (read) | **PENDING E2E** |
+| Policy evaluation | **PASS** | **PASS** | — | — | **PASS** | **PARTIAL** | **PENDING E2E** |
+| Settlement on-chain | **PASS** (10/10 Render) | **PASS** | **PASS** | **PASS** | — | **PASS** (read + retry) | **PENDING E2E** |
+| Audit trail | **PASS** | **PASS** | **PASS** | **PASS** | — | **PASS** | **PENDING E2E** |
+| Governance timelock | **PASS** | — | **PASS** | **PASS** | — | **PASS** (status read) | **PARTIAL** (86400s delay) |
+| Treasury reads | **PASS** | — | **PASS** | **PASS** | — | **PASS** | **PENDING E2E** |
+| Webhooks CRUD | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Team invite | **PASS** | **PASS** | — | — | — | **PASS** | **PENDING E2E** |
+| Landing page | — | — | **PASS** (addresses) | **PASS** | **PASS** (copy) | **PASS** | **PASS** |
+
+### Frontend changes (this session)
+
+| Area | Change |
+|------|--------|
+| `frontend/src/lib/api.ts` | Added `operatorFetch`; agents suspend/revoke/wallet/api-key; policies create; executions cancel; webhooks CRUD; team invite |
+| `frontend/src/hooks/use-valen-api.ts` | Hooks for all new mutations |
+| `frontend/src/lib/explorer.ts` | Arbiscan + Robinhood explorer URLs |
+| `frontend/src/components/app/chain-badge.tsx` | Chain network indicators |
+| Agent detail | Activate, pause (suspend), revoke, link wallet, create API key |
+| Execution detail | Compliance/risk/settlement/timeline, explorer links, cancel, settlement retry |
+| Settlements | Chain badge, explorer links, retry failed |
+| Policies | `/new` + `/[policyId]` detail pages |
+| Webhooks | Create, disable, delete, test with real API response |
+| Team | Invite member form |
+| Audit | Filter by settlement/attestation actions |
+| Governance / Treasury | Product UI via operator API; added to sidebar |
+| Landing | Rewritten around real pipeline, networks, contract addresses |
+| Header | Removed fake notification/cart badges; real approval count |
+
+### Browser E2E checklist (Phase 11 — run manually)
+
+1. `curl https://valen-api-m3g4.onrender.com/health/ready` — wake API
+2. `cd frontend && pnpm run dev` — port 3001
+3. Login via Privy → dashboard loads with org
+4. Register agent → activate → link wallet → create API key
+5. Submit intent (Arbitrum Sepolia settlement target) → monitor execution detail
+6. Approvals queue if risk requires approval
+7. Settlements page shows tx hash + explorer link when executed
+8. Audit logs filter `settlement.executed`
+9. Governance + Treasury pages load operator data (requires `OPERATOR_DASHBOARD_SECRET` in `.env.local`)
+10. Create webhook + team invite
+
+**Verdict:** Frontend wired to real Render API across all product pages. Final **PASS** on Production Ready column requires completing browser E2E above — do not mark PASS until verified.
+
+### Browser verification (2026-06-11, automated partial)
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| Landing `/` | **PASS** | Product copy, pipeline steps, real settlement addresses render |
+| `/api-proxy/health/ready` | **PASS** | HTTP 200, DB + Redis ok via Render |
+| `/api/operator/governance/status?chainId=421614` | **PASS** | HTTP 200, real timelock + governance addresses |
+| Privy login → full dashboard flows | **PENDING** | Requires wallet approval — manual retest |
+| Agent create → execution → settlement E2E | **PENDING** | Requires authenticated session |
+
+---
+
 ## Dashboard E2E test vs Render (2026-06-11, post-deploy)
 
 **Render API:** `https://valen-api-m3g4.onrender.com` — health **200**, auth sync reachable, settlement pipeline **RENDER READY** (unchanged).
