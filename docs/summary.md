@@ -1511,3 +1511,104 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 **Backend:** Unchanged on this merge — `VALEN_WORKER_MODE=pipeline`, consumer health, recovery, and `infra/render/render.yaml` remain as validated on Render.
 
 **Local verify:** `pnpm install` at repo root → `pnpm --filter frontend build` → `pnpm --filter backend test` (9/9).
+
+---
+
+## Frontend ↔ Render integration + Privy login fix (2026-06-11)
+
+**Goal:** Local frontend at `http://localhost:3001` talks to **production Render API** (`https://valen-api-m3g4.onrender.com`) without redeploying or retesting the backend settlement pipeline.
+
+### Architecture
+
+| Layer | URL | Role |
+|-------|-----|------|
+| Frontend (local dev) | `http://localhost:3001` | Next.js UI; browser calls `/api-proxy/*` |
+| Next.js rewrite | `frontend/next.config.ts` | Proxies `/api-proxy` → `NEXT_PUBLIC_API_URL` |
+| Render API | `https://valen-api-m3g4.onrender.com` | NestJS + Supabase + Redis (RENDER READY per Phase 7) |
+
+**`frontend/.env.local` (not committed):**
+
+```env
+NEXT_PUBLIC_API_URL=https://valen-api-m3g4.onrender.com
+BACKEND_URL=https://valen-api-m3g4.onrender.com
+NEXT_PUBLIC_PRIVY_APP_ID=<same as backend PRIVY_APP_ID>
+OPERATOR_DASHBOARD_SECRET=<local operator key>
+```
+
+No separate frontend Render service yet — only `valen-api` in `infra/render/render.yaml`. Frontend production deploy (Vercel/Render static) is a follow-up; local UI + Render API is the current integration model.
+
+### Login failure root cause (fixed in `b3e7e4f`)
+
+| Symptom | Cause |
+|---------|--------|
+| **"User not found or inactive"** after Privy wallet/email login | `POST /v1/auth/sync` had `PrivyAuthGuard`, which requires a DB user **before** sync can create one (chicken-and-egg for first login). |
+| Dashboard empty after login | New users had **zero organizations**; all dashboard queries require `orgId`. |
+| Login page shows token fallback briefly | Privy bundle loads async; UI showed fallback before import finished. |
+| Slow first page load (15–25s) | WSL on `/mnt/d/` + heavy `@privy-io/react-auth` / viem compile on first request. |
+
+### Fixes (commit `b3e7e4f`, pushed to `main`)
+
+| Area | Change |
+|------|--------|
+| **Backend** | Remove `PrivyAuthGuard` from `POST /v1/auth/sync`; verify Privy JWT inside `AuthService.sync` only. |
+| **Backend** | Auto-provision default org + owner membership on first sync (`auth.service.ts`). |
+| **Frontend** | `ensureOrganization()` — create org via `POST /v1/organizations` if sync profile has no memberships (works on live Render today). |
+| **Frontend** | Privy login uses **sync response** directly (no premature `/v1/me` before user exists). |
+| **Frontend** | Login page shows **Loading Privy…** while wallet module imports. |
+| **Frontend** | Navbar **Dashboard** → `/login`; `.env.local` points at Render API. |
+
+**Render redeploy:** Git push `b3e7e4f` triggers `valen-api` auto-deploy (auth-only change; **no** settlement/queue/infra retest required). Verify sync reaches service:
+
+```bash
+curl -s -X POST https://valen-api-m3g4.onrender.com/v1/auth/sync \
+  -H "Authorization: Bearer fake" -H "Content-Type: application/json" \
+  -d '{"privyUserId":"test"}'
+# Expect: {"code":"UNAUTHORIZED","message":"Invalid token",...}
+# NOT: "User not found or inactive"
+```
+
+### Privy + MetaMask checklist (required for wallet QR login)
+
+1. **Privy Dashboard** → app `cmq5spuqm00340cjp8q4nwwbf` → **Settings → Domains** → add `http://localhost:3001`
+2. **Restart frontend** after any `.env.local` change: `cd frontend && pnpm run dev`
+3. Open **`/login`** (not `/dashboard` directly)
+4. Click **Continue with Privy** → choose wallet → scan QR with MetaMask mobile
+5. First API call after Render idle may take **~60s** (free-tier cold start) — wait for "Syncing profile…"
+
+### Browser test session (2026-06-11)
+
+| Step | Result |
+|------|--------|
+| Landing `http://localhost:3001/` | **PASS** — marketing page renders |
+| Login `/login` | **PASS** — Privy button after module load (or token fallback if env missing) |
+| Render `GET /health/ready` | **PASS** — HTTP 200, DB + Redis ok |
+| Render `POST /v1/auth/sync` (fake token) | **PASS** — returns `Invalid token` (sync handler reachable, not guard-blocked) |
+| Full Privy → MetaMask QR → dashboard | **BLOCKED in automation** — requires user phone wallet approval; retest manually after `b3e7e4f` Render deploy completes |
+
+### Dashboard pages wired to live Render API
+
+All routes under `/dashboard/*` use `use-valen-api` hooks → `/api-proxy/v1/organizations/{orgId}/…` → Render:
+
+- Overview, Executions (+ new + detail), Approvals, Settlements
+- Agents, Policies, Compliance, Audit Logs, Webhooks, Team, Settings
+
+Data is **real** from Supabase via Render (not mock UI). Empty tables mean no org data yet, not fake placeholders.
+
+### Performance tips
+
+- Clone repo to native WSL path (`~/valen`) — **10× faster** than `/mnt/d/route/valen`
+- Run `pnpm install` from **repo root**, not `frontend/` alone
+- Keep Render warm before login testing: `curl https://valen-api-m3g4.onrender.com/health/live`
+
+### Manual login test (user)
+
+After Render finishes deploying `b3e7e4f`:
+
+```bash
+curl https://valen-api-m3g4.onrender.com/health/ready   # wake API
+cd frontend && pnpm run dev                              # port 3001
+# Browser → http://localhost:3001/login → Continue with Privy → MetaMask QR
+# Expect: redirect to /dashboard with org name in sidebar
+```
+
+**End state (frontend + Render API):** Auth path fixed and pushed; local frontend configured for Render backend; full wallet login requires manual MetaMask approval after deploy.
