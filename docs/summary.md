@@ -1497,3 +1497,17 @@ Confirm: Supabase ok, Redis ok (Render Key Value), queues monitored, worker logs
 **End state (planning):** Blueprint ready; live deploy completed separately above.
 
 **End state (live):** **RENDER READY** — latest deploy `c1080fd` (test-only); production on `https://valen-api-m3g4.onrender.com`: validate/full 12/12; unit tests 9/9; settlement E2E **10/10** on `a23809b` + post-deploy proof `223813f9…` (~47s).
+
+---
+
+## Frontend — PR #2 merged (2026-06-11)
+
+**PR:** [#2](https://github.com/goat-dev8/valen/pull/2) — `feat(frontend): marketing landing, dashboard UI, and API integration` (fork `NeoCrafts-cpu/valen`, branch `neo-crafts/frontend-branding-dashboard`).
+
+**Merge strategy:** Checked out **frontend-only** paths from PR head `f834011` onto production main `e9f6237`. The PR commit also reverted Phase 7 BullMQ/worker/Render hardening on backend paths — those changes were **excluded** so Render settlement proofs and queue reliability fixes stay intact.
+
+**Added:** Marketing landing (`frontend/src/components/marketing/*`), dashboard routes (agents, executions, approvals, settlements, compliance, policies, team, webhooks, settings), Privy auth + `use-valen-api` / `api-client`, static assets, `markova.css` / `markova.html`.
+
+**Backend:** Unchanged on this merge — `VALEN_WORKER_MODE=pipeline`, consumer health, recovery, and `infra/render/render.yaml` remain as validated on Render.
+
+**Local verify:** `pnpm install` at repo root → `pnpm --filter frontend build` → `pnpm --filter backend test` (9/9).
