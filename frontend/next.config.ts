@@ -6,6 +6,9 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: path.resolve(process.cwd()),
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-select'],
+  },
   async rewrites() {
     return [
       {

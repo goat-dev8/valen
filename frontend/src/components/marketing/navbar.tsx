@@ -48,7 +48,7 @@ export function Navbar() {
           <Link href="/login" className="text-sm font-medium text-[#31485f] transition-colors hover:text-[#007dfc]">
             Log in
           </Link>
-          <Link href="/dashboard" className="btn-nav inline-block">
+          <Link href="/login" className="btn-nav inline-block">
             Dashboard
           </Link>
         </div>
@@ -84,7 +84,7 @@ export function Navbar() {
             <Link href="/login" className="text-sm font-medium text-[#31485f]" onClick={() => setOpen(false)}>
               Log in
             </Link>
-            <Link href="/dashboard" className="btn-nav inline-block w-fit" onClick={() => setOpen(false)}>
+            <Link href="/login" className="btn-nav inline-block w-fit" onClick={() => setOpen(false)}>
               Dashboard
             </Link>
           </nav>

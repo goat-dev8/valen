@@ -32,6 +32,8 @@ export const api = {
   },
 
   organizations: {
+    create: (token: string, body: { name: string; slug: string; defaultChainId?: number }) =>
+      apiRequest<OrganizationDto>('/v1/organizations', { method: 'POST', body, token }),
     get: (token: string, orgId: string) =>
       apiRequest<OrganizationDto>(orgPath(orgId, ''), { token }),
     update: (token: string, orgId: string, body: UpdateOrganizationInput) =>

@@ -6,16 +6,21 @@ import { useCallback, useEffect, useState } from 'react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/lib/api';
+import { ensureOrganization } from '@/lib/ensure-organization';
 
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 export function LoginForm() {
   const router = useRouter();
-  const { token, setToken, me } = useAuth();
+  const { token, setToken, me, logout } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [devToken, setDevToken] = useState('');
   const [PrivyLogin, setPrivyLogin] = useState<React.ComponentType | null>(null);
+
+  useEffect(() => {
+    logout();
+  }, [logout]);
 
   useEffect(() => {
     if (token && me) {
@@ -37,7 +42,7 @@ export function LoginForm() {
     setError(null);
     try {
       const accessToken = devToken.trim();
-      await api.auth.me(accessToken);
+      await ensureOrganization(accessToken, await api.auth.me(accessToken));
       setToken(accessToken);
       router.push('/dashboard');
     } catch (err) {
