@@ -1,0 +1,2 @@
+# Generated at build time from repo deployment manifests (see scripts/sync-deploy-manifests.mjs)
+src/data/manifests/

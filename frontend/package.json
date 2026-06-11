@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3001",
+    "prebuild": "node scripts/sync-deploy-manifests.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync-manifests": "node scripts/sync-deploy-manifests.mjs"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.29.2",

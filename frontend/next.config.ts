@@ -43,15 +43,31 @@ const apiUrl = resolveRenderApiUrl();
 const privyAppId =
   process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? readEnvLocal('NEXT_PUBLIC_PRIVY_APP_ID') ?? '';
 
+const monorepoRoot = path.resolve(process.cwd(), '..');
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  outputFileTracingRoot: path.resolve(process.cwd()),
+  poweredByHeader: false,
+  outputFileTracingRoot: monorepoRoot,
   env: {
     NEXT_PUBLIC_API_URL: apiUrl,
     NEXT_PUBLIC_PRIVY_APP_ID: privyAppId,
   },
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-select'],
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      '@tanstack/react-query',
+      'viem',
+    ],
+  },
+  outputFileTracingIncludes: {
+    '/api/contracts': [
+      './frontend/src/data/manifests/**/*',
+      './contracts/deployments/**/*',
+      './stylus/deployments/**/*',
+    ],
   },
   webpack(config) {
     config.resolve.alias = {
