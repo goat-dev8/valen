@@ -106,6 +106,18 @@ export class AgentsController {
     return this.agentWalletsService.linkWallet(organizationId, agentId, dto);
   }
 
+  @Post(':agentId/activate')
+  @UseGuards(PrivyAuthGuard)
+  @Roles('organization_owner', 'developer')
+  @ApiOperation({ summary: 'Activate agent' })
+  activate(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<AgentResponseDto> {
+    return this.agentsService.activate(organizationId, agentId, user);
+  }
+
   @Post(':agentId/suspend')
   @UseGuards(PrivyAuthGuard)
   @Roles('organization_owner', 'compliance_officer')

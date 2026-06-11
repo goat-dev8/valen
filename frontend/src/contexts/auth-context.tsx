@@ -63,7 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     let cancelled = false;
-    setLoading(true);
+    if (!me) {
+      setLoading(true);
+    }
 
     api.auth
       .me(token)

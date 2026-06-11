@@ -1,18 +1,32 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { AgentStatusBadge, StatusBadge } from '@/components/app/status-badge';
-import { useAgent, useExecutions } from '@/hooks/use-valen-api';
+import { useAgent, useActivateAgent, useExecutions } from '@/hooks/use-valen-api';
 
 export default function AgentDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const agentId = params.agentId as string;
-  const { data: agent, isLoading, error } = useAgent(agentId);
-  const { data: executions } = useExecutions({ agentId, limit: 10 });
+  const reserved = agentId === 'new' || agentId === 'register';
+  const { data: agent, isLoading, error } = useAgent(reserved ? '' : agentId);
+  const { data: executions } = useExecutions({ agentId: reserved ? undefined : agentId, limit: 10 });
+  const activateMutation = useActivateAgent();
+
+  useEffect(() => {
+    if (reserved) {
+      router.replace('/dashboard/register-agent');
+    }
+  }, [reserved, router]);
+
+  if (reserved) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -26,6 +40,16 @@ export default function AgentDetailPage() {
           <>
             <PageHeader title={agent.name} description={`${agent.agentType} agent`}>
               <AgentStatusBadge status={agent.status} />
+              {agent.status === 'draft' && (
+                <button
+                  type="button"
+                  className="app-btn app-btn-primary"
+                  disabled={activateMutation.isPending}
+                  onClick={() => activateMutation.mutate(agent.id)}
+                >
+                  {activateMutation.isPending ? 'Activating...' : 'Activate Agent'}
+                </button>
+              )}
             </PageHeader>
 
             <div className="app-card">

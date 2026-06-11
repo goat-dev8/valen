@@ -13,7 +13,7 @@ export default function AgentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Agents" description="Registered autonomous agents with mandates and API access">
-        <Link href="/dashboard/agents/new" className="app-btn app-btn-primary">
+        <Link href="/dashboard/register-agent" className="app-btn app-btn-primary">
           <Plus className="h-4 w-4" />
           Register Agent
         </Link>

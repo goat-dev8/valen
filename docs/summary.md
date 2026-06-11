@@ -1612,3 +1612,56 @@ cd frontend && pnpm run dev                              # port 3001
 ```
 
 **End state (frontend + Render API):** Auth path fixed and pushed; local frontend configured for Render backend; full wallet login requires manual MetaMask approval after deploy.
+
+---
+
+## Dashboard E2E test vs Render (2026-06-11, post-deploy)
+
+**Render API:** `https://valen-api-m3g4.onrender.com` — health **200**, auth sync reachable, settlement pipeline **RENDER READY** (unchanged).
+
+**Local frontend:** `http://localhost:3001` → `/api-proxy` → Render. `.env.local` + `next.config.ts` explicit env load for `NEXT_PUBLIC_PRIVY_APP_ID`.
+
+### Browser test results (automated + live session)
+
+| Step | Result | Notes |
+|------|--------|-------|
+| Render deploy complete | **PASS** | `POST /v1/auth/sync` → `Invalid token` (not guard-blocked) |
+| `/api-proxy/health/ready` | **PASS** | HTTP 200 via Next.js rewrite |
+| Privy login → dashboard | **PASS** | Org **My Organization**, role **organization_owner** |
+| Dashboard overview | **PASS** | Stats load from Render (0 until data created) |
+| Agents list | **PASS** | Real API; empty → then 3 agents after register |
+| Register agent (`/dashboard/register-agent`) | **PASS** | `POST /v1/organizations/{id}/agents` on Render |
+| Submit execution | **FAIL → FIXED** | `Insufficient permissions` — org owner lacked `@Roles` on `POST /executions` |
+| Draft agents block execution | **FAIL → FIXED** | Agents default `draft`; execution requires `active` — added activate + auto-activate on create |
+| `/dashboard/agents/new` route | **FAIL → FIXED** | Dynamic `[agentId]` caught `new`/`register` — moved to `/dashboard/register-agent` |
+| Policies, Compliance, Audit, Team, Settings, Webhooks | **PASS** | Pages render; API lists return real (empty) data |
+| Settlement pipeline E2E from UI | **PENDING** | Requires deploy of commit below + activate agents + resubmit intent |
+
+### Fixes in this session (commit pending push)
+
+| File | Fix |
+|------|-----|
+| `frontend/next.config.ts` | Read `.env.local` explicitly; inject `NEXT_PUBLIC_*` into client bundle |
+| `frontend/src/app/dashboard/register-agent/page.tsx` | **New** — register agent form (was 404 at `/agents/new`) |
+| `frontend/src/contexts/auth-context.tsx` | Skip full-page loading spinner when `me` already cached |
+| `backend/.../settlement.controller.ts` | Allow `organization_owner` on `POST /executions` |
+| `backend/.../agents.service.ts` | Auto-activate agent on create; new `activate()` method |
+| `backend/.../agents.controller.ts` | `POST .../agents/:id/activate` |
+| `frontend/src/lib/api.ts` | `agents.create`, `agents.activate` |
+| `frontend/.../agents/[agentId]/page.tsx` | **Activate Agent** button for draft agents |
+
+### User flow after next Render deploy
+
+1. **Login:** `/login` → Privy → MetaMask QR on phone → dashboard
+2. **Register agent:** Agents → **Register Agent** → submit (auto-active after deploy)
+3. **Activate existing drafts:** Open agent → **Activate Agent** (for agents created before deploy)
+4. **Submit intent:** Executions → Submit Intent → Arbitrum Sepolia → settlement contract target → **Submit for Evaluation**
+5. **Monitor:** Execution detail → Compliance → Risk → Settlement (on-chain txs via Render worker — user approves wallet txs on phone when prompted)
+6. **Dashboard pages:** Approvals, Settlements, Audit, Policies, Team, Settings — all live Render data
+
+### Vercel prep checklist
+
+- [ ] Set `NEXT_PUBLIC_API_URL=https://valen-api-m3g4.onrender.com`
+- [ ] Set `NEXT_PUBLIC_PRIVY_APP_ID` + add Vercel domain to Privy allowed origins
+- [ ] `pnpm --filter frontend build` passes
+- [ ] No backend redeploy needed for Vercel (frontend-only host)

@@ -43,6 +43,13 @@ export const api = {
   agents: {
     list: (token: string, orgId: string, params?: { status?: string; page?: number; limit?: number }) =>
       apiRequest<PaginatedResult<AgentDto>>(orgPath(orgId, '/agents'), { token, params }),
+    create: (
+      token: string,
+      orgId: string,
+      body: { name: string; description?: string; agentType: string; defaultPolicyId?: string },
+    ) => apiRequest<AgentDto>(orgPath(orgId, '/agents'), { method: 'POST', body, token }),
+    activate: (token: string, orgId: string, agentId: string) =>
+      apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}/activate`), { method: 'POST', body: {}, token }),
     get: (token: string, orgId: string, agentId: string) =>
       apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}`), { token }),
   },

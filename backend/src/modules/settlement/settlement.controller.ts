@@ -37,7 +37,7 @@ export class ExecutionsController {
   constructor(private readonly executionsService: ExecutionsService) {}
 
   @Post()
-  @Roles('agent', 'developer', 'service_account')
+  @Roles('organization_owner', 'developer', 'agent', 'service_account')
   @ApiOperation({ summary: 'Create execution' })
   create(
     @Param('organizationId', ParseUUIDPipe) organizationId: string,

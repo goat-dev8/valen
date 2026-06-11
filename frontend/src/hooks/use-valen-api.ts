@@ -146,6 +146,32 @@ export function useApproveExecution() {
   });
 }
 
+export function useCreateAgent() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: { name: string; description?: string; agentType: string; defaultPolicyId?: string }) =>
+      api.agents.create(token!, orgId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents', orgId] });
+    },
+  });
+}
+
+export function useActivateAgent() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (agentId: string) => api.agents.activate(token!, orgId!, agentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['agent', orgId] });
+    },
+  });
+}
+
 export function useCreateExecution() {
   const { token, orgId } = useAuthOrg();
   const queryClient = useQueryClient();
