@@ -1,4 +1,4 @@
-import { ApiClientError, apiRequest } from '@/lib/api-client';
+import { ApiClientError, apiRequest, apiRequestOrNull } from '@/lib/api-client';
 import type {
   AgentDto,
   AgentWalletDto,
@@ -57,6 +57,12 @@ function orgPath(orgId: string, suffix: string) {
   return `/v1/organizations/${orgId}${suffix}`;
 }
 
+function normalizeList<T>(data: T[] | PaginatedResult<T> | null | undefined): T[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  return Array.isArray(data.items) ? data.items : [];
+}
+
 export const api = {
   auth: {
     sync: (token: string, body: { privyUserId: string; email?: string }) =>
@@ -111,7 +117,10 @@ export const api = {
 
   policies: {
     list: (token: string, orgId: string, params?: { status?: string }) =>
-      apiRequest<PolicyDto[]>(orgPath(orgId, '/policies'), { token, params }),
+      apiRequest<PolicyDto[] | PaginatedResult<PolicyDto>>(orgPath(orgId, '/policies'), {
+        token,
+        params,
+      }).then(normalizeList),
     get: (token: string, orgId: string, policyId: string) =>
       apiRequest<PolicyDetailDto>(orgPath(orgId, `/policies/${policyId}`), { token }),
     create: (token: string, orgId: string, body: { name: string; description?: string }) =>
@@ -153,12 +162,12 @@ export const api = {
 
   risk: {
     get: (token: string, orgId: string, executionId: string) =>
-      apiRequest<RiskScoreDto>(orgPath(orgId, `/executions/${executionId}/risk`), { token }),
+      apiRequestOrNull<RiskScoreDto>(orgPath(orgId, `/executions/${executionId}/risk`), { token }),
   },
 
   settlements: {
     get: (token: string, orgId: string, executionId: string) =>
-      apiRequest<SettlementDto>(orgPath(orgId, `/executions/${executionId}/settlement`), { token }),
+      apiRequestOrNull<SettlementDto>(orgPath(orgId, `/executions/${executionId}/settlement`), { token }),
     retry: (token: string, orgId: string, settlementId: string, reason: string) =>
       apiRequest<SettlementDto>(orgPath(orgId, `/settlements/${settlementId}/retry`), {
         method: 'POST',

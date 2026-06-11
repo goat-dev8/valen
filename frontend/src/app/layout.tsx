@@ -1,14 +1,7 @@
 import type { Metadata } from 'next';
-import { Inter_Tight } from 'next/font/google';
 import { ValenPrivyProvider } from '@/components/app/privy-provider';
 import { Providers } from '@/providers';
 import './globals.css';
-
-const interTight = Inter_Tight({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-inter-tight',
-});
 
 export const metadata: Metadata = {
   title: 'VALEN — The Permission Layer for Agentic Finance',
@@ -27,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${interTight.variable} min-h-screen antialiased`}>
+      <body className="min-h-screen antialiased">
         <ValenPrivyProvider>
           <Providers>{children}</Providers>
         </ValenPrivyProvider>

@@ -19,11 +19,17 @@ type RequestOptions = {
   params?: Record<string, string | number | undefined>;
 };
 
+const RENDER_API_URL = 'https://valen-api-m3g4.onrender.com';
+
 function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
     return '/api-proxy';
   }
-  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? RENDER_API_URL;
+  if (!apiUrl.startsWith(RENDER_API_URL)) {
+    throw new ApiClientError(`Frontend API URL must target Render API (${RENDER_API_URL})`, 500, 'INVALID_API_URL');
+  }
+  return apiUrl;
 }
 
 function buildUrl(path: string, params?: RequestOptions['params']): string {
@@ -81,4 +87,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   return data as T;
+}
+
+export async function apiRequestOrNull<T>(path: string, options: RequestOptions = {}): Promise<T | null> {
+  try {
+    return await apiRequest<T>(path, options);
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }

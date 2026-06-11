@@ -2,26 +2,18 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { useAuth } from '@/contexts/auth-context';
-import { api } from '@/lib/api';
-import { ensureOrganization } from '@/lib/ensure-organization';
 
 const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 export function LoginForm() {
   const router = useRouter();
-  const { token, setToken, me, logout } = useAuth();
+  const { token, me } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [devToken, setDevToken] = useState('');
   const [PrivyLogin, setPrivyLogin] = useState<React.ComponentType | null>(null);
   const [privyLoading, setPrivyLoading] = useState(Boolean(PRIVY_APP_ID));
-
-  useEffect(() => {
-    logout();
-  }, [logout]);
 
   useEffect(() => {
     if (token && me) {
@@ -40,22 +32,6 @@ export function LoginForm() {
       .catch(() => setPrivyLogin(null))
       .finally(() => setPrivyLoading(false));
   }, []);
-
-  const handleDevLogin = useCallback(async () => {
-    if (!devToken.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const accessToken = devToken.trim();
-      await ensureOrganization(accessToken, await api.auth.me(accessToken));
-      setToken(accessToken);
-      router.push('/dashboard');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid access token');
-    } finally {
-      setLoading(false);
-    }
-  }, [devToken, setToken, router]);
 
   return (
     <div className="login-page">
@@ -84,25 +60,11 @@ export function LoginForm() {
             )
           ) : (
             <div className="space-y-3">
-              <p className="text-xs text-[#64748b]">
+              <p className="text-center text-sm text-red-600">
                 Set <code className="rounded bg-[#f1f5f9] px-1">NEXT_PUBLIC_PRIVY_APP_ID</code> in{' '}
                 <code className="font-mono">frontend/.env.local</code>, then restart{' '}
-                <code className="font-mono">pnpm run dev</code>.
+                <code className="font-mono">pnpm run dev</code>. Production login requires Privy.
               </p>
-              <textarea
-                value={devToken}
-                onChange={(e) => setDevToken(e.target.value)}
-                placeholder="Paste Privy access token (Bearer)"
-                className="app-input min-h-[80px] font-mono text-xs"
-              />
-              <button
-                type="button"
-                onClick={handleDevLogin}
-                disabled={loading || !devToken.trim()}
-                className="login-btn-primary w-full disabled:opacity-50"
-              >
-                {loading ? 'Signing in...' : 'Continue with Token'}
-              </button>
             </div>
           )}
 

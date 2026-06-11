@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth';
 import { Bell, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/org-context';
@@ -8,11 +9,13 @@ import { useExecutions } from '@/hooks/use-valen-api';
 
 export function AppHeader({ title }: { title?: string }) {
   const router = useRouter();
+  const { logout: privyLogout } = usePrivy();
   const { me, logout } = useAuth();
   const { organization } = useOrganization();
   const { data: pendingApprovals } = useExecutions({ status: 'approval_required', limit: 1 });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await privyLogout().catch(() => undefined);
     logout();
     router.push('/login');
   };

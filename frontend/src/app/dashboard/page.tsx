@@ -1,23 +1,54 @@
 'use client';
 
 import Link from 'next/link';
-import { Bot, CheckCircle, Shield, TrendingUp, ChevronDown, Calendar } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Bot, CheckCircle, FileText, Landmark, ScrollText, Shield, TrendingUp, XCircle } from 'lucide-react';
 import { PageHeader } from '@/components/app/page-header';
 import { StatCard } from '@/components/app/stat-card';
 import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
-import { useAgents, useExecutions } from '@/hooks/use-valen-api';
+import { useOrganization } from '@/contexts/org-context';
+import { useAgents, useAuditLogs, useExecutions, usePolicies } from '@/hooks/use-valen-api';
+import { operatorFetch } from '@/lib/api';
 import { chainName } from '@/lib/constants';
 
+type TreasuryData = {
+  nativeBalanceEth?: string;
+};
+
+type GovernanceStatus = {
+  queuedActionsCount?: number;
+};
+
 export default function DashboardPage() {
-  const { data: agents, isLoading: agentsLoading } = useAgents({ status: 'active', limit: 1 });
+  const { organization } = useOrganization();
+  const chainId = organization?.defaultChainId ?? 421614;
+  const { data: totalAgents } = useAgents({ limit: 1 });
+  const { data: activeAgents, isLoading: agentsLoading } = useAgents({ status: 'active', limit: 1 });
   const { data: executions, isLoading: execLoading, error } = useExecutions({ limit: 10 });
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
   const { data: allExec } = useExecutions({ limit: 100 });
+  const { data: auditLogs } = useAuditLogs({ limit: 100 });
+  const { data: policies } = usePolicies();
+  const treasuryQuery = useQuery({
+    queryKey: ['operator-treasury-overview', chainId],
+    queryFn: () => operatorFetch<TreasuryData>(`treasury?chainId=${chainId}`),
+  });
+  const governanceQuery = useQuery({
+    queryKey: ['operator-governance-overview', chainId],
+    queryFn: () => operatorFetch<GovernanceStatus>(`governance/status?chainId=${chainId}`),
+  });
 
   const total = allExec?.total ?? 0;
   const executed = allExec?.items.filter((e) => e.status === 'executed').length ?? 0;
+  const failed = allExec?.items.filter((e) => e.status.includes('failed') || e.status === 'cancelled').length ?? 0;
   const passRate = total > 0 ? Math.round((executed / total) * 1000) / 10 : 0;
+  const auditEventCount = auditLogs?.total ?? 0;
+  const complianceAuditCount =
+    auditLogs?.items.filter((log) => log.action.includes('compliance') || log.action === 'execution.attested').length ??
+    0;
+  const settlementAuditCount =
+    auditLogs?.items.filter((log) => log.action.startsWith('settlement.')).length ?? 0;
 
   const statusCounts = allExec?.items.reduce<Record<string, number>>((acc, ex) => {
     acc[ex.status] = (acc[ex.status] ?? 0) + 1;
@@ -29,21 +60,20 @@ export default function DashboardPage() {
       <PageHeader
         title="Compliance & Risk Overview"
         description="Monitor agent intents, compliance throughput, and settlement pipeline"
-      >
-        <button type="button" className="app-btn app-btn-primary">
-          Weekly <ChevronDown className="h-4 w-4" />
-        </button>
-        <button type="button" className="app-btn app-btn-outline">
-          <Calendar className="h-4 w-4" />
-          Select date
-        </button>
-      </PageHeader>
+      />
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
+          title="Total Agents"
+          value={totalAgents?.total ?? 0}
+          change="Render agents endpoint"
+          changeType="neutral"
+          icon={Bot}
+        />
+        <StatCard
           title="Active Agents"
-          value={agents?.total ?? 0}
-          change={`${agents?.total ?? 0} registered`}
+          value={activeAgents?.total ?? 0}
+          change={`${activeAgents?.total ?? 0} active`}
           changeType="neutral"
           icon={Bot}
         />
@@ -55,11 +85,18 @@ export default function DashboardPage() {
           icon={TrendingUp}
         />
         <StatCard
-          title="Compliance Pass Rate"
-          value={`${passRate}%`}
-          change="Based on executed intents"
-          changeType="neutral"
+          title="Successful Settlements"
+          value={executed}
+          change={`${passRate}% execution success rate`}
+          changeType="up"
           icon={Shield}
+        />
+        <StatCard
+          title="Failed Settlements"
+          value={failed}
+          change={failed ? 'Review failed executions' : 'No failures in latest page'}
+          changeType={failed ? 'down' : 'up'}
+          icon={XCircle}
         />
         <StatCard
           title="Pending Approvals"
@@ -67,6 +104,48 @@ export default function DashboardPage() {
           change={approvals?.total ? 'Requires action' : 'All clear'}
           changeType={approvals?.total ? 'down' : 'up'}
           icon={CheckCircle}
+        />
+        <StatCard
+          title="Treasury Balance"
+          value={treasuryQuery.data ? `${treasuryQuery.data.nativeBalanceEth ?? '0'} ETH` : 'Loading'}
+          change={treasuryQuery.isError ? 'Render treasury read failed' : chainName(chainId)}
+          changeType={treasuryQuery.isError ? 'down' : 'neutral'}
+          icon={Landmark}
+        />
+        <StatCard
+          title="Governance Proposals"
+          value={governanceQuery.data?.queuedActionsCount ?? 0}
+          change={governanceQuery.isError ? 'Render governance read failed' : 'Queued actions'}
+          changeType={governanceQuery.isError ? 'down' : 'neutral'}
+          icon={FileText}
+        />
+        <StatCard
+          title="Compliance Checks"
+          value={complianceAuditCount}
+          change="From audit events exposed by Render"
+          changeType="neutral"
+          icon={Shield}
+        />
+        <StatCard
+          title="Risk Evaluations"
+          value="Not exposed"
+          change="No aggregate Render endpoint yet"
+          changeType="neutral"
+          icon={TrendingUp}
+        />
+        <StatCard
+          title="Audit Events"
+          value={auditEventCount}
+          change={`${settlementAuditCount} settlement events`}
+          changeType="neutral"
+          icon={ScrollText}
+        />
+        <StatCard
+          title="Policies"
+          value={policies?.length ?? 0}
+          change="Live policies endpoint"
+          changeType="neutral"
+          icon={FileText}
         />
       </div>
 

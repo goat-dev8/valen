@@ -63,6 +63,7 @@ export function useExecutionRisk(executionId: string) {
     queryKey: ['execution-risk', orgId, executionId],
     queryFn: () => api.risk.get(token!, orgId!, executionId),
     enabled: enabled && Boolean(executionId),
+    retry: false,
   });
 }
 
@@ -90,7 +91,10 @@ export function usePolicies() {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({
     queryKey: ['policies', orgId],
-    queryFn: () => api.policies.list(token!, orgId!),
+    queryFn: async () => {
+      const policies = await api.policies.list(token!, orgId!);
+      return policies ?? [];
+    },
     enabled,
   });
 }

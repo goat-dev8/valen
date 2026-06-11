@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { GridWallpaper } from '@/components/marketing/grid-wallpaper';
 import { SectionBadge } from '@/components/marketing/section-badge';
 import { useScrollReveal } from '@/hooks/use-scroll-reveal';
 import { cn } from '@/lib/utils';
@@ -17,9 +18,9 @@ export function NotificationSection() {
   const { ref, visible } = useScrollReveal();
 
   return (
-    <section className="landing-section notification-section">
-      <div className="notification-bg-grid" />
-      <div className="landing-container relative z-10">
+    <section className="landing-section notification-section grid-wallpaper-section">
+      <GridWallpaper />
+      <div className="landing-container">
         <div ref={ref} className={cn('notification-grid', visible && 'scroll-revealed')}>
           <div className="notification-copy">
             <SectionBadge suffix="Know More" label="Smart Notification" />
