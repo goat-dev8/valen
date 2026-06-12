@@ -199,17 +199,18 @@ export default function WalletsPage() {
   const connectedWallet = wallets[0];
   const signableWallet = connectedWallet as SignableWallet | undefined;
   const connectedChainId = normalizeChainId(connectedWallet?.chainId);
+  const authorityChainId = chainId;
   const unsupportedConnectedChain = Boolean(
     connectedChainId && !SUPPORTED_CHAIN_IDS.includes(connectedChainId as (typeof SUPPORTED_CHAIN_IDS)[number]),
   );
   const verifiedWallets = walletVerificationsQuery.data ?? [];
   const mandates = mandatesQuery.data ?? [];
-  const verifiedConnectedWallet = verifiedWallets.find(
+  const verifiedForAuthorityChain = verifiedWallets.find(
     (wallet) =>
       wallet.status === 'verified' &&
       connectedWallet?.address &&
       wallet.walletAddress.toLowerCase() === connectedWallet.address.toLowerCase() &&
-      wallet.chainId === connectedChainId,
+      wallet.chainId === authorityChainId,
   );
 
   const activeAgents = useMemo(
@@ -226,13 +227,13 @@ export default function WalletsPage() {
     setActionSuccess(null);
 
     const walletAddress = normalizeEvmAddressInput(connectedWallet?.address ?? '');
-    const walletChainId = connectedChainId;
+    const walletChainId = authorityChainId;
     if (!connectedWallet || !signableWallet || !walletAddress || !walletChainId) {
       setActionError('Connect a wallet before requesting verification.');
       return;
     }
     if (!SUPPORTED_CHAIN_IDS.includes(walletChainId as (typeof SUPPORTED_CHAIN_IDS)[number])) {
-      setActionError('Switch your wallet to Arbitrum Sepolia or Robinhood Testnet before verifying.');
+      setActionError('Select Arbitrum Sepolia or Robinhood Testnet before verifying.');
       return;
     }
 
@@ -259,9 +260,9 @@ export default function WalletsPage() {
     setActionSuccess(null);
 
     const walletAddress = normalizeEvmAddressInput(connectedWallet?.address ?? '');
-    const walletChainId = connectedChainId;
-    if (!verifiedConnectedWallet || !signableWallet || !walletAddress || !walletChainId) {
-      setActionError('Verify the connected wallet before signing a mandate.');
+    const walletChainId = authorityChainId;
+    if (!verifiedForAuthorityChain || !signableWallet || !walletAddress || !walletChainId) {
+      setActionError('Verify the connected wallet on the selected chain before signing a mandate.');
       return;
     }
 
@@ -364,20 +365,20 @@ export default function WalletsPage() {
             </div>
             <div className="wallet-row">
               <span>Verification status</span>
-              <strong>{verifiedConnectedWallet ? 'Verified owner' : 'Not verified'}</strong>
+              <strong>{verifiedForAuthorityChain ? 'Verified owner' : 'Not verified'}</strong>
             </div>
             <div className="wallet-row">
-              <span>Connected chain</span>
-              {connectedChainId ? <ChainBadge chainId={connectedChainId} /> : <strong>Unavailable</strong>}
+              <span>Authority chain</span>
+              <ChainBadge chainId={authorityChainId} />
             </div>
             <div className="wallet-row">
               <span>Verified wallets</span>
               <strong>{verifiedWallets.filter((wallet) => wallet.status === 'verified').length}</strong>
             </div>
-            {verifiedConnectedWallet && (
+            {verifiedForAuthorityChain && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
                 <CheckCircle className="mr-2 inline h-4 w-4" />
-                Verified at {verifiedConnectedWallet.verifiedAt ? new Date(verifiedConnectedWallet.verifiedAt).toLocaleString() : 'unknown time'}
+                Verified at {verifiedForAuthorityChain.verifiedAt ? new Date(verifiedForAuthorityChain.verifiedAt).toLocaleString() : 'unknown time'}
               </div>
             )}
           </div>
@@ -456,12 +457,12 @@ export default function WalletsPage() {
             <button
               type="submit"
               className="app-btn app-btn-primary"
-              disabled={!verifiedConnectedWallet || !activeAgentOptions.length || typedDataMutation.isPending || createMandateMutation.isPending}
+              disabled={!verifiedForAuthorityChain || !activeAgentOptions.length || typedDataMutation.isPending || createMandateMutation.isPending}
             >
               {typedDataMutation.isPending || createMandateMutation.isPending ? 'Signing...' : 'Sign Mandate'}
             </button>
-            {!verifiedConnectedWallet && (
-              <p className="text-xs font-medium text-amber-700">Verify the connected wallet before signing mandates.</p>
+            {!verifiedForAuthorityChain && (
+              <p className="text-xs font-medium text-amber-700">Verify the connected wallet on the selected authority chain before signing mandates.</p>
             )}
           </form>
 
