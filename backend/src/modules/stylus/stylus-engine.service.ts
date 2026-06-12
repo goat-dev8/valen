@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { resolveDeploymentRoot } from '../../common/utils/deployment-path.util';
 import {
   Address,
   Hex,
@@ -89,7 +90,7 @@ export class StylusEngineService {
   private readonly repoRoot: string;
 
   constructor(private readonly chainService: ChainService) {
-    this.repoRoot = join(process.cwd(), '..');
+    this.repoRoot = resolveDeploymentRoot();
   }
 
   resolveChainName(chainId: number): ChainName {

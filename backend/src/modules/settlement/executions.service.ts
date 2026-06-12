@@ -9,6 +9,7 @@ import { AgentsRepository } from '../../database/repositories/agents.repository'
 import { OrganizationsRepository } from '../../database/repositories/organizations.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
+import { normalizeExecutionAmountWei } from '../../common/utils/amount.util';
 import { hashPayload } from '../../common/utils/hash.util';
 import {
   CancelExecutionDto,
@@ -84,6 +85,11 @@ export class ExecutionsService {
       amount: dto.amount,
     });
 
+    const assetAddress =
+      !dto.assetAddress || dto.assetAddress.trim().toLowerCase() === 'native'
+        ? undefined
+        : dto.assetAddress;
+
     const execution = await this.executionsRepository.create({
       organizationId,
       agentId: dto.agentId,
@@ -91,8 +97,8 @@ export class ExecutionsService {
       actionType: dto.actionType,
       targetChainId: dto.targetChainId,
       targetAddress: dto.targetAddress,
-      assetAddress: dto.assetAddress,
-      valueAmount: dto.amount,
+      assetAddress,
+      valueAmount: dto.amount ? normalizeExecutionAmountWei(dto.amount) : undefined,
       mandateId: dto.mandateId,
       policyId: agent.default_policy_id ?? undefined,
       payloadHash: dto.payloadHash,

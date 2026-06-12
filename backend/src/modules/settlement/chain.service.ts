@@ -14,7 +14,9 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { AppConfig } from '../../config/config.types';
+import { executionAmountWeiOrDefault } from '../../common/utils/amount.util';
 import { ExecutionRow } from '../../database/repositories/executions.repository';
+import { DEFAULT_SETTLEMENT_AMOUNT_WEI } from '../../common/constants/onchain.constants';
 
 @Injectable()
 export class ChainService {
@@ -240,10 +242,7 @@ function getNativeValue(execution: ExecutionRow): bigint {
   if (!execution.value_amount) {
     return 0n;
   }
-  if (!/^\d+$/.test(execution.value_amount)) {
-    throw new Error('Execution value_amount must be integer wei for on-chain settlement');
-  }
-  return BigInt(execution.value_amount);
+  return executionAmountWeiOrDefault(execution.value_amount, DEFAULT_SETTLEMENT_AMOUNT_WEI);
 }
 
 @Injectable()

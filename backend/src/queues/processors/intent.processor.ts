@@ -33,6 +33,9 @@ export class IntentProcessor extends PipelineWorkerProcessor {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Intent attestation failed for ${job.data.executionId}: ${message}`);
+      await this.executionsRepository.mergeMetadata(job.data.executionId, {
+        pipelineFailure: { stage: 'intent', message },
+      });
       await this.executionsRepository.updateStatus(job.data.executionId, 'failed');
       throw error;
     }

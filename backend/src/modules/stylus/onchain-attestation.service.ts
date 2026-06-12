@@ -9,6 +9,7 @@ import {
 import { ExecutionsRepository } from '../../database/repositories/executions.repository';
 import { AgentWalletsRepository } from '../../database/repositories/agent-wallets.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
+import { executionAmountWeiOrDefault } from '../../common/utils/amount.util';
 import { hashPayload } from '../../common/utils/hash.util';
 import {
   DEFAULT_E2E_ASSET,
@@ -53,9 +54,10 @@ export class OnChainAttestationService {
     const executionHash = this.requireExecutionHash(execution.request_payload_hash);
     const target = this.normalizeAddress(execution.target_address ?? agentAddress, agentAddress);
     const asset = this.normalizeAddress(execution.asset_address ?? DEFAULT_E2E_ASSET, DEFAULT_E2E_ASSET);
-    const amount = execution.value_amount
-      ? BigInt(execution.value_amount)
-      : DEFAULT_SETTLEMENT_AMOUNT_WEI;
+    const amount = executionAmountWeiOrDefault(
+      execution.value_amount,
+      DEFAULT_SETTLEMENT_AMOUNT_WEI,
+    );
 
     const attestationSeed = keccak256(
       stringToHex(`attestation-${execution.id}-${execution.idempotency_key}`),
