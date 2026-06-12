@@ -218,7 +218,7 @@ export class MandatesService {
         signerAddress: signer.toLowerCase(),
         signature: dto.signature,
         typedDataHash,
-        typedData,
+        typedData: this.serializeTypedDataForApi(typedData),
         allowedChains: dto.allowedChains,
         allowedActions: dto.allowedActions,
         allowedAssets: dto.allowedAssets,
