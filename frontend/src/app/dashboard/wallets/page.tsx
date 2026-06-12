@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle, Copy, ExternalLink, ShieldCheck, Wallet } from 'lucide-react';
@@ -21,6 +21,7 @@ import {
 import { operatorFetch } from '@/lib/api';
 import { chainName } from '@/lib/constants';
 import { explorerAddressUrl } from '@/lib/explorer';
+import { ensureWalletOnChain, formatWalletChainError, getWalletChainId, isWalletChainError } from '@/lib/wallet-chain';
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
 
 const SUPPORTED_CHAIN_IDS = [421614, 46630] as const;
@@ -190,6 +191,8 @@ export default function WalletsPage() {
   const [chainId, setChainId] = useState<number>(organization?.defaultChainId ?? 421614);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isSwitchingChain, setIsSwitchingChain] = useState(false);
+  const [liveWalletChainId, setLiveWalletChainId] = useState<number | null>(null);
 
   const treasuryQuery = useQuery({
     queryKey: ['operator-treasury', chainId],
@@ -200,8 +203,14 @@ export default function WalletsPage() {
   const signableWallet = connectedWallet as SignableWallet | undefined;
   const connectedChainId = normalizeChainId(connectedWallet?.chainId);
   const authorityChainId = chainId;
+  const effectiveWalletChainId = liveWalletChainId ?? connectedChainId;
+  const walletNeedsChainSwitch = Boolean(
+    signableWallet?.getEthereumProvider &&
+      effectiveWalletChainId &&
+      effectiveWalletChainId !== authorityChainId,
+  );
   const unsupportedConnectedChain = Boolean(
-    connectedChainId && !SUPPORTED_CHAIN_IDS.includes(connectedChainId as (typeof SUPPORTED_CHAIN_IDS)[number]),
+    effectiveWalletChainId && !SUPPORTED_CHAIN_IDS.includes(effectiveWalletChainId as (typeof SUPPORTED_CHAIN_IDS)[number]),
   );
   const verifiedWallets = walletVerificationsQuery.data ?? [];
   const mandates = mandatesQuery.data ?? [];
@@ -222,6 +231,51 @@ export default function WalletsPage() {
     [agents],
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    async function refreshWalletChain() {
+      if (!signableWallet?.getEthereumProvider) {
+        setLiveWalletChainId(null);
+        return;
+      }
+      try {
+        const provider = await signableWallet.getEthereumProvider();
+        const chain = await getWalletChainId(provider);
+        if (!cancelled) setLiveWalletChainId(chain);
+      } catch {
+        if (!cancelled) setLiveWalletChainId(null);
+      }
+    }
+    void refreshWalletChain();
+    return () => {
+      cancelled = true;
+    };
+  }, [signableWallet, authorityChainId, ready]);
+
+  const ensureAuthorityChainInWallet = async () => {
+    if (!signableWallet?.getEthereumProvider) {
+      throw new Error('Connect a wallet before signing.');
+    }
+    const provider = await signableWallet.getEthereumProvider();
+    await ensureWalletOnChain(provider, authorityChainId);
+    const updated = await getWalletChainId(provider);
+    setLiveWalletChainId(updated);
+  };
+
+  const handleSwitchWalletNetwork = async () => {
+    setActionError(null);
+    setActionSuccess(null);
+    setIsSwitchingChain(true);
+    try {
+      await ensureAuthorityChainInWallet();
+      setActionSuccess(`Wallet switched to ${chainName(authorityChainId)}. You can now sign mandates on this network.`);
+    } catch (err) {
+      setActionError(formatWalletChainError(err, authorityChainId));
+    } finally {
+      setIsSwitchingChain(false);
+    }
+  };
+
   const handleVerifyConnectedWallet = async () => {
     setActionError(null);
     setActionSuccess(null);
@@ -238,6 +292,7 @@ export default function WalletsPage() {
     }
 
     try {
+      await ensureAuthorityChainInWallet();
       const challenge = await challengeMutation.mutateAsync({
         chainId: walletChainId,
         walletAddress,
@@ -250,7 +305,11 @@ export default function WalletsPage() {
       });
       setActionSuccess('Wallet ownership verified. This signature did not authorize a transaction.');
     } catch (err) {
-      setActionError(formatApiErrorMessage(err, 'Wallet verification failed'));
+      setActionError(
+        isWalletChainError(err)
+          ? formatWalletChainError(err, walletChainId)
+          : formatApiErrorMessage(err, 'Wallet verification failed'),
+      );
     }
   };
 
@@ -285,6 +344,7 @@ export default function WalletsPage() {
     };
 
     try {
+      await ensureAuthorityChainInWallet();
       const typedData = await typedDataMutation.mutateAsync(body);
       const bodyWithNonce = { ...body, nonce: typedData.nonce };
       const signature = await requestTypedDataSignature(signableWallet, typedData.typedData);
@@ -295,7 +355,11 @@ export default function WalletsPage() {
       });
       setActionSuccess('Signed mandate stored. Agent authority is now bound to the selected policy and limits.');
     } catch (err) {
-      setActionError(formatApiErrorMessage(err, 'Mandate signing failed'));
+      setActionError(
+        isWalletChainError(err)
+          ? formatWalletChainError(err, walletChainId)
+          : formatApiErrorMessage(err, 'Mandate signing failed'),
+      );
     }
   };
 
@@ -324,9 +388,28 @@ export default function WalletsPage() {
         </select>
       </PageHeader>
 
-      {unsupportedConnectedChain && (
+      {walletNeedsChainSwitch && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">Your wallet is on the wrong network</p>
+          <p className="mt-2 leading-6">
+            VALEN needs <strong>{chainName(authorityChainId)}</strong> to sign mandates, but your wallet is on{' '}
+            <strong>{chainName(effectiveWalletChainId)}</strong>. This is normal for new users — click below and approve
+            the network switch on your phone. No transaction is sent.
+          </p>
+          <button
+            type="button"
+            className="app-btn app-btn-primary mt-4"
+            disabled={!connectedWallet || isSwitchingChain}
+            onClick={handleSwitchWalletNetwork}
+          >
+            {isSwitchingChain ? 'Switching network...' : `Switch wallet to ${chainName(authorityChainId)}`}
+          </button>
+        </div>
+      )}
+
+      {unsupportedConnectedChain && !walletNeedsChainSwitch && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Connected wallet is on {chainName(connectedChainId)}. VALEN currently supports Arbitrum Sepolia and Robinhood Testnet.
+          Connected wallet is on {chainName(effectiveWalletChainId)}. VALEN currently supports Arbitrum Sepolia and Robinhood Testnet.
         </div>
       )}
 
@@ -362,6 +445,10 @@ export default function WalletsPage() {
             <div className="wallet-row">
               <span>Connected wallet</span>
               <code>{shortAddress(connectedWallet?.address)}</code>
+            </div>
+            <div className="wallet-row">
+              <span>Wallet network</span>
+              <strong>{effectiveWalletChainId ? chainName(effectiveWalletChainId) : 'Unknown'}</strong>
             </div>
             <div className="wallet-row">
               <span>Verification status</span>
@@ -464,6 +551,11 @@ export default function WalletsPage() {
             {!verifiedForAuthorityChain && (
               <p className="text-xs font-medium text-amber-700">Verify the connected wallet on the selected authority chain before signing mandates.</p>
             )}
+            {verifiedForAuthorityChain && walletNeedsChainSwitch && (
+              <p className="text-xs font-medium text-amber-700">
+                Switch your wallet to {chainName(authorityChainId)} before signing. Use the banner above or click Sign Mandate to auto-switch.
+              </p>
+            )}
           </form>
 
           <div className="space-y-3">
@@ -522,7 +614,7 @@ export default function WalletsPage() {
           title="Connected Wallet"
           subtitle={ready ? 'Privy wallet connection state' : 'Loading Privy wallet state'}
           address={connectedWallet?.address}
-          chainId={connectedChainId}
+          chainId={effectiveWalletChainId}
           balance={null}
           status={connectedWallet ? 'Connected' : ready ? 'Disconnected' : 'Loading'}
           statusTone={connectedWallet ? (unsupportedConnectedChain ? 'warn' : 'ok') : 'warn'}
