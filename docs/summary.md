@@ -2028,6 +2028,8 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | 2026-06-12 23:12 | 4 Wallet verification | DB shows verified wallet on Robinhood (46630) but mandate UI stayed disabled on Arbitrum selector | UI matched verification only to Privy connected chain, ignoring the authority chain selector | Use selected authority chain for verify/mandate gating and mandate payload | `frontend/src/app/dashboard/wallets/page.tsx`, `docs/summary.md` | FIX pushed — pending Vercel redeploy |
 | 2026-06-12 23:12 | 4 Wallet verification (retest) | — | — | Existing verified record on chain 46630 | — | **PASS** (DB + API) |
 | 2026-06-12 23:12 | 5 Mandate signing | — | — | Requires user EIP-712 signature after Vercel redeploy | — | **SIGNATURE REQUIRED** (waiting on user) |
+| 2026-06-12 23:45 | 1–4 Retest after deploy | — | — | User confirmed Vercel redeploy complete; DB unchanged | — | **PASS** — org active; agent `valen` active + `default_policy_id`; policy `35bb3ae9…` active; wallet `0xf76e…` verified on Robinhood (46630); 0 mandates / 0 API keys |
+| 2026-06-12 23:45 | 5 Mandate signing | — | — | `43ec8f4` live; Sign Mandate enabled when connected wallet matches verified record on authority chain 46630 | — | **SIGNATURE REQUIRED** — user action on `/dashboard/wallets` |
 
 **PR #4 verdict:** Implementation matches the frontend integration masterplan for wallet verification, signed mandates, mandate-bound API keys, onboarding/setup checklist, policy/intent templates, wallet-signed approvals, pipeline/proof UI, and Robinhood demo shell. Review fixes closed the remaining P0 enforcement gaps without changing architecture.
 
