@@ -86,7 +86,21 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     );
   }
 
-  return data as T;
+  return unwrapResponseEnvelope<T>(data);
+}
+
+function unwrapResponseEnvelope<T>(payload: unknown): T {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    !Array.isArray(payload) &&
+    'requestId' in payload &&
+    'data' in payload &&
+    Array.isArray((payload as { data: unknown }).data)
+  ) {
+    return (payload as { data: T }).data;
+  }
+  return payload as T;
 }
 
 export async function apiRequestOrNull<T>(path: string, options: RequestOptions = {}): Promise<T | null> {
