@@ -406,6 +406,25 @@ export function useCreatePolicyVersion() {
       api.policies.createVersion(token!, orgId!, policyId, { rules }),
     onSuccess: (_data, { policyId }) => {
       queryClient.invalidateQueries({ queryKey: ['policy', orgId, policyId] });
+      queryClient.invalidateQueries({ queryKey: ['policies', orgId] });
+    },
+  });
+}
+
+export function useUpdateAgent() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      agentId,
+      body,
+    }: {
+      agentId: string;
+      body: { name?: string; description?: string; defaultPolicyId?: string };
+    }) => api.agents.update(token!, orgId!, agentId, body),
+    onSuccess: (_data, { agentId }) => {
+      queryClient.invalidateQueries({ queryKey: ['agents', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['agent', orgId, agentId] });
     },
   });
 }

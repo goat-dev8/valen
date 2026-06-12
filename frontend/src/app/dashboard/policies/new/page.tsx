@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/app/page-header';
-import { useActivatePolicyVersion, useCreatePolicy, useCreatePolicyVersion, usePublishPolicyVersion } from '@/hooks/use-valen-api';
+import { useActivatePolicyVersion, useCreatePolicy, useCreatePolicyVersion, usePublishPolicyVersion, useAgents, useUpdateAgent } from '@/hooks/use-valen-api';
 import { POLICY_TEMPLATES, policyTemplateById } from '@/lib/policy-templates';
 
 export default function CreatePolicyPage() {
@@ -14,6 +14,8 @@ export default function CreatePolicyPage() {
   const createVersionMutation = useCreatePolicyVersion();
   const publishVersionMutation = usePublishPolicyVersion();
   const activateVersionMutation = useActivatePolicyVersion();
+  const { data: agents } = useAgents({ limit: 100, status: 'active' });
+  const updateAgentMutation = useUpdateAgent();
   const [error, setError] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState(POLICY_TEMPLATES[0].id);
   const selectedTemplate = policyTemplateById(templateId);
@@ -44,6 +46,16 @@ export default function CreatePolicyPage() {
           versionId: published.id,
           approvalRef: activationProof,
         });
+
+        const activeAgents = agents?.items.filter((agent) => !agent.defaultPolicyId) ?? [];
+        await Promise.all(
+          activeAgents.map((agent) =>
+            updateAgentMutation.mutateAsync({
+              agentId: agent.id,
+              body: { defaultPolicyId: policy.id },
+            }),
+          ),
+        );
       }
 
       router.push(`/dashboard/policies/${policy.id}`);
@@ -112,7 +124,8 @@ export default function CreatePolicyPage() {
                 createMutation.isPending ||
                 createVersionMutation.isPending ||
                 publishVersionMutation.isPending ||
-                activateVersionMutation.isPending
+                activateVersionMutation.isPending ||
+                updateAgentMutation.isPending
               }
             >
               {createMutation.isPending ||

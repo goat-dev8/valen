@@ -67,7 +67,7 @@ export class PoliciesController {
   }
 
   @Post(':policyId/versions')
-  @Roles('policy_manager')
+  @Roles('policy_manager', 'organization_owner')
   @ApiOperation({ summary: 'Create policy version' })
   createVersion(
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
@@ -84,7 +84,7 @@ export class PoliciesController {
   }
 
   @Post(':policyId/versions/:versionId/submit')
-  @Roles('policy_manager')
+  @Roles('policy_manager', 'organization_owner')
   @ApiOperation({ summary: 'Submit policy version for approval' })
   submit(
     @Param('organizationId', ParseUUIDPipe) organizationId: string,

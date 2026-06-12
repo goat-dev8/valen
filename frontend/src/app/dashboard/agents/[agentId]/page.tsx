@@ -19,6 +19,7 @@ import {
   usePolicies,
   useRevokeAgent,
   useSuspendAgent,
+  useUpdateAgent,
   useWalletVerifications,
 } from '@/hooks/use-valen-api';
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
@@ -39,6 +40,7 @@ export default function AgentDetailPage() {
   const revokeMutation = useRevokeAgent();
   const linkWalletMutation = useLinkAgentWallet();
   const createApiKeyMutation = useCreateAgentApiKey();
+  const updateAgentMutation = useUpdateAgent();
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [apiKeySecret, setApiKeySecret] = useState<string | null>(null);
@@ -139,6 +141,27 @@ export default function AgentDetailPage() {
       setActionSuccess('Wallet linked successfully.');
     } catch (err) {
       setActionError(formatApiErrorMessage(err, 'Wallet link failed'));
+    }
+  };
+
+  const handleAssignPolicy = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setActionError(null);
+    setActionSuccess(null);
+    const form = new FormData(e.currentTarget);
+    const defaultPolicyId = String(form.get('defaultPolicyId') || '');
+    if (!defaultPolicyId) {
+      setActionError('Select a policy to assign.');
+      return;
+    }
+    try {
+      await updateAgentMutation.mutateAsync({
+        agentId,
+        body: { defaultPolicyId },
+      });
+      setActionSuccess('Default policy assigned to agent.');
+    } catch (err) {
+      setActionError(formatApiErrorMessage(err, 'Policy assignment failed'));
     }
   };
 
@@ -252,6 +275,35 @@ export default function AgentDetailPage() {
                   <div><dt>Description</dt><dd>{agent.description ?? '—'}</dd></div>
                   <div><dt>Created</dt><dd>{new Date(agent.createdAt).toLocaleString()}</dd></div>
                 </dl>
+              </div>
+
+              <div className="app-card">
+                <h3 className="app-card-title mb-3">Assign Default Policy</h3>
+                <p className="mb-3 text-sm text-[#64748b]">
+                  Intent submission requires an active agent with a default policy. Assign one created from the policy templates.
+                </p>
+                <form onSubmit={handleAssignPolicy} className="flex flex-wrap items-end gap-3">
+                  <div className="app-form-group min-w-[240px] flex-1">
+                    <label htmlFor="defaultPolicyId">Policy</label>
+                    <select
+                      id="defaultPolicyId"
+                      name="defaultPolicyId"
+                      className="app-input"
+                      defaultValue={agent.defaultPolicyId ?? ''}
+                      required
+                    >
+                      <option value="">Select policy</option>
+                      {(policies ?? []).map((policy) => (
+                        <option key={policy.id} value={policy.id}>
+                          {policy.name} ({policy.status})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button type="submit" className="app-btn app-btn-primary" disabled={updateAgentMutation.isPending}>
+                    {updateAgentMutation.isPending ? 'Saving...' : 'Assign Policy'}
+                  </button>
+                </form>
               </div>
 
               <div className="app-card">

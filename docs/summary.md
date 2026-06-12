@@ -2017,6 +2017,14 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | 2026-06-12 21:50 | Merged PR #4 into `main` and pushed | `docs/summary.md` | `git merge pr-4-review`; `git push origin main` → `9ff38de` | PASS — [PR #4](https://github.com/goat-dev8/valen/pull/4) merged on GitHub |
 | 2026-06-12 22:15 | Fixed Vercel dashboard crash (`er.some is not a function`) | `frontend/src/lib/array.ts`, `frontend/src/lib/api.ts`, `frontend/src/hooks/use-valen-api.ts`, `frontend/src/app/dashboard/page.tsx`, `docs/summary.md` | Root cause: Mission Control called `.some()` / `.filter()` on wallet verification and mandate API data that was not guaranteed to be an array (empty JSON `{}`, paginated `{ items }`, or proxy parse fallback). Added shared `asArray()` normalizer, applied it to wallets/mandates/api-keys list endpoints and React Query hooks, and hardened dashboard setup-state inputs. | PASS — `pnpm --filter frontend build` |
 
+### E2E validation — 2026-06-12
+
+| Timestamp (UTC+3) | Step | Issue found | Root cause | Fix applied | Files changed | Result |
+|-------------------|------|-------------|------------|-------------|---------------|--------|
+| 2026-06-12 22:30 | 1–2 Organization / Agent | Onboarding at 29% matched DB state for org `702be0ea` (1 active agent, 0 policies) | Expected — user is on step 3 | None | None | PASS (state consistent) |
+| 2026-06-12 22:35 | 3 Policy creation | Organization owners cannot complete policy template flow | `POST .../versions` and `.../submit` required `policy_manager` role only; primary dashboard role is `organization_owner` | Added `organization_owner` to createVersion + submit endpoints; auto-assign activated policy to active agents missing default; added agent policy assignment UI + `useUpdateAgent` | `backend/src/modules/policies/policies.controller.ts`, `frontend/src/hooks/use-valen-api.ts`, `frontend/src/app/dashboard/policies/new/page.tsx`, `frontend/src/app/dashboard/agents/[agentId]/page.tsx`, `docs/summary.md` | FIX pushed — pending Render + Vercel redeploy |
+| 2026-06-12 22:35 | 4–17 Remaining flow | Blocked on redeploy + wallet signatures | Policy/wallet/mandate/intent steps require deployed backend fix and user wallet signatures in Privy | Continue after redeploy | — | BLOCKED until redeploy |
+
 **PR #4 verdict:** Implementation matches the frontend integration masterplan for wallet verification, signed mandates, mandate-bound API keys, onboarding/setup checklist, policy/intent templates, wallet-signed approvals, pipeline/proof UI, and Robinhood demo shell. Review fixes closed the remaining P0 enforcement gaps without changing architecture.
 
 **Remaining non-blocking notes:** `wallet_verifications` has no RLS (backend-only access today); Robinhood intent template uses `custom` action type while policy template lists `demo_trade` — backend mandate validation maps `custom` → `demo_trade`; governance execute proof still blocked by 86400s timelock (unchanged).
