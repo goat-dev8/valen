@@ -42,10 +42,9 @@ export class CreateExecutionDto {
   @IsString()
   amount?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsUUID()
-  mandateId?: string;
+  mandateId!: string;
 
   @ApiProperty()
   @IsString()

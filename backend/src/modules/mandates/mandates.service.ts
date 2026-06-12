@@ -48,6 +48,52 @@ function normalizeAddress(address: string): `0x${string}` {
   }
 }
 
+export type MandateExecutionContext = {
+  agentId: string;
+  targetChainId: number;
+  actionType: string;
+  targetAddress?: string | null;
+  assetAddress?: string | null;
+  amount?: string | null;
+};
+
+function isPostgresUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === '23505'
+  );
+}
+
+function actionAllowed(allowedActions: string[], actionType: string): boolean {
+  if (!allowedActions.length) return true;
+  if (allowedActions.includes(actionType)) return true;
+  if (actionType === 'custom' && allowedActions.includes('demo_trade')) return true;
+  return false;
+}
+
+function targetAllowed(allowedTargets: string[], targetAddress?: string | null): boolean {
+  if (!allowedTargets.length || allowedTargets.includes('*')) return true;
+  const normalizedTarget = targetAddress?.toLowerCase() ?? '';
+  const normalizedAllowed = allowedTargets.map((target) => target.toLowerCase());
+  if (normalizedAllowed.includes(normalizedTarget)) return true;
+  if (
+    normalizedAllowed.includes('robinhood-demo') &&
+    normalizedTarget === '0x0000000000000000000000000000000000000000'
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function assetAllowed(allowedAssets: string[], assetAddress?: string | null): boolean {
+  if (!allowedAssets.length || allowedAssets.includes('*')) return true;
+  const asset = assetAddress?.trim();
+  if (!asset) return allowedAssets.includes('native');
+  return allowedAssets.includes(asset) || allowedAssets.includes('native');
+}
+
 @Injectable()
 export class MandatesService {
   constructor(
@@ -67,7 +113,7 @@ export class MandatesService {
     const nonce = dto.nonce ?? randomBytes(16).toString('hex');
     const typedData = this.buildTypedData(organizationId, { ...dto, nonce });
     return {
-      typedData,
+      typedData: this.serializeTypedDataForApi(typedData),
       typedDataHash: this.hashTypedData(typedData),
       nonce,
     };
@@ -157,7 +203,10 @@ export class MandatesService {
 
       return this.toDto(row);
     } catch (err) {
-      if (err instanceof Error && err.message.includes('idx_mandates_typed_data_hash_unique')) {
+      if (
+        isPostgresUniqueViolation(err) ||
+        (err instanceof Error && err.message.includes('idx_mandates_typed_data_hash_unique'))
+      ) {
         throw new ConflictException({
           code: ErrorCodes.CONFLICT,
           message: 'This signed mandate has already been stored',
@@ -165,6 +214,77 @@ export class MandatesService {
       }
       throw err;
     }
+  }
+
+  async get(organizationId: string, mandateId: string): Promise<MandateResponseDto> {
+    const row = await this.mandatesRepository.findByOrgAndId(organizationId, mandateId);
+    if (!row) {
+      throw new NotFoundException({
+        code: ErrorCodes.NOT_FOUND,
+        message: 'Mandate not found',
+      });
+    }
+    return this.toDto(row);
+  }
+
+  async assertActiveForExecution(
+    organizationId: string,
+    mandateId: string,
+    context: MandateExecutionContext,
+  ): Promise<MandateRow> {
+    const mandate = await this.mandatesRepository.findByOrgAndId(organizationId, mandateId);
+    if (!mandate) {
+      throw new BadRequestException({
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: 'Active signed mandate is required',
+      });
+    }
+    if (mandate.status !== 'active') {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Mandate is not active',
+      });
+    }
+    if (mandate.agent_id !== context.agentId) {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Mandate does not authorize this agent',
+      });
+    }
+
+    const now = Date.now();
+    if (mandate.valid_from.getTime() > now || mandate.valid_until.getTime() <= now) {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Mandate is expired or not yet valid',
+      });
+    }
+    if (mandate.allowed_chains?.length && !mandate.allowed_chains.includes(context.targetChainId)) {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Mandate does not allow this chain',
+      });
+    }
+    if (!actionAllowed(mandate.allowed_actions ?? [], context.actionType)) {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Mandate does not allow this action type',
+      });
+    }
+    if (!targetAllowed(mandate.allowed_targets ?? [], context.targetAddress)) {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Mandate does not allow this target',
+      });
+    }
+    if (!assetAllowed(mandate.allowed_assets ?? [], context.assetAddress)) {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Mandate does not allow this asset',
+      });
+    }
+
+    return mandate;
   }
 
   async list(organizationId: string): Promise<MandateResponseDto[]> {
@@ -273,6 +393,18 @@ export class MandatesService {
     return keccak256(stringToHex(JSON.stringify(typedData, (_key, value) =>
       typeof value === 'bigint' ? value.toString() : value,
     )));
+  }
+
+  private serializeTypedDataForApi(typedData: ReturnType<typeof this.buildTypedData>) {
+    return {
+      domain: typedData.domain,
+      types: typedData.types,
+      primaryType: typedData.primaryType,
+      message: {
+        ...typedData.message,
+        chainId: typedData.message.chainId.toString(),
+      },
+    };
   }
 
   private toDto(row: MandateRow): MandateResponseDto {

@@ -90,7 +90,7 @@ export function buildSetupSteps({
       href: '/dashboard/wallets',
       actionLabel: signedMandateCount ? 'View mandates' : 'Sign mandate',
       complete: signedMandateCount > 0,
-      blockedReason: signedMandateCount ? undefined : 'Signed mandate API and typed data are added in Sequence 4.',
+      blockedReason: signedMandateCount ? undefined : 'Sign a mandate on Wallet & Authority after verifying your wallet.',
     },
     {
       id: 'intent',
@@ -115,7 +115,7 @@ export function buildSetupSteps({
       href: completedProofs[0] ? `/dashboard/executions/${completedProofs[0].id}` : '/dashboard/executions',
       actionLabel: completedProofs.length ? 'Open proof source' : 'Open executions',
       complete: completedProofs.length > 0,
-      blockedReason: completedProofs.length ? undefined : 'Proof pages are added after the pipeline UI sequence.',
+      blockedReason: completedProofs.length ? undefined : 'Complete an execution to review mandate, verdict, and relayer proof.',
     },
   ];
 }

@@ -30,6 +30,15 @@ export class MandatesController {
     return this.mandatesService.list(organizationId);
   }
 
+  @Get(':mandateId')
+  @ApiOperation({ summary: 'Get signed mandate' })
+  get(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Param('mandateId', ParseUUIDPipe) mandateId: string,
+  ): Promise<MandateResponseDto> {
+    return this.mandatesService.get(organizationId, mandateId);
+  }
+
   @Post('typed-data')
   @Roles('organization_owner', 'developer')
   @ApiOperation({ summary: 'Build mandate EIP-712 typed data' })

@@ -42,6 +42,13 @@ export class AgentApiKeysService {
       }
     }
 
+    if (dto.scopes.includes('executions:write') && !dto.mandateId) {
+      throw new BadRequestException({
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: 'API keys with executions:write scope require an active mandate',
+      });
+    }
+
     if (dto.mandateId) {
       const mandate = await this.mandatesRepository.findByOrgAndId(organizationId, dto.mandateId);
       if (!mandate || mandate.agent_id !== agentId || mandate.status !== 'active') {
