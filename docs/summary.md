@@ -2043,7 +2043,26 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | 2026-06-13 02:30 | Post-Vercel smoke | — | Dashboard, Wallets, Agents, Intent builder load; chain banner shows misconfigured ID 4331028 with browser-popup copy | — | — | **PASS** (frontend); re-submit intent after Render redeploy |
 | 2026-06-13 02:30 | 7 Intent submit (retest) | — | Blocked until Render redeploys amount fix | Submit new intent (old `d2c1ac09…` is terminal `failed`) | — | **PENDING** — user confirms after Render redeploy |
 | 2026-06-13 03:05 | 7 Intent submit | `e0424693…` shows Failed in UI; logs show nonce-too-low on `grantMandate` then successful retry | (1) Attestation used user linked wallet → unnecessary on-chain `grantMandate` colliding with same `PRIVATE_KEY` nonce; (2) intent processor marked `failed` on first BullMQ retry attempt; (3) settlement processor re-ran attestation repeatedly | Use settlement relayer for on-chain mandate (E2E mandate); nonce retry on chain writes; only mark failed on final job attempt; idempotent attestation skip; recover falsely-failed executions | `backend/src/modules/stylus/onchain-attestation.service.ts`, `backend/src/common/utils/chain-write.util.ts`, `backend/src/queues/processors/intent.processor.ts`, `backend/src/queues/processors/settlement.processor.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `docs/summary.md` | FIX pushed `636bc0f` — **REDEPLOY REQUIRED** (Render) |
-| 2026-06-13 03:25 | 7 Intent submit | `414c0d56…` attestation OK but settlement fails; `/settlement` 404 noise; recovery loop every 30s | Native asset mismatch attestation `0x…01` vs settlement `0x…00`; failed-settlement recovery re-enqueued endlessly; UI fetched settlement before policy created record | `resolveOnChainAssetAddress`; recovery cooldown + skip terminal failed settlements; gate settlement API fetch; settlement error logging | `backend/src/common/utils/execution-asset.util.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `frontend/src/app/dashboard/executions/[executionId]/page.tsx`, `docs/summary.md` | FIX pushed — **REDEPLOY REQUIRED** (Render + Vercel) |
+| 2026-06-13 03:25 | 7 Intent submit | `414c0d56…` attestation OK but settlement fails; `/settlement` 404 noise; recovery loop every 30s | Native asset mismatch attestation `0x…01` vs settlement `0x…00`; failed-settlement recovery re-enqueued endlessly; UI fetched settlement before policy created record | `resolveOnChainAssetAddress`; recovery cooldown + skip terminal failed settlements; gate settlement API fetch; settlement error logging | `backend/src/common/utils/execution-asset.util.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `frontend/src/app/dashboard/executions/[executionId]/page.tsx`, `docs/summary.md` | FIX pushed `694ab95` — **REDEPLOY REQUIRED** (Render + Vercel) |
+| 2026-06-13 03:40 | 7–12 Intent → proof | — | User execution `d872b0a7…` **Executed** on Arbitrum Sepolia; compliance passed (onchain-stylus); risk 10/low; settlement confirmed; proof shows submit/approve/execute txs; Arbiscan 0.001 ETH to `0xf76e…71a3` | — | — | **PASS** — full pipeline + proof |
+| 2026-06-13 03:40 | 7 Intent (recovery) | — | Prior execution `e0424693…` also **Executed** after settlement fixes; old pre-fix runs `d2c1ac09…`, `414c0d56…` remain **Failed** (expected) | — | — | **PASS** (recovered) |
+| 2026-06-13 03:45 | Production page smoke | — | All 14 dashboard routes load authenticated (Dashboard, Executions, Approvals, Settlements, Wallets, Agents, Policies, Compliance, Audit, Governance, Treasury, Contracts, Robinhood Demo, Webhooks, Team, Settings) | — | — | **PASS** |
+| 2026-06-13 03:45 | Mission Control | — | Dashboard shows "Your governed agent flow is ready"; 2 executed / 4 total intents; 2 successful settlements | — | — | **PASS** |
+
+### E2E progress (production — 2026-06-13)
+
+| Step | Area | Status | Evidence |
+|------|------|--------|----------|
+| 1–4 | Org / Agent / Policy / Wallet verify | **PASS** | Mission Control checklist complete |
+| 5 | Mandate signing | **PASS** | `6ef127ee…` active on 421614 |
+| 6 | API key | **PASS** | Mandate-bound key on agent `valen` |
+| 7 | Intent submit | **PASS** | `d872b0a7-e7de-4a86-887b-b6ac682c7173` |
+| 8 | Compliance | **PASS** | onchain-stylus ONCHAIN_ENGINE_ATTESTED |
+| 9 | Risk | **PASS** | Score 10 / tier low |
+| 10 | Policy / approval | **PASS** | Auto-approved (no human approval required) |
+| 11 | Settlement | **PASS** | Confirmed; relayer `0xf76e…71a3`; block 276595222 |
+| 12 | Proof | **PASS** | Submit / approve / execute tx hashes on proof page |
+| 13–17 | Audit / Governance / Treasury / Robinhood | **SMOKE PASS** | Pages load; Robinhood demo shell OK; governance timelock unchanged |
 
 **PR #4 verdict:** Implementation matches the frontend integration masterplan for wallet verification, signed mandates, mandate-bound API keys, onboarding/setup checklist, policy/intent templates, wallet-signed approvals, pipeline/proof UI, and Robinhood demo shell. Review fixes closed the remaining P0 enforcement gaps without changing architecture.
 
