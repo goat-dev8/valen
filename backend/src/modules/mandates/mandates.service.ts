@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { getAddress, keccak256, stringToHex, verifyTypedData } from 'viem';
+import { getAddress, hashTypedData, recoverTypedDataAddress, verifyTypedData } from 'viem';
 import { AgentsRepository } from '../../database/repositories/agents.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
 import { MandateRow, MandatesRepository } from '../../database/repositories/mandates.repository';
@@ -35,6 +35,17 @@ const MANDATE_TYPES = {
     { name: 'validUntil', type: 'string' },
     { name: 'nonce', type: 'string' },
   ],
+} as const;
+
+const EIP712_DOMAIN_TYPES = [
+  { name: 'name', type: 'string' },
+  { name: 'version', type: 'string' },
+  { name: 'chainId', type: 'uint256' },
+] as const;
+
+const FULL_MANDATE_TYPES = {
+  EIP712Domain: EIP712_DOMAIN_TYPES,
+  Mandate: MANDATE_TYPES.Mandate,
 } as const;
 
 function normalizeAddress(address: string): `0x${string}` {
@@ -114,7 +125,7 @@ export class MandatesService {
     const typedData = this.buildTypedData(organizationId, { ...dto, nonce });
     return {
       typedData: this.serializeTypedDataForApi(typedData),
-      typedDataHash: this.hashTypedData(typedData),
+      typedDataHash: this.computeTypedDataHash(typedData),
       nonce,
     };
   }
@@ -145,7 +156,7 @@ export class MandatesService {
     }
 
     const typedData = this.buildTypedData(organizationId, { ...dto, nonce: dto.nonce });
-    const typedDataHash = this.hashTypedData(typedData);
+    const typedDataHash = this.computeTypedDataHash(typedData);
     if (typedDataHash !== dto.typedDataHash) {
       throw new BadRequestException({
         code: ErrorCodes.VALIDATION_ERROR,
@@ -153,18 +164,42 @@ export class MandatesService {
       });
     }
 
+    const verificationPayload = dto.signedTypedData
+      ? this.parseSignedTypedData(dto.signedTypedData)
+      : this.toVerificationPayload(typedData);
+
     const valid = await verifyTypedData({
       address: signer,
-      domain: typedData.domain,
-      types: MANDATE_TYPES,
+      domain: {
+        ...verificationPayload.domain,
+        chainId: BigInt(verificationPayload.domain.chainId),
+      },
+      types: FULL_MANDATE_TYPES,
       primaryType: 'Mandate',
-      message: typedData.message,
+      message: verificationPayload.message,
       signature: dto.signature as `0x${string}`,
     });
     if (!valid) {
+      let recovered: string | null = null;
+      try {
+        recovered = await recoverTypedDataAddress({
+          domain: {
+            ...verificationPayload.domain,
+            chainId: BigInt(verificationPayload.domain.chainId),
+          },
+          types: FULL_MANDATE_TYPES,
+          primaryType: 'Mandate',
+          message: verificationPayload.message,
+          signature: dto.signature as `0x${string}`,
+        });
+      } catch {
+        recovered = null;
+      }
       throw new BadRequestException({
         code: ErrorCodes.VALIDATION_ERROR,
-        message: 'Mandate signature did not match signer or typed data',
+        message: recovered
+          ? `Mandate signature was created by ${recovered}, but expected ${signer}. Reconnect the verified wallet and sign again.`
+          : 'Mandate signature did not match signer or typed data. Request a fresh signature and try again.',
       });
     }
 
@@ -368,41 +403,99 @@ export class MandatesService {
         version: '1',
         chainId: dto.chainId,
       },
-      types: MANDATE_TYPES,
-      primaryType: 'Mandate',
-      message: {
-        organizationId,
-        agentId: dto.agentId,
-        policyId: dto.policyId ?? '',
-        signer,
-        chainId: BigInt(dto.chainId),
-        allowedChains: dto.allowedChains.join(','),
-        allowedActions: dto.allowedActions.join(','),
-        allowedAssets: dto.allowedAssets.join(','),
-        allowedTargets: dto.allowedTargets.join(','),
-        maxPerTransaction: dto.maxPerTransaction ?? '',
-        maxTotal: dto.maxTotal ?? '',
-        approvalThreshold: dto.approvalThreshold ?? '',
-        validUntil: new Date(dto.validUntil).toISOString(),
-        nonce: dto.nonce,
-      },
+      types: FULL_MANDATE_TYPES,
+      primaryType: 'Mandate' as const,
+      message: this.buildMessage(organizationId, dto, signer),
     };
   }
 
-  private hashTypedData(typedData: Record<string, unknown>) {
-    return keccak256(stringToHex(JSON.stringify(typedData, (_key, value) =>
-      typeof value === 'bigint' ? value.toString() : value,
-    )));
+  private buildMessage(
+    organizationId: string,
+    dto: MandateTypedDataRequestDto & { nonce: string },
+    signer: `0x${string}`,
+  ) {
+    return {
+      organizationId,
+      agentId: dto.agentId,
+      policyId: dto.policyId ?? '',
+      signer,
+      chainId: BigInt(dto.chainId),
+      allowedChains: dto.allowedChains.join(','),
+      allowedActions: dto.allowedActions.join(','),
+      allowedAssets: dto.allowedAssets.join(','),
+      allowedTargets: dto.allowedTargets.join(','),
+      maxPerTransaction: dto.maxPerTransaction ?? '',
+      maxTotal: dto.maxTotal ?? '',
+      approvalThreshold: dto.approvalThreshold ?? '',
+      validUntil: new Date(dto.validUntil).toISOString(),
+      nonce: dto.nonce,
+    };
+  }
+
+  private computeTypedDataHash(typedData: ReturnType<typeof this.buildTypedData>) {
+    return hashTypedData({
+      domain: {
+        ...typedData.domain,
+        chainId: BigInt(typedData.domain.chainId),
+      },
+      types: FULL_MANDATE_TYPES,
+      primaryType: 'Mandate',
+      message: typedData.message,
+    });
   }
 
   private serializeTypedDataForApi(typedData: ReturnType<typeof this.buildTypedData>) {
     return {
       domain: typedData.domain,
-      types: typedData.types,
+      types: {
+        Mandate: MANDATE_TYPES.Mandate,
+      },
       primaryType: typedData.primaryType,
       message: {
         ...typedData.message,
         chainId: typedData.message.chainId.toString(),
+      },
+    };
+  }
+
+  private toVerificationPayload(typedData: ReturnType<typeof this.buildTypedData>) {
+    return {
+      domain: typedData.domain,
+      message: typedData.message,
+    };
+  }
+
+  private parseSignedTypedData(raw: Record<string, unknown>) {
+    const domain = raw.domain as Record<string, unknown>;
+    const message = raw.message as Record<string, unknown>;
+    if (!domain || !message) {
+      throw new BadRequestException({
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: 'Signed mandate typed data is missing domain or message',
+      });
+    }
+
+    return {
+      domain: {
+        name: String(domain.name ?? ''),
+        version: String(domain.version ?? ''),
+        chainId: Number(domain.chainId),
+      },
+      message: {
+        organizationId: String(message.organizationId ?? ''),
+        agentId: String(message.agentId ?? ''),
+        policyId: String(message.policyId ?? ''),
+        signer: normalizeAddress(String(message.signer ?? '')),
+        chainId: BigInt(String(message.chainId ?? '0')),
+        allowedChains: String(message.allowedChains ?? ''),
+        allowedActions: String(message.allowedActions ?? ''),
+        allowedAssets: String(message.allowedAssets ?? ''),
+        allowedTargets: String(message.allowedTargets ?? ''),
+        maxPerTransaction: String(message.maxPerTransaction ?? ''),
+        maxTotal: String(message.maxTotal ?? ''),
+        approvalThreshold: String(message.approvalThreshold ?? ''),
+        validUntil: String(message.validUntil ?? ''),
+        nonce: String(message.nonce ?? ''),
       },
     };
   }

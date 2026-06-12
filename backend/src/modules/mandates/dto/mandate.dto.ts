@@ -71,6 +71,10 @@ export class CreateSignedMandateDto extends MandateTypedDataRequestDto {
   @IsString()
   @IsNotEmpty()
   typedDataHash!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  signedTypedData?: Record<string, unknown>;
 }
 
 export class RevokeMandateDto {

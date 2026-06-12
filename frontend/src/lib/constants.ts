@@ -2,6 +2,7 @@ export const CHAIN_NAMES: Record<number, string> = {
   421614: 'Arbitrum Sepolia',
   46630: 'Robinhood Testnet',
   42161: 'Arbitrum One',
+  288304: 'Robinhood Testnet (misconfigured wallet entry)',
 };
 
 export function chainName(chainId: number | null | undefined): string {

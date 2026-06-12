@@ -21,7 +21,9 @@ import {
 import { operatorFetch } from '@/lib/api';
 import { chainName } from '@/lib/constants';
 import { explorerAddressUrl } from '@/lib/explorer';
-import { ensureWalletOnChain, formatWalletChainError, getWalletChainId, isWalletChainError } from '@/lib/wallet-chain';
+import { getAddress } from 'viem';
+import { prepareMandateTypedDataForSigning } from '@/lib/mandate-typed-data';
+import { ensureWalletOnChain, formatWalletChainError, getWalletChainId, isWalletChainError, resolveDisplayChainId } from '@/lib/wallet-chain';
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
 
 const SUPPORTED_CHAIN_IDS = [421614, 46630] as const;
@@ -192,6 +194,7 @@ export default function WalletsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isSwitchingChain, setIsSwitchingChain] = useState(false);
+  const [isSigningMandate, setIsSigningMandate] = useState(false);
   const [liveWalletChainId, setLiveWalletChainId] = useState<number | null>(null);
 
   const treasuryQuery = useQuery({
@@ -251,6 +254,38 @@ export default function WalletsPage() {
       cancelled = true;
     };
   }, [signableWallet, authorityChainId, ready]);
+
+  useEffect(() => {
+    if (!signableWallet?.getEthereumProvider || !ready) return;
+
+    let cancelled = false;
+    async function autoSwitchAuthorityChain() {
+      try {
+        const provider = await signableWallet!.getEthereumProvider!();
+        const current = await getWalletChainId(provider);
+        if (cancelled || current === authorityChainId) {
+          if (!cancelled) setLiveWalletChainId(current);
+          return;
+        }
+        await ensureWalletOnChain(provider, authorityChainId);
+        const updated = await getWalletChainId(provider);
+        if (!cancelled) setLiveWalletChainId(updated);
+      } catch {
+        if (!cancelled) {
+          const provider = await signableWallet?.getEthereumProvider?.();
+          if (provider) {
+            const current = await getWalletChainId(provider).catch(() => null);
+            if (!cancelled) setLiveWalletChainId(current);
+          }
+        }
+      }
+    }
+
+    void autoSwitchAuthorityChain();
+    return () => {
+      cancelled = true;
+    };
+  }, [authorityChainId, ready, signableWallet]);
 
   const ensureAuthorityChainInWallet = async () => {
     if (!signableWallet?.getEthereumProvider) {
@@ -318,9 +353,9 @@ export default function WalletsPage() {
     setActionError(null);
     setActionSuccess(null);
 
-    const walletAddress = normalizeEvmAddressInput(connectedWallet?.address ?? '');
+    const walletAddress = connectedWallet?.address ? getAddress(connectedWallet.address) : null;
     const walletChainId = authorityChainId;
-    if (!verifiedForAuthorityChain || !signableWallet || !walletAddress || !walletChainId) {
+    if (!verifiedForAuthorityChain || !connectedWallet || !signableWallet || !walletAddress || !walletChainId) {
       setActionError('Verify the connected wallet on the selected chain before signing a mandate.');
       return;
     }
@@ -343,16 +378,22 @@ export default function WalletsPage() {
       validUntil,
     };
 
+    setIsSigningMandate(true);
     try {
       await ensureAuthorityChainInWallet();
       const typedData = await typedDataMutation.mutateAsync(body);
       const bodyWithNonce = { ...body, nonce: typedData.nonce };
-      const signature = await requestTypedDataSignature(signableWallet, typedData.typedData);
+      const preparedTypedData = prepareMandateTypedDataForSigning(
+        typedData.typedData as Parameters<typeof prepareMandateTypedDataForSigning>[0],
+      );
+      const signature = await requestTypedDataSignature(signableWallet, preparedTypedData);
       await createMandateMutation.mutateAsync({
         ...bodyWithNonce,
         signature,
         typedDataHash: typedData.typedDataHash,
+        signedTypedData: typedData.typedData,
       });
+      await mandatesQuery.refetch();
       setActionSuccess('Signed mandate stored. Agent authority is now bound to the selected policy and limits.');
     } catch (err) {
       setActionError(
@@ -360,6 +401,8 @@ export default function WalletsPage() {
           ? formatWalletChainError(err, walletChainId)
           : formatApiErrorMessage(err, 'Mandate signing failed'),
       );
+    } finally {
+      setIsSigningMandate(false);
     }
   };
 
@@ -393,8 +436,8 @@ export default function WalletsPage() {
           <p className="font-semibold">Your wallet is on the wrong network</p>
           <p className="mt-2 leading-6">
             VALEN needs <strong>{chainName(authorityChainId)}</strong> to sign mandates, but your wallet is on{' '}
-            <strong>{chainName(effectiveWalletChainId)}</strong>. This is normal for new users — click below and approve
-            the network switch on your phone. No transaction is sent.
+            <strong>{chainName(resolveDisplayChainId(effectiveWalletChainId) ?? effectiveWalletChainId)}</strong>.
+            VALEN will add/switch the network automatically — approve the wallet prompt on your phone. No transaction is sent.
           </p>
           <button
             type="button"
@@ -448,7 +491,7 @@ export default function WalletsPage() {
             </div>
             <div className="wallet-row">
               <span>Wallet network</span>
-              <strong>{effectiveWalletChainId ? chainName(effectiveWalletChainId) : 'Unknown'}</strong>
+              <strong>{effectiveWalletChainId ? chainName(resolveDisplayChainId(effectiveWalletChainId) ?? effectiveWalletChainId) : 'Unknown'}</strong>
             </div>
             <div className="wallet-row">
               <span>Verification status</span>
@@ -544,9 +587,9 @@ export default function WalletsPage() {
             <button
               type="submit"
               className="app-btn app-btn-primary"
-              disabled={!verifiedForAuthorityChain || !activeAgentOptions.length || typedDataMutation.isPending || createMandateMutation.isPending}
+              disabled={!verifiedForAuthorityChain || !activeAgentOptions.length || isSigningMandate || typedDataMutation.isPending || createMandateMutation.isPending}
             >
-              {typedDataMutation.isPending || createMandateMutation.isPending ? 'Signing...' : 'Sign Mandate'}
+              {isSigningMandate || typedDataMutation.isPending || createMandateMutation.isPending ? 'Signing...' : 'Sign Mandate'}
             </button>
             {!verifiedForAuthorityChain && (
               <p className="text-xs font-medium text-amber-700">Verify the connected wallet on the selected authority chain before signing mandates.</p>

@@ -119,6 +119,7 @@ export type MandateTypedDataRequestDto = {
 export type CreateSignedMandateDto = MandateTypedDataRequestDto & {
   signature: string;
   typedDataHash: string;
+  signedTypedData?: Record<string, unknown>;
 };
 
 export type MandateTypedDataResponseDto = {
