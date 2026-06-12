@@ -19,6 +19,7 @@ import { ExecutionsService } from './executions.service';
 import { SettlementProducer } from '../../queues/producers/index';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { ChainService, SettlementChainService } from './chain.service';
+import { MandatesService } from '../mandates/mandates.service';
 
 @Injectable()
 export class SettlementService {
@@ -30,6 +31,7 @@ export class SettlementService {
     private readonly executionsService: ExecutionsService,
     private readonly settlementProducer: SettlementProducer,
     private readonly chainService: ChainService,
+    private readonly mandatesService: MandatesService,
   ) {}
 
   async getSettlement(
@@ -95,8 +97,29 @@ export class SettlementService {
       action: `execution.${dto.decision}`,
       entityType: 'execution',
       entityId: executionId,
-      eventHash: hashPayload({ executionId, decision: dto.decision }),
+      eventHash: hashPayload({ executionId, decision: dto.decision, approvalProofRef: dto.approvalProofRef }),
+      payloadRef: dto.approvalProofRef,
     });
+
+    if (dto.decision === 'approved') {
+      await this.assertExecutionMandate(organizationId, execution);
+      const settlement = await this.settlementsRepository.create({
+        organizationId,
+        executionId,
+        chainId: execution.target_chain_id,
+        contractAddress: this.chainService.getSettlementAddress(execution.target_chain_id),
+        targetAddress: execution.target_address ?? undefined,
+      });
+
+      await this.executionsRepository.updateStatus(executionId, 'settlement_submitted');
+
+      await this.settlementProducer.enqueue({
+        organizationId,
+        executionId,
+        settlementId: settlement.id,
+        idempotencyKey: `approve-settle-${executionId}`,
+      });
+    }
 
     return this.executionsService.toDto(updated!);
   }
@@ -134,6 +157,8 @@ export class SettlementService {
         message: 'Execution must be approved before settlement',
       });
     }
+
+    await this.assertExecutionMandate(organizationId, execution);
 
     const settlement = await this.settlementsRepository.create({
       organizationId,
@@ -209,6 +234,11 @@ export class SettlementService {
     contract_address: string;
     status: string;
     tx_hash: string | null;
+    submit_tx_hash?: string | null;
+    approve_tx_hash?: string | null;
+    block_number?: string | null;
+    on_chain_settlement_id?: string | null;
+    failure_reason?: string | null;
     created_at: Date;
   }): SettlementResponseDto {
     return {
@@ -218,8 +248,55 @@ export class SettlementService {
       contractAddress: settlement.contract_address,
       status: settlement.status,
       txHash: settlement.tx_hash,
+      submitTxHash: settlement.submit_tx_hash ?? null,
+      approveTxHash: settlement.approve_tx_hash ?? null,
+      blockNumber: settlement.block_number ?? null,
+      onChainSettlementId: settlement.on_chain_settlement_id ?? null,
+      failureReason: settlement.failure_reason ?? null,
+      relayerAddress: this.getRelayerAddress(settlement.chain_id),
       createdAt: settlement.created_at.toISOString(),
     };
+  }
+
+  private getRelayerAddress(chainId: number): string | null {
+    try {
+      return this.chainService.getWalletClient(chainId).account?.address ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async assertExecutionMandate(
+    organizationId: string,
+    execution: {
+      mandate_id?: string | null;
+      agent_id: string;
+      target_chain_id: number;
+      action_type: string;
+      target_address: string | null;
+      asset_address?: string | null;
+      value_amount?: string | null;
+    },
+  ): Promise<void> {
+    if (!execution.mandate_id) {
+      throw new BadRequestException({
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: 'Active signed mandate is required',
+      });
+    }
+
+    await this.mandatesService.assertActiveForExecution(
+      organizationId,
+      execution.mandate_id,
+      {
+        agentId: execution.agent_id,
+        targetChainId: execution.target_chain_id,
+        actionType: execution.action_type,
+        targetAddress: execution.target_address,
+        assetAddress: execution.asset_address,
+        amount: execution.value_amount,
+      },
+    );
   }
 }
 
@@ -230,6 +307,7 @@ export class SettlementWorkerService {
     private readonly executionsRepository: ExecutionsRepository,
     private readonly auditLogsRepository: AuditLogsRepository,
     private readonly settlementChainService: SettlementChainService,
+    private readonly mandatesService: MandatesService,
   ) {}
 
   async processSettlement(settlementId: string): Promise<void> {
@@ -240,6 +318,36 @@ export class SettlementWorkerService {
       await this.settlementsRepository.updateStatus(settlementId, 'failed', {
         failureReason: 'Execution not found for settlement',
       });
+      return;
+    }
+
+    if (!execution.mandate_id) {
+      await this.settlementsRepository.updateStatus(settlementId, 'failed', {
+        failureReason: 'Execution is missing an active mandate',
+      });
+      await this.executionsRepository.updateStatus(execution.id, 'failed');
+      return;
+    }
+
+    try {
+      await this.mandatesService.assertActiveForExecution(
+        settlement.organization_id,
+        execution.mandate_id,
+        {
+          agentId: execution.agent_id,
+          targetChainId: execution.target_chain_id,
+          actionType: execution.action_type,
+          targetAddress: execution.target_address,
+          assetAddress: execution.asset_address,
+          amount: execution.value_amount,
+        },
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.settlementsRepository.updateStatus(settlementId, 'failed', {
+        failureReason: message.slice(0, 1000),
+      });
+      await this.executionsRepository.updateStatus(execution.id, 'failed');
       return;
     }
 

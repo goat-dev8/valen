@@ -6,6 +6,7 @@ export interface ApiKeyRow {
   id: string;
   organization_id: string;
   agent_id: string | null;
+  mandate_id: string | null;
   name: string;
   key_prefix: string;
   key_hash: string;
@@ -38,6 +39,7 @@ export class ApiKeysRepository extends BaseRepository {
   async create(input: {
     organizationId: string;
     agentId?: string;
+    mandateId?: string;
     name: string;
     keyPrefix: string;
     keyHash: string;
@@ -46,11 +48,14 @@ export class ApiKeysRepository extends BaseRepository {
     createdByUserId?: string;
   }): Promise<ApiKeyRow> {
     const row = await this.queryOne<ApiKeyRow>(
-      `INSERT INTO api_keys (organization_id, agent_id, name, key_prefix, key_hash, scopes, expires_at, created_by_user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO api_keys (
+         organization_id, agent_id, mandate_id, name, key_prefix, key_hash, scopes, expires_at, created_by_user_id
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
         input.organizationId,
         input.agentId ?? null,
+        input.mandateId ?? null,
         input.name,
         input.keyPrefix,
         input.keyHash,
@@ -72,7 +77,7 @@ export class ApiKeysRepository extends BaseRepository {
 
   async listByAgent(agentId: string): Promise<ApiKeyRow[]> {
     return this.queryMany<ApiKeyRow>(
-      `SELECT id, organization_id, agent_id, name, key_prefix, scopes, status, expires_at, last_used_at, created_at, revoked_at
+      `SELECT id, organization_id, agent_id, mandate_id, name, key_prefix, scopes, status, expires_at, last_used_at, created_at, revoked_at
        FROM api_keys WHERE agent_id = $1 ORDER BY created_at DESC`,
       [agentId],
     );

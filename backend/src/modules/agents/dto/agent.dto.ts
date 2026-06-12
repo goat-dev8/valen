@@ -100,6 +100,11 @@ export class CreateApiKeyDto {
   @IsOptional()
   @IsString()
   expiresAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  mandateId?: string;
 }
 
 export class AgentResponseDto {
@@ -163,6 +168,9 @@ export class ApiKeyResponseDto {
 
   @ApiProperty()
   keyPrefix!: string;
+
+  @ApiProperty({ nullable: true })
+  mandateId!: string | null;
 
   @ApiProperty({ type: [String] })
   scopes!: string[];

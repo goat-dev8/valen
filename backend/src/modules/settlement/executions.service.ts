@@ -17,6 +17,7 @@ import {
   AuditTimelineEventDto,
 } from './dto/settlement.dto';
 import { IntentProducer } from '../../queues/producers/index';
+import { MandatesService } from '../mandates/mandates.service';
 
 const TERMINAL_STATUSES = [
   'executed',
@@ -35,6 +36,7 @@ export class ExecutionsService {
     private readonly organizationsRepository: OrganizationsRepository,
     private readonly auditLogsRepository: AuditLogsRepository,
     private readonly intentProducer: IntentProducer,
+    private readonly mandatesService: MandatesService,
   ) {}
 
   async create(
@@ -72,6 +74,15 @@ export class ExecutionsService {
         message: 'Unsupported chain',
       });
     }
+
+    await this.mandatesService.assertActiveForExecution(organizationId, dto.mandateId, {
+      agentId: dto.agentId,
+      targetChainId: dto.targetChainId,
+      actionType: dto.actionType,
+      targetAddress: dto.targetAddress,
+      assetAddress: dto.assetAddress,
+      amount: dto.amount,
+    });
 
     const execution = await this.executionsRepository.create({
       organizationId,
@@ -233,6 +244,8 @@ export class ExecutionsService {
     id: string;
     organization_id: string;
     agent_id: string;
+    mandate_id?: string | null;
+    policy_id?: string | null;
     idempotency_key: string;
     action_type: string;
     status: string;
@@ -246,6 +259,8 @@ export class ExecutionsService {
       id: execution.id,
       organizationId: execution.organization_id,
       agentId: execution.agent_id,
+      mandateId: execution.mandate_id ?? null,
+      policyId: execution.policy_id ?? null,
       idempotencyKey: execution.idempotency_key,
       actionType: execution.action_type,
       status: execution.status,

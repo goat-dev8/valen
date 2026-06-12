@@ -7,8 +7,12 @@ import type {
   AuditLogDto,
   ComplianceCheckDto,
   ComplianceSubjectDto,
+  CreateSignedMandateDto,
   CreateExecutionInput,
   ExecutionDto,
+  MandateDto,
+  MandateTypedDataRequestDto,
+  MandateTypedDataResponseDto,
   MeResponseDto,
   OrganizationDto,
   PaginatedResult,
@@ -20,6 +24,10 @@ import type {
   TimelineEventDto,
   UpdateOrganizationInput,
   WebhookDto,
+  WalletChallengeDto,
+  WalletChallengeResponseDto,
+  WalletVerificationDto,
+  WalletVerifyDto,
 } from '@/types/api';
 
 export class OperatorFetchError extends Error {
@@ -79,6 +87,46 @@ export const api = {
       apiRequest<OrganizationDto>(orgPath(orgId, ''), { method: 'PATCH', body, token }),
   },
 
+  wallets: {
+    list: (token: string, orgId: string) =>
+      apiRequest<WalletVerificationDto[]>(orgPath(orgId, '/wallets'), { token }),
+    challenge: (token: string, orgId: string, body: WalletChallengeDto) =>
+      apiRequest<WalletChallengeResponseDto>(orgPath(orgId, '/wallets/challenge'), {
+        method: 'POST',
+        body,
+        token,
+      }),
+    verify: (token: string, orgId: string, body: WalletVerifyDto) =>
+      apiRequest<WalletVerificationDto>(orgPath(orgId, '/wallets/verify'), {
+        method: 'POST',
+        body,
+        token,
+      }),
+  },
+
+  mandates: {
+    list: (token: string, orgId: string) =>
+      apiRequest<MandateDto[]>(orgPath(orgId, '/mandates'), { token }),
+    typedData: (token: string, orgId: string, body: MandateTypedDataRequestDto) =>
+      apiRequest<MandateTypedDataResponseDto>(orgPath(orgId, '/mandates/typed-data'), {
+        method: 'POST',
+        body,
+        token,
+      }),
+    create: (token: string, orgId: string, body: CreateSignedMandateDto) =>
+      apiRequest<MandateDto>(orgPath(orgId, '/mandates'), {
+        method: 'POST',
+        body,
+        token,
+      }),
+    revoke: (token: string, orgId: string, mandateId: string, reason: string) =>
+      apiRequest<MandateDto>(orgPath(orgId, `/mandates/${mandateId}/revoke`), {
+        method: 'POST',
+        body: { reason },
+        token,
+      }),
+  },
+
   agents: {
     list: (token: string, orgId: string, params?: { status?: string; page?: number; limit?: number }) =>
       apiRequest<PaginatedResult<AgentDto>>(orgPath(orgId, '/agents'), { token, params }),
@@ -111,8 +159,10 @@ export const api = {
       token: string,
       orgId: string,
       agentId: string,
-      body: { name: string; scopes: string[]; expiresAt?: string },
+      body: { name: string; scopes: string[]; expiresAt?: string; mandateId?: string },
     ) => apiRequest<ApiKeyDto>(orgPath(orgId, `/agents/${agentId}/api-keys`), { method: 'POST', body, token }),
+    listApiKeys: (token: string, orgId: string, agentId: string) =>
+      apiRequest<ApiKeyDto[]>(orgPath(orgId, `/agents/${agentId}/api-keys`), { token }),
   },
 
   policies: {
@@ -125,6 +175,40 @@ export const api = {
       apiRequest<PolicyDetailDto>(orgPath(orgId, `/policies/${policyId}`), { token }),
     create: (token: string, orgId: string, body: { name: string; description?: string }) =>
       apiRequest<PolicyDto>(orgPath(orgId, '/policies'), { method: 'POST', body, token }),
+    createVersion: (token: string, orgId: string, policyId: string, body: { rules: Record<string, unknown> }) =>
+      apiRequest<PolicyDetailDto['versions'][number]>(orgPath(orgId, `/policies/${policyId}/versions`), {
+        method: 'POST',
+        body,
+        token,
+      }),
+    submitVersion: (token: string, orgId: string, policyId: string, versionId: string, comment?: string) =>
+      apiRequest<PolicyDetailDto['versions'][number]>(
+        orgPath(orgId, `/policies/${policyId}/versions/${versionId}/submit`),
+        { method: 'POST', body: { comment }, token },
+      ),
+    publishVersion: (
+      token: string,
+      orgId: string,
+      policyId: string,
+      versionId: string,
+      body: { comment?: string; approvalRef?: string },
+    ) =>
+      apiRequest<PolicyDetailDto['versions'][number]>(
+        orgPath(orgId, `/policies/${policyId}/versions/${versionId}/publish`),
+        { method: 'POST', body, token },
+      ),
+    activateVersion: (
+      token: string,
+      orgId: string,
+      policyId: string,
+      versionId: string,
+      body: { comment?: string; approvalRef?: string; activationTime?: string },
+    ) =>
+      apiRequest<PolicyDto>(orgPath(orgId, `/policies/${policyId}/versions/${versionId}/activate`), {
+        method: 'POST',
+        body,
+        token,
+      }),
   },
 
   executions: {

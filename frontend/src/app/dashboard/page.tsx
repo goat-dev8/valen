@@ -1,16 +1,26 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Bot, CheckCircle, FileText, Landmark, ScrollText, Shield, TrendingUp, XCircle } from 'lucide-react';
+import { ArrowRight, Bot, CheckCircle, Circle, FileText, Landmark, ScrollText, Shield, TrendingUp, XCircle } from 'lucide-react';
+import { useEffect } from 'react';
 import { PageHeader } from '@/components/app/page-header';
 import { StatCard } from '@/components/app/stat-card';
 import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
 import { useOrganization } from '@/contexts/org-context';
-import { useAgents, useAuditLogs, useExecutions, usePolicies } from '@/hooks/use-valen-api';
+import {
+  useAgents,
+  useAuditLogs,
+  useExecutions,
+  useMandates,
+  usePolicies,
+  useWalletVerifications,
+} from '@/hooks/use-valen-api';
 import { operatorFetch } from '@/lib/api';
 import { chainName } from '@/lib/constants';
+import { buildSetupSteps, setupProgress } from '@/lib/setup-state';
 
 type TreasuryData = {
   nativeBalanceEth?: string;
@@ -21,15 +31,18 @@ type GovernanceStatus = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { organization } = useOrganization();
   const chainId = organization?.defaultChainId ?? 421614;
-  const { data: totalAgents } = useAgents({ limit: 1 });
+  const { data: totalAgents, isLoading: totalAgentsLoading } = useAgents({ limit: 100 });
   const { data: activeAgents, isLoading: agentsLoading } = useAgents({ status: 'active', limit: 1 });
   const { data: executions, isLoading: execLoading, error } = useExecutions({ limit: 10 });
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
-  const { data: allExec } = useExecutions({ limit: 100 });
+  const { data: allExec, isLoading: allExecLoading } = useExecutions({ limit: 100 });
   const { data: auditLogs } = useAuditLogs({ limit: 100 });
-  const { data: policies } = usePolicies();
+  const { data: policies, isLoading: policiesLoading } = usePolicies();
+  const { data: walletVerifications, isLoading: walletVerificationsLoading } = useWalletVerifications();
+  const { data: mandates, isLoading: mandatesLoading } = useMandates();
   const treasuryQuery = useQuery({
     queryKey: ['operator-treasury-overview', chainId],
     queryFn: () => operatorFetch<TreasuryData>(`treasury?chainId=${chainId}`),
@@ -54,13 +67,92 @@ export default function DashboardPage() {
     acc[ex.status] = (acc[ex.status] ?? 0) + 1;
     return acc;
   }, {}) ?? {};
+  const setupSteps = buildSetupSteps({
+    organization,
+    agents: totalAgents?.items,
+    policies,
+    executions: allExec?.items,
+    ownerWalletVerified: walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false,
+    signedMandateCount: mandates?.filter((mandate) => mandate.status === 'active').length ?? 0,
+  });
+  const progress = setupProgress(setupSteps);
+  const nextStep = setupSteps.find((step) => !step.complete);
+  const setupLoading =
+    totalAgentsLoading || allExecLoading || policiesLoading || walletVerificationsLoading || mandatesLoading;
+
+  useEffect(() => {
+    if (!organization || setupLoading || !nextStep) return;
+
+    const onboardingKey = `valen:onboarding-seen:${organization.id}`;
+    if (!sessionStorage.getItem(onboardingKey)) {
+      sessionStorage.setItem(onboardingKey, '1');
+      router.replace('/onboarding');
+    }
+  }, [organization, nextStep, router, setupLoading]);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Compliance & Risk Overview"
-        description="Monitor agent intents, compliance throughput, and settlement pipeline"
+        title="Mission Control"
+        description="Set up a governed agent, authorize what it can do, then watch every intent become a proof."
       />
+
+      <section className="app-card overflow-hidden">
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <div className="inline-flex rounded-full bg-[#e8f4ff] px-3 py-1 text-xs font-semibold text-[#007dfc]">
+              {progress.complete}/{progress.total} setup steps complete
+            </div>
+            <h2 className="mt-4 text-2xl font-semibold text-[#012b54]">
+              {nextStep ? 'Finish authority setup before the next governed intent' : 'Your governed agent flow is ready'}
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#64748b]">
+              VALEN uses your Privy identity, a verified owner wallet, signed mandates, live Stylus checks, and the
+              Render settlement relayer to prove what an agent is allowed to do.
+            </p>
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#eef6ff]">
+              <div className="h-full rounded-full bg-[#007dfc]" style={{ width: `${progress.percent}%` }} />
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link href={nextStep?.href ?? '/dashboard/executions'} className="app-btn app-btn-primary">
+                {nextStep?.actionLabel ?? 'Review executions'}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href="/dashboard/wallets" className="app-btn app-btn-outline">
+                Wallet & Authority
+              </Link>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {setupSteps.map((step) => (
+              <Link
+                key={step.id}
+                href={step.href}
+                className="flex gap-3 rounded-2xl border border-[#eef0f3] bg-white p-4 transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]"
+              >
+                <div className="mt-0.5">
+                  {step.complete ? (
+                    <CheckCircle className="h-5 w-5 text-emerald-500" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-[#94a3b8]" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-[#012b54]">{step.title}</p>
+                    {!step.complete && <span className="wallet-status wallet-status-warn">Next</span>}
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-[#64748b]">{step.description}</p>
+                  {step.blockedReason && (
+                    <p className="mt-2 text-xs font-medium text-amber-700">{step.blockedReason}</p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -128,8 +220,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Risk Evaluations"
-          value="Not exposed"
-          change="No aggregate Render endpoint yet"
+          value="No aggregate yet"
+          change="Risk appears on each execution proof"
           changeType="neutral"
           icon={TrendingUp}
         />

@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useWallets } from '@privy-io/react-auth';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Check, ExternalLink, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
+import { PipelineTimeline } from '@/components/app/pipeline-timeline';
 import { QueryState } from '@/components/app/query-state';
 import { RiskBadge, StatusBadge } from '@/components/app/status-badge';
 import {
@@ -19,15 +21,8 @@ import {
   useExecutionTimeline,
   useRetrySettlement,
 } from '@/hooks/use-valen-api';
+import { signApprovalProof } from '@/lib/approval-signature';
 import { explorerAddressUrl, explorerTxUrl } from '@/lib/explorer';
-
-const SETTLEMENT_AUDIT_EVENTS = new Set([
-  'execution.attested',
-  'settlement.submit',
-  'settlement.approve',
-  'settlement.executed',
-  'settlement.failed',
-]);
 
 function riskStatusMessage(status: string): string {
   if (status === 'failed') return 'Execution failed before risk was calculated.';
@@ -55,6 +50,7 @@ export default function ExecutionDetailPage() {
   const { data: risk } = useExecutionRisk(executionId);
   const { data: settlement } = useExecutionSettlement(executionId);
   const { data: timeline } = useExecutionTimeline(executionId);
+  const { wallets } = useWallets();
   const approveMutation = useApproveExecution();
   const cancelMutation = useCancelExecution();
   const retryMutation = useRetrySettlement();
@@ -63,12 +59,21 @@ export default function ExecutionDetailPage() {
 
   const handleApproval = async (decision: 'approved' | 'rejected') => {
     setActionError(null);
+    if (!ex) return;
+    const reason = approvalReason.trim() || (decision === 'approved' ? 'Approved via dashboard' : 'Rejected via dashboard');
     try {
+      const approvalProofRef = await signApprovalProof({
+        wallet: wallets[0],
+        execution: ex,
+        decision,
+        reason,
+      });
       await approveMutation.mutateAsync({
         executionId,
         body: {
           decision,
-          reason: approvalReason.trim() || (decision === 'approved' ? 'Approved via dashboard' : 'Rejected via dashboard'),
+          reason,
+          approvalProofRef,
         },
       });
     } catch (err) {
@@ -114,6 +119,9 @@ export default function ExecutionDetailPage() {
             <PageHeader title={`Execution ${ex.id.slice(0, 8)}...`} description={`${ex.actionType} intent`}>
               <ChainBadge chainId={ex.targetChainId} />
               <StatusBadge status={ex.status} />
+              <Link href={`/dashboard/executions/${ex.id}/proof`} className="app-btn app-btn-outline">
+                View Proof
+              </Link>
               {ex.status === 'approval_required' && (
                 <>
                   <input
@@ -145,31 +153,7 @@ export default function ExecutionDetailPage() {
             <div className="grid gap-5 lg:grid-cols-3">
               <div className="app-card lg:col-span-2">
                 <h3 className="app-card-title mb-4">Pipeline Timeline</h3>
-                {!timeline?.length ? (
-                  <p className="text-sm text-[#64748b]">No timeline events recorded yet.</p>
-                ) : (
-                  <div className="space-y-0">
-                    {timeline.map((step, i) => (
-                      <div key={step.id} className="flex gap-4">
-                        <div className="flex flex-col items-center">
-                          <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
-                            SETTLEMENT_AUDIT_EVENTS.has(step.eventName)
-                              ? 'bg-emerald-100 text-emerald-600'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}>
-                            {i + 1}
-                          </div>
-                          {i < timeline.length - 1 && <div className="min-h-[24px] w-px flex-1 bg-[#eef0f3]" />}
-                        </div>
-                        <div className="pb-6">
-                          <p className="font-medium text-[#012b54]">{step.eventName}</p>
-                          <p className="font-mono text-xs text-[#64748b]">{step.eventHash}</p>
-                          <p className="text-sm text-[#64748b]">{new Date(step.createdAt).toLocaleString()}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <PipelineTimeline events={timeline} status={ex.status} />
               </div>
 
               <div className="space-y-5">
@@ -177,6 +161,8 @@ export default function ExecutionDetailPage() {
                   <h3 className="app-card-title mb-3">Intent Details</h3>
                   <dl className="app-detail-list">
                     <div><dt>Agent</dt><dd>{agent?.name ?? ex.agentId.slice(0, 12)}...</dd></div>
+                    <div><dt>Mandate</dt><dd className="font-mono text-xs break-all">{ex.mandateId ?? '—'}</dd></div>
+                    <div><dt>Policy</dt><dd className="font-mono text-xs break-all">{ex.policyId ?? 'agent default'}</dd></div>
                     <div><dt>Chain</dt><dd><ChainBadge chainId={ex.targetChainId} /></dd></div>
                     <div><dt>Target</dt><dd className="font-mono text-xs break-all">{ex.targetAddress ?? '—'}</dd></div>
                     <div><dt>Payload Hash</dt><dd className="font-mono text-xs break-all">{ex.requestPayloadHash}</dd></div>

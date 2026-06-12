@@ -16,6 +16,8 @@ import { NotificationsRepository } from './notifications.repository';
 import { WebhooksRepository } from './webhooks.repository';
 import { DeadLetterJobsRepository } from './dead-letter-jobs.repository';
 import { EmergencyActionsRepository } from './emergency-actions.repository';
+import { WalletVerificationsRepository } from './wallet-verifications.repository';
+import { MandatesRepository } from './mandates.repository';
 
 const repositories = [
   UsersRepository,
@@ -35,6 +37,8 @@ const repositories = [
   WebhooksRepository,
   DeadLetterJobsRepository,
   EmergencyActionsRepository,
+  WalletVerificationsRepository,
+  MandatesRepository,
 ];
 
 @Global()

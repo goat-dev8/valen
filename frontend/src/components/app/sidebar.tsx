@@ -41,6 +41,7 @@ const PAGE_ITEMS = [
   { href: '/dashboard/governance', label: 'Governance', icon: Shield },
   { href: '/dashboard/treasury', label: 'Treasury', icon: Landmark },
   { href: '/dashboard/contracts', label: 'Contracts', icon: Blocks },
+  { href: '/dashboard/demo/robinhood-tsla', label: 'Robinhood Demo', icon: Zap },
   { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
   { href: '/dashboard/team', label: 'Team', icon: Users },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },

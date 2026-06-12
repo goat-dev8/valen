@@ -4,9 +4,10 @@ import { ExecutionsService } from './executions.service';
 import { SettlementService, SettlementWorkerService } from './settlement.service';
 import { ChainService, AlchemyService, SettlementChainService } from './chain.service';
 import { QueuesModule } from '../../queues/queues.module';
+import { MandatesModule } from '../mandates/mandates.module';
 
 @Module({
-  imports: [QueuesModule],
+  imports: [QueuesModule, MandatesModule],
   controllers: [ExecutionsController, SettlementController],
   providers: [
     ExecutionsService,

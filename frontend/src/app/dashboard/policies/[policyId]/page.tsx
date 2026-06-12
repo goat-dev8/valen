@@ -11,6 +11,11 @@ export default function PolicyDetailPage() {
   const params = useParams();
   const policyId = params.policyId as string;
   const { data: policy, isLoading, error } = usePolicy(policyId);
+  const activeVersion =
+    policy?.versions.find((version) => version.id === policy.activeVersionId) ??
+    policy?.versions.find((version) => version.status === 'active') ??
+    policy?.versions[0];
+  const permissions = (activeVersion?.rules?.permissions as Record<string, unknown> | undefined) ?? null;
 
   return (
     <div className="space-y-6">
@@ -35,6 +40,24 @@ export default function PolicyDetailPage() {
                 <div><dt>Active Version</dt><dd className="font-mono text-xs">{policy.activeVersionId ?? '—'}</dd></div>
                 <div><dt>Created</dt><dd>{new Date(policy.createdAt).toLocaleString()}</dd></div>
               </dl>
+            </div>
+
+            <div className="app-card">
+              <h3 className="app-card-title">Permission Rules</h3>
+              {!permissions ? (
+                <p className="mt-3 text-sm text-[#64748b]">No permission rules are available for this policy version yet.</p>
+              ) : (
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {Object.entries(permissions).map(([key, value]) => (
+                    <div key={key} className="rounded-2xl border border-[#eef0f3] p-4">
+                      <p className="text-xs uppercase tracking-[0.16em] text-[#64748b]">{key}</p>
+                      <p className="mt-2 break-words text-sm font-medium text-[#012b54]">
+                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="app-card">
