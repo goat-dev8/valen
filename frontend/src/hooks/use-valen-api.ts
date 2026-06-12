@@ -4,13 +4,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/org-context';
 import { api } from '@/lib/api';
+import { asArray } from '@/lib/array';
 import type {
   ApprovalInput,
+  ApiKeyDto,
   CreateExecutionInput,
   CreateSignedMandateDto,
+  MandateDto,
   MandateTypedDataRequestDto,
   UpdateOrganizationInput,
   WalletChallengeDto,
+  WalletVerificationDto,
   WalletVerifyDto,
 } from '@/types/api';
 
@@ -43,6 +47,7 @@ export function useAgentApiKeys(agentId: string) {
   return useQuery({
     queryKey: ['agent-api-keys', orgId, agentId],
     queryFn: () => api.agents.listApiKeys(token!, orgId!, agentId),
+    select: (data): ApiKeyDto[] => asArray<ApiKeyDto>(data),
     enabled: enabled && Boolean(agentId),
   });
 }
@@ -128,6 +133,7 @@ export function useWalletVerifications() {
   return useQuery({
     queryKey: ['wallet-verifications', orgId],
     queryFn: () => api.wallets.list(token!, orgId!),
+    select: (data): WalletVerificationDto[] => asArray<WalletVerificationDto>(data),
     enabled,
   });
 }
@@ -155,6 +161,7 @@ export function useMandates() {
   return useQuery({
     queryKey: ['mandates', orgId],
     queryFn: () => api.mandates.list(token!, orgId!),
+    select: (data): MandateDto[] => asArray<MandateDto>(data),
     enabled,
   });
 }

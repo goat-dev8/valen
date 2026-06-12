@@ -1,4 +1,5 @@
 import { ApiClientError, apiRequest, apiRequestOrNull } from '@/lib/api-client';
+import { asArray } from '@/lib/array';
 import type {
   AgentDto,
   AgentWalletDto,
@@ -66,9 +67,7 @@ function orgPath(orgId: string, suffix: string) {
 }
 
 function normalizeList<T>(data: T[] | PaginatedResult<T> | null | undefined): T[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  return Array.isArray(data.items) ? data.items : [];
+  return asArray(data);
 }
 
 export const api = {
@@ -89,7 +88,10 @@ export const api = {
 
   wallets: {
     list: (token: string, orgId: string) =>
-      apiRequest<WalletVerificationDto[]>(orgPath(orgId, '/wallets'), { token }),
+      apiRequest<WalletVerificationDto[] | PaginatedResult<WalletVerificationDto>>(
+        orgPath(orgId, '/wallets'),
+        { token },
+      ).then(normalizeList),
     challenge: (token: string, orgId: string, body: WalletChallengeDto) =>
       apiRequest<WalletChallengeResponseDto>(orgPath(orgId, '/wallets/challenge'), {
         method: 'POST',
@@ -106,7 +108,9 @@ export const api = {
 
   mandates: {
     list: (token: string, orgId: string) =>
-      apiRequest<MandateDto[]>(orgPath(orgId, '/mandates'), { token }),
+      apiRequest<MandateDto[] | PaginatedResult<MandateDto>>(orgPath(orgId, '/mandates'), { token }).then(
+        normalizeList,
+      ),
     typedData: (token: string, orgId: string, body: MandateTypedDataRequestDto) =>
       apiRequest<MandateTypedDataResponseDto>(orgPath(orgId, '/mandates/typed-data'), {
         method: 'POST',
@@ -162,7 +166,9 @@ export const api = {
       body: { name: string; scopes: string[]; expiresAt?: string; mandateId?: string },
     ) => apiRequest<ApiKeyDto>(orgPath(orgId, `/agents/${agentId}/api-keys`), { method: 'POST', body, token }),
     listApiKeys: (token: string, orgId: string, agentId: string) =>
-      apiRequest<ApiKeyDto[]>(orgPath(orgId, `/agents/${agentId}/api-keys`), { token }),
+      apiRequest<ApiKeyDto[] | PaginatedResult<ApiKeyDto>>(orgPath(orgId, `/agents/${agentId}/api-keys`), {
+        token,
+      }).then(normalizeList),
   },
 
   policies: {

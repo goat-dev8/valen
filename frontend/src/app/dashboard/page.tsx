@@ -72,8 +72,8 @@ export default function DashboardPage() {
     agents: totalAgents?.items,
     policies,
     executions: allExec?.items,
-    ownerWalletVerified: walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false,
-    signedMandateCount: mandates?.filter((mandate) => mandate.status === 'active').length ?? 0,
+    ownerWalletVerified: (walletVerifications ?? []).some((wallet) => wallet.status === 'verified'),
+    signedMandateCount: (mandates ?? []).filter((mandate) => mandate.status === 'active').length,
   });
   const progress = setupProgress(setupSteps);
   const nextStep = setupSteps.find((step) => !step.complete);
