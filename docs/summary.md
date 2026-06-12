@@ -2048,13 +2048,14 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | 2026-06-13 03:40 | 7 Intent (recovery) | — | Prior execution `e0424693…` also **Executed** after settlement fixes; old pre-fix runs `d2c1ac09…`, `414c0d56…` remain **Failed** (expected) | — | — | **PASS** (recovered) |
 | 2026-06-13 03:45 | Production page smoke | — | All 14 dashboard routes load authenticated (Dashboard, Executions, Approvals, Settlements, Wallets, Agents, Policies, Compliance, Audit, Governance, Treasury, Contracts, Robinhood Demo, Webhooks, Team, Settings) | — | — | **PASS** |
 | 2026-06-13 03:45 | Mission Control | — | Dashboard shows "Your governed agent flow is ready"; 2 executed / 4 total intents; 2 successful settlements | — | — | **PASS** |
+| 2026-06-13 04:00 | 18 Robinhood intent | Intent Builder: "No active mandate matches…" with Robinhood Demo template | Mandate `aab33461…` allows `transfer` + `native`; template uses `custom` + `TSLA`; frontend only matched `demo_trade` not `transfer` | Shared `mandate-match.ts`; `custom` accepts `transfer` on frontend + backend | `frontend/src/lib/mandate-match.ts`, `frontend/src/app/dashboard/executions/new/page.tsx`, `backend/src/modules/mandates/mandates.service.ts`, `docs/summary.md` | FIX commit `8a12496` — **PUSH + REDEPLOY REQUIRED** |
 
 ### E2E progress (production — 2026-06-13)
 
 | Step | Area | Status | Evidence |
 |------|------|--------|----------|
 | 1–4 | Org / Agent / Policy / Wallet verify | **PASS** | Mission Control checklist complete |
-| 5 | Mandate signing | **PASS** | `6ef127ee…` active on 421614 |
+| 5 | Mandate signing | **PASS** | Arbitrum `6ef127ee…` (421614) + Robinhood `aab33461…` (46630) both active |
 | 6 | API key | **PASS** | Mandate-bound key on agent `valen` |
 | 7 | Intent submit | **PASS** | `d872b0a7-e7de-4a86-887b-b6ac682c7173` |
 | 8 | Compliance | **PASS** | onchain-stylus ONCHAIN_ENGINE_ATTESTED |
@@ -2062,9 +2063,54 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | 10 | Policy / approval | **PASS** | Auto-approved (no human approval required) |
 | 11 | Settlement | **PASS** | Confirmed; relayer `0xf76e…71a3`; block 276595222 |
 | 12 | Proof | **PASS** | Submit / approve / execute tx hashes on proof page |
-| 13–17 | Audit / Governance / Treasury / Robinhood | **SMOKE PASS** | Pages load; Robinhood demo shell OK; governance timelock unchanged |
+| 13–17 | Audit / Governance / Treasury / Robinhood | **PARTIAL** | Pages smoke PASS; Robinhood intent blocked until mandate matcher fix deploys |
+| 18 | Robinhood intent | **PENDING RETEST** | Fix `8a12496` committed locally — **PUSH + REDEPLOY REQUIRED** (Render + Vercel) |
+
+### Production E2E — what we tested, fixed, and what remains (2026-06-13)
+
+**Environment:** Org `702be0ea…` · Agent `valen` (`64f56184…`) · Wallet `0xf76e…71a3` · Frontend https://valenai.vercel.app · API https://valen-api-m3g4.onrender.com
+
+#### Completed & passing
+| # | Step | Result |
+|---|------|--------|
+| 1 | Organization setup | **PASS** |
+| 2 | Agent register + activate (`valen`) | **PASS** |
+| 3 | Policy create (Conservative Transfer Guard) | **PASS** |
+| 4 | Wallet verify (Arbitrum Sepolia + Robinhood) | **PASS** |
+| 5 | Mandate sign — Arbitrum `6ef127ee…` chain 421614 | **PASS** |
+| 5b | Mandate sign — Robinhood `aab33461…` chain 46630 | **PASS** |
+| 6 | Mandate-bound API key (`E2E production key`) | **PASS** |
+| 7–12 | Arbitrum intent → compliance → risk → policy → settlement → proof | **PASS** — `d872b0a7-e7de-4a86-887b-b6ac682c7173` executed; Arbiscan tx confirmed |
+| — | Mission Control “flow is ready” | **PASS** |
+| — | 14 dashboard pages smoke test | **PASS** |
+
+#### Bugs found & fixed (commits on `main`)
+| Issue | Fix | Commit |
+|-------|-----|--------|
+| Policy submit role | Added `organization_owner` to policy roles | `31a9989` |
+| Mandate UI wrong chain | Authority chain selector vs Privy chain | `43ec8f4` |
+| Empty mandate/policy lists | API `{ data: [] }` envelope unwrap | `0c0939c` |
+| No wallet network switch | Auto add/switch chain + banner | `4b5ae3d`, `5802f96` |
+| Mandate signature verify fail | Verify signed typed data; viem hash | `86eddd5` |
+| BigInt JSON 500 on POST mandates | `serializeTypedDataForApi()` | `894a753` |
+| Decimal ETH amount pipeline fail | `parseExecutionAmountWei()` | `20285c0` |
+| Nonce too low / premature failed | Settlement relayer mandate + nonce retry | `636bc0f` |
+| Native asset mismatch settlement | `resolveOnChainAssetAddress()` | `694ab95` |
+| Recovery re-enqueue loop | Cooldown + skip terminal failed settlements | `694ab95` |
+| Robinhood intent mandate mismatch | `custom` action accepts `transfer` mandate | `8a12496` |
+
+#### Still open / not yet passed
+| Item | Status | Notes |
+|------|--------|-------|
+| Robinhood Demo intent submit | **FIX READY** | After redeploy, Robinhood template should match mandate `aab33461…` |
+| Robinhood full pipeline (46630 settlement) | **NOT STARTED** | Needs intent submit + worker on Robinhood chain |
+| API-key programmatic intent (Render API) | **NOT STARTED** | Key created; not exercised via curl |
+| Governance execute proof | **BLOCKED** | 86400s timelock (by design) |
+| Dedicated relayer `PRIVATE_KEY` | **RECOMMENDED** | Same key as user wallet causes nonce races |
+| Old failed executions | **EXPECTED** | `d2c1ac09…`, `414c0d56…` pre-fix; ignore |
+| Wallets chain banner (4331028) | **COSMETIC** | Misconfigured chain ID display; signing works in browser popup |
 
 **PR #4 verdict:** Implementation matches the frontend integration masterplan for wallet verification, signed mandates, mandate-bound API keys, onboarding/setup checklist, policy/intent templates, wallet-signed approvals, pipeline/proof UI, and Robinhood demo shell. Review fixes closed the remaining P0 enforcement gaps without changing architecture.
 
-**Remaining non-blocking notes:** `wallet_verifications` has no RLS (backend-only access today); Robinhood intent template uses `custom` action type while policy template lists `demo_trade` — backend mandate validation maps `custom` → `demo_trade`; governance execute proof still blocked by 86400s timelock (unchanged).
+**Remaining non-blocking notes:** `wallet_verifications` has no RLS (backend-only access today); Robinhood intent template uses `custom` action type while mandate allows `transfer` — fix maps both; governance execute proof still blocked by 86400s timelock (unchanged).
 

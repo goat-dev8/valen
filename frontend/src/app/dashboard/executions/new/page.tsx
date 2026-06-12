@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/app/page-header';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { useAgents, useCreateExecution, useMandates } from '@/hooks/use-valen-api';
 import { INTENT_TEMPLATES, intentTemplateById } from '@/lib/intent-templates';
+import { mandateMatchesIntent } from '@/lib/mandate-match';
 import { formatApiErrorMessage } from '@/lib/utils';
 
 export default function SubmitIntentPage() {
@@ -22,25 +23,23 @@ export default function SubmitIntentPage() {
   const [agentId, setAgentId] = useState(searchParams.get('agentId') ?? '');
   const [amount, setAmount] = useState(intentTemplateById(templateId).amount);
   const [targetAddress, setTargetAddress] = useState(intentTemplateById(templateId).targetAddress);
+  const [assetAddress, setAssetAddress] = useState(intentTemplateById(templateId).assetAddress ?? '');
   const selectedTemplate = intentTemplateById(templateId);
   const selectedAgent = agents?.items.find((agent) => agent.id === agentId) ?? agents?.items[0];
   const activeMandates = useMemo(
     () =>
-      (mandates ?? []).filter((mandate) => {
-        const actionAllowed =
-          mandate.allowedActions.includes(selectedTemplate.actionType) ||
-          mandate.allowedActions.includes('*') ||
-          (selectedTemplate.id === 'robinhood-demo' && mandate.allowedActions.includes('demo_trade'));
-        const targetAllowed = mandate.allowedTargets.includes('*') || mandate.allowedTargets.includes(targetAddress);
-        return (
-          mandate.status === 'active' &&
-          mandate.agentId === selectedAgent?.id &&
-          mandate.allowedChains.includes(selectedTemplate.targetChainId) &&
-          actionAllowed &&
-          targetAllowed
-        );
-      }),
-    [mandates, selectedAgent?.id, selectedTemplate, targetAddress],
+      (mandates ?? []).filter((mandate) =>
+        mandateMatchesIntent({
+          mandate,
+          agentId: selectedAgent?.id,
+          chainId: selectedTemplate.targetChainId,
+          actionType: selectedTemplate.actionType,
+          templateId: selectedTemplate.id,
+          targetAddress,
+          assetAddress: assetAddress || selectedTemplate.assetAddress,
+        }),
+      ),
+    [mandates, selectedAgent?.id, selectedTemplate, targetAddress, assetAddress],
   );
   const selectedMandate = activeMandates[0];
   const submitBlockedReason = !selectedAgent
@@ -59,6 +58,7 @@ export default function SubmitIntentPage() {
     setTemplateId(value);
     setAmount(nextTemplate.amount);
     setTargetAddress(nextTemplate.targetAddress);
+    setAssetAddress(nextTemplate.assetAddress ?? '');
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -164,7 +164,7 @@ export default function SubmitIntentPage() {
           </div>
           <div className="app-form-group">
             <label htmlFor="assetAddress">Asset</label>
-            <input id="assetAddress" name="assetAddress" type="text" defaultValue={selectedTemplate.assetAddress ?? ''} placeholder="native or token address" className="app-input" />
+            <input id="assetAddress" name="assetAddress" type="text" value={assetAddress} onChange={(e) => setAssetAddress(e.target.value)} placeholder="native or token address" className="app-input" />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           {submitBlockedReason && <p className="text-sm font-medium text-amber-700">{submitBlockedReason}</p>}

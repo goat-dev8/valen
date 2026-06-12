@@ -81,6 +81,7 @@ function actionAllowed(allowedActions: string[], actionType: string): boolean {
   if (!allowedActions.length) return true;
   if (allowedActions.includes(actionType)) return true;
   if (actionType === 'custom' && allowedActions.includes('demo_trade')) return true;
+  if (actionType === 'custom' && allowedActions.includes('transfer')) return true;
   return false;
 }
 
