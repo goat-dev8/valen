@@ -1,19 +1,14 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { MAINTENANCE_QUEUE } from '../../common/constants/queues.constant';
 import { DatabaseService } from '../../database/database.service';
 
 @Injectable()
-export class MandateExpiryJob implements OnModuleInit, OnModuleDestroy {
+export class MandateExpiryJob {
   private readonly logger = new Logger(MandateExpiryJob.name);
-  private timer?: NodeJS.Timeout;
 
   constructor(private readonly db: DatabaseService) {}
-
-  onModuleInit() {
-    this.timer = setInterval(() => void this.run(), 60 * 60 * 1000);
-  }
 
   async run() {
     this.logger.log('Running mandate expiry job');
@@ -22,22 +17,13 @@ export class MandateExpiryJob implements OnModuleInit, OnModuleDestroy {
        WHERE status = 'active' AND valid_until < now()`,
     );
   }
-
-  onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
-  }
 }
 
 @Injectable()
-export class SettlementReconciliationJob implements OnModuleInit, OnModuleDestroy {
+export class SettlementReconciliationJob {
   private readonly logger = new Logger(SettlementReconciliationJob.name);
-  private timer?: NodeJS.Timeout;
 
   constructor(private readonly db: DatabaseService) {}
-
-  onModuleInit() {
-    this.timer = setInterval(() => void this.run(), 5 * 60 * 1000);
-  }
 
   async run() {
     this.logger.log('Running settlement reconciliation job');
@@ -45,36 +31,22 @@ export class SettlementReconciliationJob implements OnModuleInit, OnModuleDestro
       `SELECT id FROM settlements WHERE status = 'submitted' AND submitted_at < now() - interval '30 minutes' LIMIT 100`,
     );
   }
-
-  onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
-  }
 }
 
 @Injectable()
-export class StylusKeepaliveJob implements OnModuleInit, OnModuleDestroy {
+export class StylusKeepaliveJob {
   private readonly logger = new Logger(StylusKeepaliveJob.name);
-  private timer?: NodeJS.Timeout;
 
-  onModuleInit() {
-    this.timer = setInterval(() => this.logger.debug('Stylus keepalive check'), 24 * 60 * 60 * 1000);
-  }
-
-  onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
+  async run() {
+    this.logger.log('Running Stylus keepalive check');
   }
 }
 
 @Injectable()
-export class DlqMonitorJob implements OnModuleInit, OnModuleDestroy {
+export class DlqMonitorJob {
   private readonly logger = new Logger(DlqMonitorJob.name);
-  private timer?: NodeJS.Timeout;
 
   constructor(private readonly db: DatabaseService) {}
-
-  onModuleInit() {
-    this.timer = setInterval(() => void this.run(), 10 * 60 * 1000);
-  }
 
   async run() {
     const result = await this.db.query<{ count: string }>(
@@ -82,23 +54,15 @@ export class DlqMonitorJob implements OnModuleInit, OnModuleDestroy {
     );
     const count = parseInt(result.rows[0]?.count ?? '0', 10);
     if (count > 0) this.logger.warn(`Open dead letter jobs: ${count}`);
-  }
-
-  onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
+    else this.logger.log('No open dead letter jobs');
   }
 }
 
 @Injectable()
-export class VendorCacheExpiryJob implements OnModuleInit, OnModuleDestroy {
+export class VendorCacheExpiryJob {
   private readonly logger = new Logger(VendorCacheExpiryJob.name);
-  private timer?: NodeJS.Timeout;
 
   constructor(@InjectQueue(MAINTENANCE_QUEUE) private readonly maintenanceQueue: Queue) {}
-
-  onModuleInit() {
-    this.timer = setInterval(() => void this.run(), 60 * 60 * 1000);
-  }
 
   async run() {
     this.logger.log('Enqueueing vendor cache expiry maintenance');
@@ -109,8 +73,38 @@ export class VendorCacheExpiryJob implements OnModuleInit, OnModuleDestroy {
       task: 'expire_nonce_locks',
     });
   }
+}
 
-  onModuleDestroy() {
-    if (this.timer) clearInterval(this.timer);
+@Injectable()
+export class SchedulerRunner {
+  private readonly logger = new Logger(SchedulerRunner.name);
+
+  constructor(
+    private readonly mandateExpiryJob: MandateExpiryJob,
+    private readonly settlementReconciliationJob: SettlementReconciliationJob,
+    private readonly stylusKeepaliveJob: StylusKeepaliveJob,
+    private readonly dlqMonitorJob: DlqMonitorJob,
+    private readonly vendorCacheExpiryJob: VendorCacheExpiryJob,
+  ) {}
+
+  async runScheduledJobs(now = new Date()): Promise<void> {
+    const minute = now.getUTCMinutes();
+    const hour = now.getUTCHours();
+
+    await this.settlementReconciliationJob.run();
+    await this.dlqMonitorJob.run();
+
+    if (minute === 0) {
+      await this.mandateExpiryJob.run();
+      await this.vendorCacheExpiryJob.run();
+    }
+
+    if (minute === 0 && hour === 0) {
+      await this.stylusKeepaliveJob.run();
+    }
+
+    this.logger.log(
+      `Scheduler tick complete (UTC ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')})`,
+    );
   }
 }

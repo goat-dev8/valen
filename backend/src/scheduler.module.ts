@@ -8,6 +8,7 @@ import { ObservabilityModule } from './modules/observability/observability.modul
 import {
   DlqMonitorJob,
   MandateExpiryJob,
+  SchedulerRunner,
   SettlementReconciliationJob,
   StylusKeepaliveJob,
   VendorCacheExpiryJob,
@@ -28,6 +29,7 @@ import {
     StylusKeepaliveJob,
     DlqMonitorJob,
     VendorCacheExpiryJob,
+    SchedulerRunner,
   ],
 })
 export class SchedulerModule {}
