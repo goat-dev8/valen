@@ -17,6 +17,7 @@ import {
   DEFAULT_E2E_ASSET,
   DEFAULT_SETTLEMENT_AMOUNT_WEI,
   MANDATE_SCOPE_HASH,
+  ROBINHOOD_TESTNET_E2E_MANDATE_ID,
 } from '../../common/constants/onchain.constants';
 import { writeContractWithFreshNonce } from '../../common/utils/chain-write.util';
 
@@ -32,6 +33,7 @@ const mandateRegistryAbi = parseAbi([
 
 const KNOWN_MANDATE_IDS: Partial<Record<number, Hex[]>> = {
   421614: [ARBITRUM_SEPOLIA_E2E_MANDATE_ID],
+  46630: [ROBINHOOD_TESTNET_E2E_MANDATE_ID],
 };
 
 @Injectable()

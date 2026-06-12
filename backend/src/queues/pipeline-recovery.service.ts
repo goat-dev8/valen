@@ -19,6 +19,15 @@ type StuckExecutionRow = {
 
 const SETTLEMENT_RECOVERY_COOLDOWN_MS = 120_000;
 
+function isRecoverableSettlementFailure(failureReason: string | null | undefined): boolean {
+  if (!failureReason) return false;
+  return (
+    failureReason.includes('SettlementAlreadyUsed') ||
+    failureReason.includes('0x087103d2') ||
+    failureReason.includes('Insufficient relayer balance')
+  );
+}
+
 @Injectable()
 export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PipelineRecoveryService.name);
@@ -189,6 +198,14 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     if (settlement?.status === 'failed' || settlement?.status === 'reverted') {
+      if (!isRecoverableSettlementFailure(settlement.failure_reason)) {
+        return;
+      }
+      if (this.isSettlementRecentlyActive(settlement.updated_at)) {
+        return;
+      }
+      await this.enqueueExistingSettlement(payload, settlement.id);
+      this.logger.warn(`Re-enqueued recoverable failed settlement for ${executionId}`);
       return;
     }
     if (settlement && this.isSettlementRecentlyActive(settlement.updated_at)) {
@@ -222,7 +239,12 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     if (existing?.status === 'failed' || existing?.status === 'reverted') {
-      return;
+      if (!isRecoverableSettlementFailure(existing.failure_reason)) {
+        return;
+      }
+      if (this.isSettlementRecentlyActive(existing.updated_at)) {
+        return;
+      }
     }
     if (existing && this.isSettlementRecentlyActive(existing.updated_at)) {
       return;
@@ -270,7 +292,12 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     if (settlement.status === 'failed' || settlement.status === 'reverted') {
-      return;
+      if (!isRecoverableSettlementFailure(settlement.failure_reason)) {
+        return;
+      }
+      if (this.isSettlementRecentlyActive(settlement.updated_at)) {
+        return;
+      }
     }
     if (this.isSettlementRecentlyActive(settlement.updated_at)) {
       return;

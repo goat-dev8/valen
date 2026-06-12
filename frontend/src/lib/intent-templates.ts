@@ -27,7 +27,7 @@ export const INTENT_TEMPLATES: IntentTemplate[] = [
     targetChainId: 46630,
     targetAddress: '0x0000000000000000000000000000000000000000',
     assetAddress: 'TSLA',
-    amount: '1',
+    amount: '0.001',
   },
 ];
 

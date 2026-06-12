@@ -97,7 +97,24 @@ const settlementAbi = parseAbi([
   'function submitSettlement((bytes32 executionHash,bytes32 organizationHash,address agent,bytes32 mandateId,bytes32 actionType,uint64 targetChainId,address target,address asset,uint256 amount),(bytes32 principalHash,bytes32 jurisdictionHash,address counterparty,bytes32[] attestationHashes,uint64[] attestationExpiries),(uint16 amountFactor,uint16 assetFactor,uint16 counterpartyFactor,uint16 velocityFactor,uint16 mandateUsageFactor,uint16 anomalyFactor),(bytes32 complianceHash,bytes32 riskHash,bytes32 policyVersionHash,bytes32 mandateScopeHash,uint64 timeBucket),bytes32[] ruleCommitmentHashes,bytes32 mandateStatusHash,bytes32 eligibilityResultHash,bytes32 historicalSummaryHash,bytes32 externalRiskAttestationHash,uint64 externalRiskExpiry,bytes32 eligibilityAttestationHash,uint64 eligibilityExpiry,bytes callData) returns (bytes32)',
   'function approveSettlement(bytes32 settlementId)',
   'function executeSettlement(bytes32 settlementId, bytes callData) payable',
+  'function getSettlement(bytes32 settlementId) view returns ((bytes32 settlementId, bytes32 executionHash, bytes32 organizationHash, bytes32 mandateId, bytes32 policyHash, bytes32 complianceHash, bytes32 riskHash, address agent, address target, address asset, uint256 value, bytes32 callDataHash, bytes32 actionHash, uint8 status, uint16 reasonCode))',
 ]);
+
+const SETTLEMENT_STATUS = {
+  none: 0,
+  requested: 1,
+  approved: 2,
+  executed: 3,
+  failed: 4,
+  cancelled: 5,
+} as const;
+
+const EMPTY_TX_HASH = `0x${'0'.repeat(64)}` as Hex;
+
+function isSettlementAlreadyUsedError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('SettlementAlreadyUsed') || message.includes('0x087103d2');
+}
 
 type Bytes32 = `0x${string}`;
 
@@ -251,6 +268,24 @@ function getNativeValue(execution: ExecutionRow): bigint {
 export class SettlementChainService {
   constructor(private readonly chainService: ChainService) {}
 
+  private async readOnChainSettlementStatus(
+    publicClient: PublicClient,
+    settlementAddress: Address,
+    settlementId: Bytes32,
+  ): Promise<number | null> {
+    try {
+      const record = await publicClient.readContract({
+        address: settlementAddress,
+        abi: settlementAbi,
+        functionName: 'getSettlement',
+        args: [settlementId],
+      });
+      return Number(record.status);
+    } catch {
+      return null;
+    }
+  }
+
   async executeSettlement(execution: ExecutionRow): Promise<OnChainSettlementResult> {
     const metadata = parseMetadata(execution);
     const chainId = execution.target_chain_id;
@@ -315,39 +350,81 @@ export class SettlementChainService {
       ),
     );
 
-    const submitTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
-      address: settlementAddress,
-      abi: settlementAbi,
-      functionName: 'submitSettlement',
-      args: [
-        intent,
-        complianceContext,
-        riskFactors,
-        policyFacts,
-        metadata.ruleCommitmentHashes,
-        metadata.mandateStatusHash,
-        metadata.eligibilityResultHash,
-        metadata.historicalSummaryHash,
-        metadata.externalRiskAttestationHash,
-        BigInt(metadata.externalRiskExpiry),
-        metadata.eligibilityAttestationHash,
-        BigInt(metadata.eligibilityExpiry),
-        metadata.callData,
-      ],
-      account,
-      chain: null,
-    });
-    await publicClient.waitForTransactionReceipt({ hash: submitTxHash });
+    let onChainStatus =
+      (await this.readOnChainSettlementStatus(publicClient, settlementAddress, settlementId)) ??
+      SETTLEMENT_STATUS.none;
 
-    const approveTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
-      address: settlementAddress,
-      abi: settlementAbi,
-      functionName: 'approveSettlement',
-      args: [settlementId],
-      account,
-      chain: null,
-    });
-    await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
+    if (onChainStatus === SETTLEMENT_STATUS.executed) {
+      return {
+        settlementId,
+        submitTxHash: EMPTY_TX_HASH,
+        approveTxHash: EMPTY_TX_HASH,
+        executeTxHash: EMPTY_TX_HASH,
+        executeBlockNumber: 0n,
+      };
+    }
+
+    let submitTxHash = EMPTY_TX_HASH;
+    if (onChainStatus < SETTLEMENT_STATUS.requested) {
+      try {
+        submitTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
+          address: settlementAddress,
+          abi: settlementAbi,
+          functionName: 'submitSettlement',
+          args: [
+            intent,
+            complianceContext,
+            riskFactors,
+            policyFacts,
+            metadata.ruleCommitmentHashes,
+            metadata.mandateStatusHash,
+            metadata.eligibilityResultHash,
+            metadata.historicalSummaryHash,
+            metadata.externalRiskAttestationHash,
+            BigInt(metadata.externalRiskExpiry),
+            metadata.eligibilityAttestationHash,
+            BigInt(metadata.eligibilityExpiry),
+            metadata.callData,
+          ],
+          account,
+          chain: null,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: submitTxHash });
+        onChainStatus = SETTLEMENT_STATUS.requested;
+      } catch (error) {
+        if (!isSettlementAlreadyUsedError(error)) {
+          throw error;
+        }
+        onChainStatus =
+          (await this.readOnChainSettlementStatus(publicClient, settlementAddress, settlementId)) ??
+          SETTLEMENT_STATUS.requested;
+      }
+    }
+
+    let approveTxHash = EMPTY_TX_HASH;
+    if (onChainStatus === SETTLEMENT_STATUS.requested) {
+      approveTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
+        address: settlementAddress,
+        abi: settlementAbi,
+        functionName: 'approveSettlement',
+        args: [settlementId],
+        account,
+        chain: null,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
+      onChainStatus = SETTLEMENT_STATUS.approved;
+    }
+
+    if (onChainStatus < SETTLEMENT_STATUS.approved) {
+      throw new Error(`Settlement ${settlementId} is not approved on chain (status=${onChainStatus})`);
+    }
+
+    const relayerBalance = await publicClient.getBalance({ address: account.address });
+    if (relayerBalance < amount) {
+      throw new Error(
+        `Insufficient relayer balance on chain ${chainId}: have ${relayerBalance} wei, need ${amount} wei for settlement execution`,
+      );
+    }
 
     const executeTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
       address: settlementAddress,

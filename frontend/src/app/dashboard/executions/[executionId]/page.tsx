@@ -24,7 +24,10 @@ import {
 import { signApprovalProof } from '@/lib/approval-signature';
 import { explorerAddressUrl, explorerTxUrl } from '@/lib/explorer';
 
-function riskStatusMessage(status: string): string {
+function riskStatusMessage(status: string, hasRiskScore: boolean): string {
+  if (status === 'failed' && hasRiskScore) {
+    return 'Execution failed after risk was calculated (usually settlement).';
+  }
   if (status === 'failed') return 'Execution failed before risk was calculated.';
   if (status === 'compliance_failed') return 'Execution failed during compliance; risk was not calculated.';
   if (status === 'risk_failed') return 'Risk evaluation failed for this execution.';
@@ -193,7 +196,7 @@ export default function ExecutionDetailPage() {
                 <div className="app-card">
                   <h3 className="app-card-title mb-3">Risk Score</h3>
                   {!risk ? (
-                    <p className="text-sm text-[#64748b]">{riskStatusMessage(ex.status)}</p>
+                    <p className="text-sm text-[#64748b]">{riskStatusMessage(ex.status, Boolean(risk))}</p>
                   ) : (
                     <>
                       <div className="flex items-center gap-3">
