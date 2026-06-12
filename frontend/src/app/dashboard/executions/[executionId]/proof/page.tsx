@@ -17,8 +17,13 @@ import {
 } from '@/hooks/use-valen-api';
 import { explorerTxUrl } from '@/lib/explorer';
 
+function isValidTxHash(txHash?: string | null): txHash is string {
+  if (!txHash) return false;
+  return !/^0x0+$/i.test(txHash);
+}
+
 function TxLink({ chainId, txHash, label }: { chainId: number; txHash?: string | null; label: string }) {
-  if (!txHash) return <span className="text-[#64748b]">{label}: unavailable</span>;
+  if (!isValidTxHash(txHash)) return <span className="text-[#64748b]">{label}: unavailable</span>;
   return (
     <a href={explorerTxUrl(chainId, txHash)} target="_blank" rel="noreferrer" className="app-link inline-flex items-center gap-1">
       {label}: {txHash.slice(0, 14)}...

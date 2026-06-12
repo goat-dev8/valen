@@ -358,10 +358,11 @@ export class SettlementWorkerService {
 
     try {
       const result = await this.settlementChainService.executeSettlement(execution);
+      const omitZeroTxHash = (hash: string) => (/^0x0+$/i.test(hash) ? undefined : hash);
       await this.settlementsRepository.updateStatus(settlementId, 'confirmed', {
-        txHash: result.executeTxHash,
-        submitTxHash: result.submitTxHash,
-        approveTxHash: result.approveTxHash,
+        txHash: omitZeroTxHash(result.executeTxHash),
+        submitTxHash: omitZeroTxHash(result.submitTxHash),
+        approveTxHash: omitZeroTxHash(result.approveTxHash),
         onChainSettlementId: result.settlementId,
         blockNumber: result.executeBlockNumber,
         submittedAt: new Date(),

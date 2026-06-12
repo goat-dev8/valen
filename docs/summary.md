@@ -2049,24 +2049,45 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | 2026-06-13 03:45 | Production page smoke | — | All 14 dashboard routes load authenticated (Dashboard, Executions, Approvals, Settlements, Wallets, Agents, Policies, Compliance, Audit, Governance, Treasury, Contracts, Robinhood Demo, Webhooks, Team, Settings) | — | — | **PASS** |
 | 2026-06-13 03:45 | Mission Control | — | Dashboard shows "Your governed agent flow is ready"; 2 executed / 4 total intents; 2 successful settlements | — | — | **PASS** |
 | 2026-06-13 04:00 | 18 Robinhood intent | Intent Builder: "No active mandate matches…" with Robinhood Demo template | Mandate `aab33461…` allows `transfer` + `native`; template uses `custom` + `TSLA`; frontend only matched `demo_trade` not `transfer` | Shared `mandate-match.ts`; `custom` accepts `transfer` on frontend + backend | `frontend/src/lib/mandate-match.ts`, `frontend/src/app/dashboard/executions/new/page.tsx`, `backend/src/modules/mandates/mandates.service.ts`, `docs/summary.md` | FIX `b47b688` — **PASS** (mandate match after deploy) |
-| 2026-06-13 05:20 | 18–12 Robinhood pipeline | Execution `4f99b5fc…` **Failed** after compliance PASS; UI said "failed before risk" but risk score 10/low exists | Submit+approve on chain 46630 succeeded; execute needs 0.5 ETH but relayer has ~0.009 ETH; recovery retried submit → `SettlementAlreadyUsed (0x087103d2)` | Idempotent settlement resume (skip submit when on-chain Approved); Robinhood E2E mandate ID; demo amount `0.001` ETH; recoverable failed settlement retry; clearer risk UI message | `backend/src/modules/settlement/chain.service.ts`, `backend/src/modules/stylus/mandate-chain.service.ts`, `backend/src/common/constants/onchain.constants.ts`, `backend/src/queues/pipeline-recovery.service.ts`, `frontend/src/lib/intent-templates.ts`, `frontend/src/app/dashboard/executions/[executionId]/page.tsx`, `docs/summary.md` | FIX `0a4f786` — **PUSH + REDEPLOY REQUIRED** (Render + Vercel); submit **new** Robinhood intent at **0.001 ETH**
+| 2026-06-13 05:20 | 18–12 Robinhood pipeline | Execution `4f99b5fc…` **Failed** after compliance PASS; UI said "failed before risk" but risk score 10/low exists | Submit+approve on chain 46630 succeeded; execute needs 0.5 ETH but relayer has ~0.009 ETH; recovery retried submit → `SettlementAlreadyUsed (0x087103d2)` | Idempotent settlement resume; Robinhood E2E mandate ID; demo amount `0.001` ETH | `592c5df` | FIX deployed |
+| 2026-06-13 06:40 | 18–12 Robinhood pipeline (retest) | — | Intent Builder Robinhood Demo 0.001 ETH; mandate `aab33461…`; target `0x18398a…` | — | — | **PASS** — `7cfa54c3-7cea-4cf3-bb6d-b207b3045b4c` **Executed** on 46630; compliance ONCHAIN_ENGINE_ATTESTED; risk 10/low; settlement confirmed submit `0x641d…` approve `0xb620…` execute `0x200a…`; block 74414881; on-chain settlement `0xf3d27b…` |
+| 2026-06-13 06:45 | Production page smoke (post-Robinhood) | — | User session on https://valenai.vercel.app — Intent Builder, Execution detail, Proof page load; Mission Control + sidebar routes reachable | Proof page showed **Executed** badge; settlement tx links may show unavailable until refresh (DB has tx hashes) | — | **PASS** (pages load; Robinhood E2E confirmed in DB) |
 
-### E2E progress (production — 2026-06-13)
+### E2E progress (production — 2026-06-13, updated)
 
 | Step | Area | Status | Evidence |
 |------|------|--------|----------|
 | 1–4 | Org / Agent / Policy / Wallet verify | **PASS** | Mission Control checklist complete |
 | 5 | Mandate signing | **PASS** | Arbitrum `6ef127ee…` (421614) + Robinhood `aab33461…` (46630) both active |
 | 6 | API key | **PASS** | Mandate-bound key on agent `valen` |
-| 7 | Intent submit | **PASS** | `d872b0a7-e7de-4a86-887b-b6ac682c7173` |
-| 8 | Compliance | **PASS** | onchain-stylus ONCHAIN_ENGINE_ATTESTED |
-| 9 | Risk | **PASS** | Score 10 / tier low |
-| 10 | Policy / approval | **PASS** | Auto-approved (no human approval required) |
-| 11 | Settlement | **PASS** | Confirmed; relayer `0xf76e…71a3`; block 276595222 |
-| 12 | Proof | **PASS** | Submit / approve / execute tx hashes on proof page |
-| 13–17 | Audit / Governance / Treasury / Robinhood | **PARTIAL** | Pages smoke PASS; Robinhood intent blocked until mandate matcher fix deploys |
-| 18 | Robinhood intent submit | **PASS** | Mandate match fix `b47b688`; intent `4f99b5fc…` submitted |
-| 19 | Robinhood pipeline | **FAIL → FIX** | Settlement submit+approve OK; execute blocked (0.5 ETH > relayer balance); recovery hit `SettlementAlreadyUsed` — fix pending redeploy |
+| 7–12 | Arbitrum pipeline | **PASS** | `d872b0a7-e7de-4a86-887b-b6ac682c7173` executed + proof |
+| 13–17 | Audit / Governance / Treasury / pages | **SMOKE PASS** | All dashboard routes load (see page matrix below) |
+| 18 | Robinhood intent submit | **PASS** | Mandate match `b47b688`; intents `4f99b5fc…` + `7cfa54c3…` |
+| 19 | Robinhood full pipeline | **PASS** | `7cfa54c3-7cea-4cf3-bb6d-b207b3045b4c` executed on 46630 at 0.001 ETH |
+
+### Production dashboard page matrix (2026-06-13)
+
+| Route | Feature | Status | Notes |
+|-------|---------|--------|-------|
+| `/dashboard` | Mission Control + stats | **PASS** | Flow ready; executed counts update after intents |
+| `/dashboard/executions` | Execution list + status | **PASS** | Robinhood **Executed** visible |
+| `/dashboard/executions/new` | Intent Builder + templates | **PASS** | Robinhood Demo 0.001 ETH; mandate match green |
+| `/dashboard/executions/:id` | Pipeline timeline + verdicts | **PASS** | Compliance/risk/settlement sections |
+| `/dashboard/executions/:id/proof` | Proof + relayer txs | **PASS** | Status **Executed**; tx links in DB (UI refresh if unavailable) |
+| `/dashboard/approvals` | Approval queue | **PASS** | Loads; no pending for auto-approved intents |
+| `/dashboard/settlements` | Settlement list | **PASS** | Robinhood confirmed settlement present |
+| `/dashboard/wallets` | Verify wallet + sign mandate | **PASS** | 2 active mandates (421614 + 46630) |
+| `/dashboard/agents` | Agent register/activate/API keys | **PASS** | Agent `valen` active |
+| `/dashboard/policies` | Policy templates + rules | **PASS** | Conservative Transfer Guard active |
+| `/dashboard/compliance` | Compliance checks | **PASS** | Loads |
+| `/dashboard/audit` | Audit log | **PASS** | Loads |
+| `/dashboard/governance` | Governance proposals | **PASS** | Loads; execute blocked by timelock |
+| `/dashboard/treasury` | Treasury | **PASS** | Loads |
+| `/dashboard/contracts` | Contract addresses | **PASS** | Sepolia + Robinhood deployments |
+| `/dashboard/demo/robinhood-tsla` | Robinhood demo shell | **PASS** | Demo guidance page |
+| `/dashboard/webhooks` | Webhooks | **PASS** | Loads |
+| `/dashboard/team` | Team | **PASS** | Loads |
+| `/dashboard/settings` | Settings | **PASS** | Loads |
 
 ### Production E2E — what we tested, fixed, and what remains (2026-06-13)
 
@@ -2083,6 +2104,7 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | 5b | Mandate sign — Robinhood `aab33461…` chain 46630 | **PASS** |
 | 6 | Mandate-bound API key (`E2E production key`) | **PASS** |
 | 7–12 | Arbitrum intent → compliance → risk → policy → settlement → proof | **PASS** — `d872b0a7-e7de-4a86-887b-b6ac682c7173` executed; Arbiscan tx confirmed |
+| 19 | Robinhood intent → compliance → risk → policy → settlement → proof | **PASS** — `7cfa54c3-7cea-4cf3-bb6d-b207b3045b4c` executed on 46630; Robinhood explorer txs confirmed in DB |
 | — | Mission Control “flow is ready” | **PASS** |
 | — | 14 dashboard pages smoke test | **PASS** |
 
@@ -2100,19 +2122,19 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | Native asset mismatch settlement | `resolveOnChainAssetAddress()` | `694ab95` |
 | Recovery re-enqueue loop | Cooldown + skip terminal failed settlements | `694ab95` |
 | Robinhood intent mandate mismatch | `custom` action accepts `transfer` mandate | `b47b688` |
-| Robinhood settlement retry / relayer balance | Idempotent settlement resume; E2E mandate on 46630; demo amount 0.001 ETH | `0a4f786` |
+| Robinhood settlement retry / relayer balance | Idempotent settlement resume; E2E mandate on 46630; demo amount 0.001 ETH | `592c5df` |
 
 #### Still open / not yet passed
 | Item | Status | Notes |
 |------|--------|-------|
-| Robinhood Demo intent submit | **PASS** | Mandate match works after `b47b688` deploy |
-| Robinhood full pipeline (46630 settlement) | **FIX READY** | Redeploy + submit **new** intent at **0.001 ETH** (not 0.5); relayer `0xf76e…` needs ≥0.001 ETH on Robinhood |
-| Old Robinhood run `4f99b5fc…` (0.5 ETH) | **STUCK** | On-chain settlement Approved; cannot execute without 0.5 ETH on relayer — ignore; use new intent |
+| Robinhood full pipeline (46630) | **PASS** | `7cfa54c3…` executed at 0.001 ETH after `592c5df` deploy |
+| Old Robinhood run `4f99b5fc…` (0.5 ETH) | **FAILED (expected)** | Pre-fix amount; on-chain Approved but unexecutable — ignore |
 | API-key programmatic intent (Render API) | **NOT STARTED** | Key created; not exercised via curl |
 | Governance execute proof | **BLOCKED** | 86400s timelock (by design) |
 | Dedicated relayer `PRIVATE_KEY` | **RECOMMENDED** | Same key as user wallet causes nonce races |
-| Old failed executions | **EXPECTED** | `d2c1ac09…`, `414c0d56…` pre-fix; ignore |
+| Old failed executions (Arbitrum pre-fix) | **EXPECTED** | `d2c1ac09…`, `414c0d56…` — ignore |
 | Wallets chain banner (4331028) | **COSMETIC** | Misconfigured chain ID display; signing works in browser popup |
+| Proof page tx link display | **MINOR** | DB has submit/approve/execute hashes; refresh proof page if UI shows unavailable |
 
 **PR #4 verdict:** Implementation matches the frontend integration masterplan for wallet verification, signed mandates, mandate-bound API keys, onboarding/setup checklist, policy/intent templates, wallet-signed approvals, pipeline/proof UI, and Robinhood demo shell. Review fixes closed the remaining P0 enforcement gaps without changing architecture.
 
