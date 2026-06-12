@@ -23,7 +23,7 @@ import { chainName } from '@/lib/constants';
 import { explorerAddressUrl } from '@/lib/explorer';
 import { getAddress } from 'viem';
 import { prepareMandateTypedDataForSigning } from '@/lib/mandate-typed-data';
-import { ensureWalletOnChain, formatWalletChainError, getWalletChainId, isWalletChainError, resolveDisplayChainId } from '@/lib/wallet-chain';
+import { ensureWalletOnChain, formatWalletChainError, getWalletChainId, isWalletChainError, isWalletOnAuthorityChain, walletChainBannerMessage } from '@/lib/wallet-chain';
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
 
 const SUPPORTED_CHAIN_IDS = [421614, 46630] as const;
@@ -210,7 +210,7 @@ export default function WalletsPage() {
   const walletNeedsChainSwitch = Boolean(
     signableWallet?.getEthereumProvider &&
       effectiveWalletChainId &&
-      effectiveWalletChainId !== authorityChainId,
+      !isWalletOnAuthorityChain(effectiveWalletChainId, authorityChainId),
   );
   const unsupportedConnectedChain = Boolean(
     effectiveWalletChainId && !SUPPORTED_CHAIN_IDS.includes(effectiveWalletChainId as (typeof SUPPORTED_CHAIN_IDS)[number]),
@@ -263,7 +263,7 @@ export default function WalletsPage() {
       try {
         const provider = await signableWallet!.getEthereumProvider!();
         const current = await getWalletChainId(provider);
-        if (cancelled || current === authorityChainId) {
+        if (cancelled || isWalletOnAuthorityChain(current, authorityChainId)) {
           if (!cancelled) setLiveWalletChainId(current);
           return;
         }
@@ -435,9 +435,7 @@ export default function WalletsPage() {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <p className="font-semibold">Your wallet is on the wrong network</p>
           <p className="mt-2 leading-6">
-            VALEN needs <strong>{chainName(authorityChainId)}</strong> to sign mandates, but your wallet is on{' '}
-            <strong>{chainName(resolveDisplayChainId(effectiveWalletChainId) ?? effectiveWalletChainId)}</strong>.
-            VALEN will add/switch the network automatically — approve the wallet prompt on your phone. No transaction is sent.
+            {walletChainBannerMessage(effectiveWalletChainId, authorityChainId)}
           </p>
           <button
             type="button"
@@ -491,7 +489,11 @@ export default function WalletsPage() {
             </div>
             <div className="wallet-row">
               <span>Wallet network</span>
-              <strong>{effectiveWalletChainId ? chainName(resolveDisplayChainId(effectiveWalletChainId) ?? effectiveWalletChainId) : 'Unknown'}</strong>
+              <strong>
+                {effectiveWalletChainId
+                  ? `${chainName(effectiveWalletChainId)} (${effectiveWalletChainId})`
+                  : 'Unknown'}
+              </strong>
             </div>
             <div className="wallet-row">
               <span>Verification status</span>

@@ -29,9 +29,13 @@ export const VALEN_WALLET_CHAINS: Record<number, AddEthereumChainParameter> = {
   },
 };
 
-/** Common misconfiguration when decimal chain id is used as hex (46630 → 0x46630 = 288304). */
+/**
+ * Wallets sometimes add networks using decimal chain id as hex literal
+ * (e.g. 421614 → 0x421614 = 4331028, 46630 → 0x46630 = 288304).
+ */
 export const MISCONFIGURED_CHAIN_IDS: Record<number, number> = {
   288304: 46630,
+  4331028: 421614,
 };
 
 function toHexChainId(chainId: number): string {
@@ -46,6 +50,18 @@ function isUserRejected(error: unknown): boolean {
 function isChainNotAdded(error: unknown): boolean {
   const code = typeof error === 'object' && error !== null && 'code' in error ? (error as { code?: number }).code : undefined;
   return code === 4902;
+}
+
+export function isWalletOnAuthorityChain(
+  currentChainId: number | null | undefined,
+  targetChainId: number,
+): boolean {
+  if (!currentChainId) return false;
+  return currentChainId === targetChainId;
+}
+
+export function isMisconfiguredChainForTarget(currentChainId: number, targetChainId: number): boolean {
+  return MISCONFIGURED_CHAIN_IDS[currentChainId] === targetChainId;
 }
 
 export async function getWalletChainId(provider: EthereumProvider): Promise<number> {
@@ -67,10 +83,9 @@ async function addTargetChain(provider: EthereumProvider, targetChainId: number)
   } catch (error) {
     if (isUserRejected(error)) {
       throw new Error(
-        `Adding ${chainName(targetChainId)} was cancelled. Approve the network in your wallet, then try again.`,
+        `Adding ${chainName(targetChainId)} was cancelled. Approve the wallet popup in this browser tab, then try again.`,
       );
     }
-    // Ignore "chain already added" style errors and continue to switch.
   }
 }
 
@@ -84,7 +99,7 @@ async function switchTargetChain(provider: EthereumProvider, targetChainId: numb
   } catch (error) {
     if (isUserRejected(error)) {
       throw new Error(
-        `Network switch to ${chainName(targetChainId)} was cancelled. Approve the network change in your wallet, then try again.`,
+        `Network switch to ${chainName(targetChainId)} was cancelled. Approve the wallet popup in this browser tab, then try again.`,
       );
     }
     if (isChainNotAdded(error)) {
@@ -105,34 +120,32 @@ export async function ensureWalletOnChain(provider: EthereumProvider, targetChai
   }
 
   let currentChainId = await getWalletChainId(provider);
-  if (currentChainId === targetChainId) {
+  if (isWalletOnAuthorityChain(currentChainId, targetChainId)) {
     return;
   }
 
-  // Ensure the correct chain definition exists, then switch. This is idempotent for new users.
   await addTargetChain(provider, targetChainId);
   await switchTargetChain(provider, targetChainId);
 
   currentChainId = await getWalletChainId(provider);
-  if (currentChainId === targetChainId) {
+  if (isWalletOnAuthorityChain(currentChainId, targetChainId)) {
     return;
   }
 
-  const misconfiguredTarget = MISCONFIGURED_CHAIN_IDS[currentChainId];
-  if (misconfiguredTarget === targetChainId) {
+  if (isMisconfiguredChainForTarget(currentChainId, targetChainId)) {
     throw new Error(
-      `Your wallet added ${chainName(targetChainId)} with the wrong chain ID (${currentChainId}). VALEN will add the correct network now — approve the new network prompt, then try again.`,
+      `Your wallet is on a misconfigured ${chainName(targetChainId)} entry (chain ID ${currentChainId}). Approve the wallet popup to add the correct network (chain ID ${targetChainId}), then click Switch again.`,
     );
   }
 
   throw new Error(
-    `Your wallet is still on ${chainName(currentChainId)}. Approve the ${chainName(targetChainId)} network prompt on your phone, then try again.`,
+    `Your wallet is still on ${chainName(currentChainId)} (chain ID ${currentChainId}). Approve the ${chainName(targetChainId)} wallet popup in this browser tab, then try again.`,
   );
 }
 
 export function isWalletChainError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /active chainid|chainid is|network switch|wallet must be on|adding .+ was cancelled|network change|wrong chain id|approve the .+ network/i.test(
+  return /active chainid|chainid is|network switch|wallet must be on|adding .+ was cancelled|network change|wrong chain id|wallet popup|misconfigured/i.test(
     message,
   );
 }
@@ -141,10 +154,20 @@ export function formatWalletChainError(error: unknown, targetChainId: number): s
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }
-  return `Approve the ${chainName(targetChainId)} network switch in your wallet, then try again.`;
+  return `Approve the ${chainName(targetChainId)} network switch in the wallet popup, then try again.`;
 }
 
 export function resolveDisplayChainId(chainId: number | null | undefined): number | null {
   if (!chainId) return null;
   return MISCONFIGURED_CHAIN_IDS[chainId] ?? chainId;
+}
+
+export function walletChainBannerMessage(currentChainId: number | null | undefined, targetChainId: number): string {
+  if (!currentChainId) {
+    return `VALEN needs ${chainName(targetChainId)} (chain ID ${targetChainId}). Connect your wallet, then approve the network popup in this browser tab.`;
+  }
+  if (isMisconfiguredChainForTarget(currentChainId, targetChainId)) {
+    return `Your wallet has ${chainName(targetChainId)} with the wrong chain ID (${currentChainId}). VALEN will add the correct network (chain ID ${targetChainId}) — approve the wallet popup in this browser tab (not your phone unless using mobile wallet).`;
+  }
+  return `VALEN needs ${chainName(targetChainId)} (chain ID ${targetChainId}), but your wallet is on ${chainName(currentChainId)} (chain ID ${currentChainId}). Click below and approve the wallet popup in this browser tab.`;
 }
