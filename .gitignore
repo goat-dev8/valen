@@ -25,6 +25,7 @@ backend/.env
 contracts/.env
 stylus/.env
 infra/docker/.env
+.github-token
 *.pem
 *.key
 *.p12
