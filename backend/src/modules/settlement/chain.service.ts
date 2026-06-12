@@ -15,6 +15,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { AppConfig } from '../../config/config.types';
 import { executionAmountWeiOrDefault } from '../../common/utils/amount.util';
+import { writeContractWithFreshNonce } from '../../common/utils/chain-write.util';
 import { ExecutionRow } from '../../database/repositories/executions.repository';
 import { DEFAULT_SETTLEMENT_AMOUNT_WEI } from '../../common/constants/onchain.constants';
 
@@ -315,7 +316,7 @@ export class SettlementChainService {
       ),
     );
 
-    const submitTxHash = await walletClient.writeContract({
+    const submitTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
       address: settlementAddress,
       abi: settlementAbi,
       functionName: 'submitSettlement',
@@ -339,7 +340,7 @@ export class SettlementChainService {
     });
     await publicClient.waitForTransactionReceipt({ hash: submitTxHash });
 
-    const approveTxHash = await walletClient.writeContract({
+    const approveTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
       address: settlementAddress,
       abi: settlementAbi,
       functionName: 'approveSettlement',
@@ -349,7 +350,7 @@ export class SettlementChainService {
     });
     await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
 
-    const executeTxHash = await walletClient.writeContract({
+    const executeTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
       address: settlementAddress,
       abi: settlementAbi,
       functionName: 'executeSettlement',

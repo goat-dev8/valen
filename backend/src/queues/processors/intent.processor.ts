@@ -2,6 +2,7 @@ import { Processor } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { INTENT_QUEUE } from '../../common/constants/queues.constant';
+import { DEFAULT_JOB_OPTIONS } from '../bullmq.config';
 import { ComplianceProducer } from '../producers/index';
 import { OnChainAttestationService } from '../../modules/stylus/onchain-attestation.service';
 import { ExecutionsRepository } from '../../database/repositories/executions.repository';
@@ -30,13 +31,22 @@ export class IntentProcessor extends PipelineWorkerProcessor {
     this.logger.log(`Processing intent job ${job.id}`);
     try {
       await this.onChainAttestationService.attestExecution(job.data.executionId);
+      const execution = await this.executionsRepository.findById(job.data.executionId);
+      if (execution?.status === 'failed') {
+        await this.executionsRepository.updateStatus(job.data.executionId, 'created');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Intent attestation failed for ${job.data.executionId}: ${message}`);
       await this.executionsRepository.mergeMetadata(job.data.executionId, {
         pipelineFailure: { stage: 'intent', message },
       });
-      await this.executionsRepository.updateStatus(job.data.executionId, 'failed');
+
+      const maxAttempts = job.opts.attempts ?? DEFAULT_JOB_OPTIONS.attempts;
+      const isFinalAttempt = job.attemptsMade + 1 >= maxAttempts;
+      if (isFinalAttempt) {
+        await this.executionsRepository.updateStatus(job.data.executionId, 'failed');
+      }
       throw error;
     }
 

@@ -54,7 +54,7 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
     const stuck = await this.databaseService.query<StuckExecutionRow>(
       `SELECT id, organization_id, status
        FROM executions
-       WHERE status IN ('created', 'validated', 'approved', 'settlement_submitted')
+       WHERE status IN ('created', 'validated', 'approved', 'settlement_submitted', 'failed')
          AND updated_at < now() - interval '45 seconds'
          AND (
            metadata->'onchain'->>'complianceHash' IS NOT NULL
@@ -137,6 +137,43 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
       }
       case 'settlement_submitted': {
         await this.enqueueExistingSettlement(payload);
+        return;
+      }
+      case 'failed': {
+        const hasOnchain = await this.databaseService.query(
+          `SELECT metadata->'onchain'->>'complianceHash' AS hash FROM executions WHERE id = $1`,
+          [execution.id],
+        );
+        if (!hasOnchain.rows[0]?.hash) {
+          await this.intentProducer.enqueue(payload);
+          this.logger.warn(`Re-enqueued intent for failed execution ${execution.id}`);
+          return;
+        }
+
+        const compliance = await this.databaseService.query(
+          `SELECT 1 FROM compliance_checks WHERE execution_id = $1 LIMIT 1`,
+          [execution.id],
+        );
+        if (compliance.rowCount === 0) {
+          await this.executionsRepository.updateStatus(execution.id, 'created');
+          await this.complianceProducer.enqueue(payload);
+          this.logger.warn(`Recovered failed execution ${execution.id} at compliance`);
+          return;
+        }
+
+        const score = await this.riskScoresRepository.findLatestByExecution(execution.id);
+        if (!score) {
+          await this.executionsRepository.updateStatus(execution.id, 'validated');
+          await this.riskProducer.enqueue(payload);
+          this.logger.warn(`Recovered failed execution ${execution.id} at risk`);
+          return;
+        }
+
+        const settlement = await this.settlementsRepository.findByExecution(execution.id);
+        if (!settlement || settlement.status !== 'confirmed') {
+          await this.createSettlementAndEnqueue(payload);
+          this.logger.warn(`Recovered failed execution ${execution.id} at settlement`);
+        }
         return;
       }
       default:

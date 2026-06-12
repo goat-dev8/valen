@@ -18,6 +18,7 @@ import {
   DEFAULT_SETTLEMENT_AMOUNT_WEI,
   MANDATE_SCOPE_HASH,
 } from '../../common/constants/onchain.constants';
+import { writeContractWithFreshNonce } from '../../common/utils/chain-write.util';
 
 const mandateRegistryAbi = parseAbi([
   'function checkMandate(bytes32 mandateId, address agent, address asset, uint256 amount, bytes32 actionHash) view returns (bool)',
@@ -113,22 +114,26 @@ export class MandateChainService {
 
     const block = await publicClient.getBlock({ blockTag: 'latest' });
     const now = BigInt(block.timestamp);
-    const grantTxHash = await walletClient.writeContract({
-      address: registryAddress,
-      abi: mandateRegistryAbi,
-      functionName: 'grantMandate',
-      args: [
-        agentAddress,
-        agentAddress,
-        MANDATE_SCOPE_HASH,
-        now,
-        now + 86400n,
-        amount * 1000n,
-        amount * 10000n,
-      ],
-      account,
-      chain: null,
-    });
+    const grantTxHash = await writeContractWithFreshNonce(
+      publicClient,
+      walletClient,
+      {
+        address: registryAddress,
+        abi: mandateRegistryAbi,
+        functionName: 'grantMandate',
+        args: [
+          agentAddress,
+          agentAddress,
+          MANDATE_SCOPE_HASH,
+          now,
+          now + 86400n,
+          amount * 1000n,
+          amount * 10000n,
+        ],
+        account,
+        chain: null,
+      },
+    );
     const grantReceipt = await publicClient.waitForTransactionReceipt({
       hash: grantTxHash,
     });
@@ -212,7 +217,7 @@ export class MandateChainService {
   ): Promise<void> {
     const publicClient = this.chainService.getPublicClient(chainId);
     try {
-      const txHash = await walletClient.writeContract({
+      const txHash = await writeContractWithFreshNonce(publicClient, walletClient, {
         address,
         abi: mandateRegistryAbi,
         functionName,

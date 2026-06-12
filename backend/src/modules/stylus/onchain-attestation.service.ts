@@ -7,9 +7,9 @@ import {
   stringToHex,
 } from 'viem';
 import { ExecutionsRepository } from '../../database/repositories/executions.repository';
-import { AgentWalletsRepository } from '../../database/repositories/agent-wallets.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
 import { executionAmountWeiOrDefault } from '../../common/utils/amount.util';
+import { hasStoredOnChainAttestation } from '../../common/utils/execution-onchain.util';
 import { hashPayload } from '../../common/utils/hash.util';
 import {
   DEFAULT_E2E_ASSET,
@@ -30,7 +30,6 @@ export class OnChainAttestationService {
 
   constructor(
     private readonly executionsRepository: ExecutionsRepository,
-    private readonly agentWalletsRepository: AgentWalletsRepository,
     private readonly auditLogsRepository: AuditLogsRepository,
     private readonly chainService: ChainService,
     private readonly mandateChainService: MandateChainService,
@@ -41,18 +40,20 @@ export class OnChainAttestationService {
     const execution = await this.executionsRepository.findById(executionId);
     if (!execution) return;
 
+    if (hasStoredOnChainAttestation(execution.metadata)) {
+      this.logger.log(`Attestation already stored for execution ${executionId}, skipping`);
+      return;
+    }
+
     const chainId = execution.target_chain_id;
-    const wallet = await this.findAgentWallet(execution.agent_id, chainId);
     const signerAccount = this.chainService.getWalletClient(chainId).account;
-    const fallbackAgent = signerAccount?.address;
-    if (!fallbackAgent) {
+    if (!signerAccount?.address) {
       throw new Error('Settlement signer required for attestation');
     }
-    const rawAgent = wallet?.wallet_address ?? fallbackAgent;
-    const agentAddress = this.normalizeAddress(rawAgent, fallbackAgent);
+    const settlementAgent = getAddress(signerAccount.address.toLowerCase() as Address);
 
     const executionHash = this.requireExecutionHash(execution.request_payload_hash);
-    const target = this.normalizeAddress(execution.target_address ?? agentAddress, agentAddress);
+    const target = this.normalizeAddress(execution.target_address ?? settlementAgent, settlementAgent);
     const asset = this.normalizeAddress(execution.asset_address ?? DEFAULT_E2E_ASSET, DEFAULT_E2E_ASSET);
     const amount = executionAmountWeiOrDefault(
       execution.value_amount,
@@ -71,7 +72,7 @@ export class OnChainAttestationService {
 
     const mandateId = await this.mandateChainService.ensureActiveMandate(
       chainId,
-      agentAddress,
+      settlementAgent,
       asset,
       amount,
     );
@@ -79,7 +80,7 @@ export class OnChainAttestationService {
     const engineResult = await this.stylusEngineService.attestFromLiveEngines({
       chainId,
       executionHash,
-      agent: agentAddress,
+      agent: settlementAgent,
       mandateId,
       target,
       asset,
@@ -94,7 +95,7 @@ export class OnChainAttestationService {
 
     const onchain = {
       organizationHash: ORGANIZATION_HASH,
-      agentAddress,
+      agentAddress: settlementAgent,
       mandateId,
       actionTypeHash: keccak256(stringToHex('transfer')),
       principalHash: PRINCIPAL_HASH,
@@ -150,15 +151,6 @@ export class OnChainAttestationService {
       throw new Error('request_payload_hash must be a 32-byte hex string');
     }
     return value as Hex;
-  }
-
-  private async findAgentWallet(agentId: string, chainId: number) {
-    const wallets = await this.agentWalletsRepository.listByAgent(agentId);
-    return (
-      wallets.find((w) => w.chain_id === chainId && w.is_primary && w.status === 'active') ??
-      wallets.find((w) => w.chain_id === chainId && w.status === 'active') ??
-      null
-    );
   }
 
   private normalizeAddress(value: string, fallback: Address): Address {
