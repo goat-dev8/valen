@@ -76,12 +76,13 @@ export function useExecution(executionId: string) {
   });
 }
 
-export function useExecutionCompliance(executionId: string) {
+export function useExecutionCompliance(executionId: string, queryEnabled = true) {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({
     queryKey: ['execution-compliance', orgId, executionId],
     queryFn: () => api.compliance.getChecks(token!, orgId!, executionId),
-    enabled: enabled && Boolean(executionId),
+    enabled: enabled && Boolean(executionId) && queryEnabled,
+    refetchInterval: queryEnabled ? 5000 : false,
   });
 }
 
@@ -95,12 +96,12 @@ export function useExecutionRisk(executionId: string) {
   });
 }
 
-export function useExecutionSettlement(executionId: string) {
+export function useExecutionSettlement(executionId: string, queryEnabled = true) {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({
     queryKey: ['execution-settlement', orgId, executionId],
     queryFn: () => api.settlements.get(token!, orgId!, executionId),
-    enabled: enabled && Boolean(executionId),
+    enabled: enabled && Boolean(executionId) && queryEnabled,
     retry: false,
   });
 }

@@ -17,6 +17,8 @@ type StuckExecutionRow = {
   status: string;
 };
 
+const SETTLEMENT_RECOVERY_COOLDOWN_MS = 120_000;
+
 @Injectable()
 export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PipelineRecoveryService.name);
@@ -136,7 +138,7 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       case 'settlement_submitted': {
-        await this.enqueueExistingSettlement(payload);
+        await this.recoverSettlementStage(payload);
         return;
       }
       case 'failed': {
@@ -169,16 +171,40 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
           return;
         }
 
-        const settlement = await this.settlementsRepository.findByExecution(execution.id);
-        if (!settlement || settlement.status !== 'confirmed') {
-          await this.createSettlementAndEnqueue(payload);
-          this.logger.warn(`Recovered failed execution ${execution.id} at settlement`);
-        }
+        await this.recoverSettlementStage(payload, execution.id);
         return;
       }
       default:
         return;
     }
+  }
+
+  private async recoverSettlementStage(
+    payload: { organizationId: string; executionId: string },
+    executionId = payload.executionId,
+  ): Promise<void> {
+    const settlement = await this.settlementsRepository.findByExecution(executionId);
+    if (settlement?.status === 'confirmed') {
+      await this.executionsRepository.updateStatus(executionId, 'executed');
+      return;
+    }
+    if (settlement?.status === 'failed' || settlement?.status === 'reverted') {
+      return;
+    }
+    if (settlement && this.isSettlementRecentlyActive(settlement.updated_at)) {
+      return;
+    }
+    if (settlement) {
+      await this.enqueueExistingSettlement(payload, settlement.id);
+      this.logger.warn(`Re-enqueued settlement for ${executionId}`);
+      return;
+    }
+    await this.createSettlementAndEnqueue(payload);
+    this.logger.warn(`Recovered failed execution ${executionId} at settlement`);
+  }
+
+  private isSettlementRecentlyActive(updatedAt: Date): boolean {
+    return Date.now() - updatedAt.getTime() < SETTLEMENT_RECOVERY_COOLDOWN_MS;
   }
 
   private async createSettlementAndEnqueue(payload: {
@@ -192,8 +218,16 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
       payload.executionId,
     );
     if (existing?.status === 'confirmed') {
+      await this.executionsRepository.updateStatus(payload.executionId, 'executed');
       return;
     }
+    if (existing?.status === 'failed' || existing?.status === 'reverted') {
+      return;
+    }
+    if (existing && this.isSettlementRecentlyActive(existing.updated_at)) {
+      return;
+    }
+
     const settlement =
       existing ??
       (await this.settlementsRepository.create({
@@ -217,26 +251,35 @@ export class PipelineRecoveryService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async enqueueExistingSettlement(payload: {
-    organizationId: string;
-    executionId: string;
-  }): Promise<void> {
-    const settlement = await this.settlementsRepository.findByExecution(
-      payload.executionId,
-    );
+  private async enqueueExistingSettlement(
+    payload: { organizationId: string; executionId: string },
+    settlementId?: string,
+  ): Promise<void> {
+    const settlement =
+      (settlementId
+        ? await this.settlementsRepository.findById(settlementId)
+        : null) ?? (await this.settlementsRepository.findByExecution(payload.executionId));
     if (!settlement) {
       await this.createSettlementAndEnqueue(payload);
       this.logger.warn(`Created missing settlement for ${payload.executionId}`);
       return;
     }
 
-    if (settlement.status === 'confirmed') return;
+    if (settlement.status === 'confirmed') {
+      await this.executionsRepository.updateStatus(payload.executionId, 'executed');
+      return;
+    }
+    if (settlement.status === 'failed' || settlement.status === 'reverted') {
+      return;
+    }
+    if (this.isSettlementRecentlyActive(settlement.updated_at)) {
+      return;
+    }
 
     await this.settlementProducer.enqueue({
       ...payload,
       settlementId: settlement.id,
       idempotencyKey: `auto-settle-${payload.executionId}`,
     });
-    this.logger.warn(`Re-enqueued settlement for ${payload.executionId}`);
   }
 }

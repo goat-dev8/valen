@@ -46,9 +46,14 @@ export default function ExecutionDetailPage() {
   const executionId = params.executionId as string;
   const { data: ex, isLoading, error } = useExecution(executionId);
   const { data: agent } = useAgent(ex?.agentId ?? '');
-  const { data: compliance } = useExecutionCompliance(executionId);
+  const { data: compliance } = useExecutionCompliance(executionId, Boolean(ex));
+  const settlementFetchEnabled = Boolean(
+    ex &&
+      (['settlement_submitted', 'executed', 'approved'].includes(ex.status) ||
+        (ex.status === 'failed' && Array.isArray(compliance) && compliance.length > 0)),
+  );
   const { data: risk } = useExecutionRisk(executionId);
-  const { data: settlement } = useExecutionSettlement(executionId);
+  const { data: settlement } = useExecutionSettlement(executionId, settlementFetchEnabled);
   const { data: timeline } = useExecutionTimeline(executionId);
   const { wallets } = useWallets();
   const approveMutation = useApproveExecution();

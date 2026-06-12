@@ -43,6 +43,12 @@ export class SettlementProcessor extends PipelineWorkerProcessor {
     if (!hasStoredOnChainAttestation(refreshed?.metadata)) {
       throw new Error('Settlement attestation did not produce metadata.onchain');
     }
-    await this.settlementWorker.processSettlement(job.data.settlementId);
+    try {
+      await this.settlementWorker.processSettlement(job.data.settlementId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Settlement failed for ${job.data.executionId}: ${message}`);
+      throw error;
+    }
   }
 }

@@ -9,10 +9,10 @@ import {
 import { ExecutionsRepository } from '../../database/repositories/executions.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
 import { executionAmountWeiOrDefault } from '../../common/utils/amount.util';
+import { resolveOnChainAssetAddress } from '../../common/utils/execution-asset.util';
 import { hasStoredOnChainAttestation } from '../../common/utils/execution-onchain.util';
 import { hashPayload } from '../../common/utils/hash.util';
 import {
-  DEFAULT_E2E_ASSET,
   DEFAULT_SETTLEMENT_AMOUNT_WEI,
   MANDATE_SCOPE_HASH,
   MANDATE_STATUS_HASH,
@@ -54,7 +54,7 @@ export class OnChainAttestationService {
 
     const executionHash = this.requireExecutionHash(execution.request_payload_hash);
     const target = this.normalizeAddress(execution.target_address ?? settlementAgent, settlementAgent);
-    const asset = this.normalizeAddress(execution.asset_address ?? DEFAULT_E2E_ASSET, DEFAULT_E2E_ASSET);
+    const asset = resolveOnChainAssetAddress(execution.asset_address);
     const amount = executionAmountWeiOrDefault(
       execution.value_amount,
       DEFAULT_SETTLEMENT_AMOUNT_WEI,

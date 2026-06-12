@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { SettlementsRepository } from '../../database/repositories/settlements.repository';
@@ -302,6 +303,8 @@ export class SettlementService {
 
 @Injectable()
 export class SettlementWorkerService {
+  private readonly logger = new Logger(SettlementWorkerService.name);
+
   constructor(
     private readonly settlementsRepository: SettlementsRepository,
     private readonly executionsRepository: ExecutionsRepository,
@@ -407,6 +410,7 @@ export class SettlementWorkerService {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`On-chain settlement failed for ${execution.id}: ${message}`);
       await this.settlementsRepository.updateStatus(settlementId, 'failed', {
         failureReason: message.slice(0, 1000),
       });

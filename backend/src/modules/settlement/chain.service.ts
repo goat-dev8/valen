@@ -16,6 +16,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { AppConfig } from '../../config/config.types';
 import { executionAmountWeiOrDefault } from '../../common/utils/amount.util';
 import { writeContractWithFreshNonce } from '../../common/utils/chain-write.util';
+import { resolveOnChainAssetAddress } from '../../common/utils/execution-asset.util';
 import { ExecutionRow } from '../../database/repositories/executions.repository';
 import { DEFAULT_SETTLEMENT_AMOUNT_WEI } from '../../common/constants/onchain.constants';
 
@@ -263,9 +264,7 @@ export class SettlementChainService {
     const target = execution.target_address
       ? requireAddress(execution.target_address, 'execution.targetAddress')
       : requireAddress(undefined, 'execution.targetAddress');
-    const asset = execution.asset_address
-      ? requireAddress(execution.asset_address, 'execution.assetAddress')
-      : '0x0000000000000000000000000000000000000000';
+    const asset = resolveOnChainAssetAddress(execution.asset_address);
     const amount = getNativeValue(execution);
     const agent = metadata.agentAddress ?? account.address;
 
