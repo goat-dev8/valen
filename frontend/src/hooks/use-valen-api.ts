@@ -372,8 +372,13 @@ export function useCreateAgent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (body: { name: string; description?: string; agentType: string; defaultPolicyId?: string }) =>
-      api.agents.create(token!, orgId!, body),
+    mutationFn: (body: {
+      name: string;
+      description?: string;
+      agentType: string;
+      defaultPolicyId?: string;
+      capabilities?: string[];
+    }) => api.agents.create(token!, orgId!, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents', orgId] });
     },

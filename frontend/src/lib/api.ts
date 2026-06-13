@@ -184,7 +184,13 @@ export const api = {
     create: (
       token: string,
       orgId: string,
-      body: { name: string; description?: string; agentType: string; defaultPolicyId?: string },
+      body: {
+        name: string;
+        description?: string;
+        agentType: string;
+        defaultPolicyId?: string;
+        capabilities?: string[];
+      },
     ) => apiRequest<AgentDto>(orgPath(orgId, '/agents'), { method: 'POST', body, token }),
     activate: (token: string, orgId: string, agentId: string) =>
       apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}/activate`), { method: 'POST', body: {}, token }),

@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle, Circle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Circle, Sparkles } from 'lucide-react';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { BudgetMeter } from '@/components/app/budget-meter';
 import { Erc8004Badge } from '@/components/app/erc8004-badge';
@@ -26,11 +26,15 @@ import {
   useWalletVerifications,
 } from '@/hooks/use-valen-api';
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
+import { agentReadinessSummary, buildAgentReadinessSteps } from '@/lib/agent-readiness';
+import { agentTypeLabel, agentTypeOption } from '@/lib/agent-types';
 
 export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const agentId = params.agentId as string;
+  const welcome = searchParams.get('welcome') === '1';
   const reserved = agentId === 'new' || agentId === 'register';
   const { data: agent, isLoading, error } = useAgent(reserved ? '' : agentId);
   const { data: identity } = useAgentIdentity(reserved ? '' : agentId);
@@ -48,6 +52,7 @@ export default function AgentDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [apiKeySecret, setApiKeySecret] = useState<string | null>(null);
+  const [showWelcome, setShowWelcome] = useState(welcome);
 
   useEffect(() => {
     if (reserved) {
@@ -55,12 +60,13 @@ export default function AgentDetailPage() {
     }
   }, [reserved, router]);
 
-  if (reserved) {
-    return null;
-  }
+  useEffect(() => {
+    setShowWelcome(welcome);
+  }, [welcome]);
 
   const policyName = policies?.find((p) => p.id === agent?.defaultPolicyId)?.name;
-  const agentMandates = mandates?.filter((mandate) => mandate.agentId === agentId && mandate.status === 'active') ?? [];
+  const agentMandates =
+    mandates?.filter((mandate) => mandate.agentId === agentId && mandate.status === 'active') ?? [];
   const mandateBoundApiKeys =
     apiKeys?.filter(
       (apiKey) =>
@@ -68,48 +74,29 @@ export default function AgentDetailPage() {
         apiKey.mandateId &&
         agentMandates.some((mandate) => mandate.id === apiKey.mandateId),
     ) ?? [];
-  const readinessSteps = [
-    {
-      label: 'Active agent',
-      complete: agent?.status === 'active',
-      detail: agent?.status === 'active' ? 'Agent can receive intents.' : 'Activate the agent first.',
-      href: `/dashboard/agents/${agentId}`,
-      optional: false,
-    },
-    {
-      label: 'Assigned policy',
-      complete: Boolean(agent?.defaultPolicyId),
-      detail: agent?.defaultPolicyId ? policyName ?? agent.defaultPolicyId : 'Assign a default policy.',
-      href: '/dashboard/policies',
-      optional: false,
-    },
-    {
-      label: 'Verified owner wallet',
-      complete: walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false,
-      detail: 'Verify wallet ownership from Wallet & Authority.',
-      href: '/dashboard/wallets',
-      optional: false,
-    },
-    {
-      label: 'Signed mandate',
-      complete: agentMandates.length > 0,
-      detail: agentMandates.length ? `${agentMandates.length} active mandate(s).` : 'Sign a mandate for this agent.',
-      href: '/dashboard/wallets',
-      optional: false,
-    },
-    {
-      label: 'API key (external agents only)',
-      complete: mandateBoundApiKeys.length > 0,
-      detail: mandateBoundApiKeys.length
-        ? `${mandateBoundApiKeys.length} active key(s) for programmatic access.`
-        : 'Optional — only needed for external AI agents calling the Render API.',
-      href: `#api-keys`,
-      optional: true,
-    },
-  ];
-  const requiredSteps = readinessSteps.filter((step) => !step.optional);
-  const readinessComplete = requiredSteps.every((step) => step.complete);
-  const nextStep = readinessSteps.find((step) => !step.complete && !step.optional) ?? readinessSteps.find((step) => !step.complete);
+  const hasVerifiedWallet = walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false;
+  const typeMeta = agent ? agentTypeOption(agent.agentType) : null;
+  const capabilities = Array.isArray(agent?.metadata?.capabilities)
+    ? agent.metadata.capabilities.filter((item): item is string => typeof item === 'string')
+    : [];
+  const readinessSteps = agent
+    ? buildAgentReadinessSteps({
+        agentId,
+        agentStatus: agent.status,
+        agentType: agent.agentType,
+        defaultPolicyId: agent.defaultPolicyId,
+        policyName,
+        hasVerifiedWallet,
+        mandateCount: agentMandates.length,
+        mandateBoundApiKeyCount: mandateBoundApiKeys.length,
+      })
+    : [];
+  const { completeRequired, totalRequired, readinessComplete, nextStep } = agentReadinessSummary(readinessSteps);
+  const apiKeysOpenByDefault = Boolean(typeMeta?.requiresApiKey && mandateBoundApiKeys.length === 0);
+
+  if (reserved) {
+    return null;
+  }
 
   const handleSuspend = async () => {
     const reason = window.prompt('Reason for suspending this agent:');
@@ -220,7 +207,10 @@ export default function AgentDetailPage() {
       <QueryState isLoading={isLoading} error={error} isEmpty={!agent}>
         {agent && (
           <>
-            <PageHeader title={agent.name} description={`${agent.agentType} agent`}>
+            <PageHeader
+              title={agent.name}
+              description={`${agentTypeLabel(agent.agentType)} agent · ${typeMeta?.tagline ?? 'Governed autonomous actor'}`}
+            >
               <AgentStatusBadge status={agent.status} />
               {agent.publicSlug && (
                 <Link href={`/agents/${agent.publicSlug}`} className="app-btn app-btn-outline">
@@ -261,17 +251,41 @@ export default function AgentDetailPage() {
             {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             {actionSuccess && <p className="text-sm text-emerald-600">{actionSuccess}</p>}
 
+            {showWelcome && typeMeta && (
+              <div className="app-card border-[#cfe6ff] bg-[#f8fbff]">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-[#007dfc]" />
+                      <h3 className="app-card-title">Agent registered</h3>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-[#64748b]">
+                      {agent.name} is active as a {typeMeta.label.toLowerCase()} agent. Complete the readiness checklist
+                      below{typeMeta.requiresApiKey ? ', including a mandate-bound API key,' : ''} before submitting intents.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="app-btn app-btn-outline shrink-0"
+                    onClick={() => setShowWelcome(false)}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="app-card">
               <div className="app-card-header">
                 <div>
                   <h3 className="app-card-title">Agent Readiness</h3>
                   <p className="mt-1 text-sm text-[#64748b]">
-                    Submit Intent is gated once the agent is active with policy, verified wallet, and signed mandate.
-                    API keys are only required for external programmatic agents — not for dashboard users.
+                    Submit Intent unlocks once the agent is active with policy, verified wallet, and signed mandate
+                    {typeMeta?.requiresApiKey ? ', plus a mandate-bound API key for programmatic agents.' : '.'}
                   </p>
                 </div>
                 <span className={`wallet-status wallet-status-${readinessComplete ? 'ok' : 'warn'}`}>
-                  {requiredSteps.filter((step) => step.complete).length}/{requiredSteps.length}
+                  {completeRequired}/{totalRequired}
                 </span>
               </div>
               {nextStep && !readinessComplete && (
@@ -314,7 +328,32 @@ export default function AgentDetailPage() {
                 <h3 className="app-card-title mb-3">Agent Profile</h3>
                 <dl className="app-detail-list">
                   <div><dt>ID</dt><dd className="font-mono text-xs">{agent.id}</dd></div>
-                  <div><dt>Type</dt><dd className="capitalize">{agent.agentType}</dd></div>
+                  <div>
+                    <dt>Type</dt>
+                    <dd>
+                      <span className="font-medium text-[#012b54]">{agentTypeLabel(agent.agentType)}</span>
+                      <p className="mt-1 text-xs leading-5 text-[#64748b]">{typeMeta?.description}</p>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Capabilities</dt>
+                    <dd>
+                      {capabilities.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {capabilities.map((capability) => (
+                            <span
+                              key={capability}
+                              className="rounded-full bg-[#f1f5f9] px-2.5 py-1 text-xs font-medium capitalize text-[#012b54]"
+                            >
+                              {capability.replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </dd>
+                  </div>
                   <div><dt>Default Policy</dt><dd>{policyName ?? agent.defaultPolicyId ?? '—'}</dd></div>
                   <div><dt>Description</dt><dd>{agent.description ?? '—'}</dd></div>
                   <div><dt>Created</dt><dd>{new Date(agent.createdAt).toLocaleString()}</dd></div>
@@ -434,12 +473,15 @@ export default function AgentDetailPage() {
               </div>
             </div>
 
-            <details className="app-card" id="api-keys">
+            <details className="app-card" id="api-keys" open={apiKeysOpenByDefault}>
               <summary className="cursor-pointer list-none">
-                <h3 className="app-card-title inline">API Keys — external AI agents only</h3>
+                <h3 className="app-card-title inline">
+                  API Keys{typeMeta?.requiresApiKey ? ' — required for this agent type' : ' — optional'}
+                </h3>
                 <p className="mt-2 text-sm text-[#64748b]">
-                  Dashboard users submit intents through the UI and do not need API keys. Create keys only when an external
-                  service or AI agent will call the Render API programmatically.
+                  {typeMeta?.requiresApiKey
+                    ? 'External and service agents need mandate-bound API keys before programmatic access is ready.'
+                    : 'Dashboard users submit intents through the UI and do not need API keys.'}
                 </p>
               </summary>
               <div className="mt-4 border-t border-[#eef0f3] pt-4">
