@@ -1,0 +1,97 @@
+VALEN Phase B validation output
+Generated: 2026-06-13T14:49:43Z
+
+## pnpm --filter backend build
+
+> backend@0.0.1 build /mnt/d/route/valen/backend
+> nest build
+
+
+## pnpm --filter frontend build
+
+> frontend@0.1.0 prebuild /mnt/d/route/valen/frontend
+> node scripts/sync-deploy-manifests.mjs
+
+[sync-manifests] copied arbitrum-sepolia/deployment.json
+[sync-manifests] copied arbitrum-sepolia/engines.json
+[sync-manifests] copied robinhood-testnet/deployment.json
+[sync-manifests] copied robinhood-testnet/engines.json
+
+> frontend@0.1.0 build /mnt/d/route/valen/frontend
+> next build
+
+   ▲ Next.js 15.5.19
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 102s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/26) ...
+   Generating static pages (6/26) 
+   Generating static pages (12/26) 
+   Generating static pages (19/26) 
+ ✓ Generating static pages (26/26)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                       Size  First Load JS
+┌ ○ /                                          21.1 kB         138 kB
+├ ○ /_not-found                                   1 kB         106 kB
+├ ƒ /api/contracts                               132 B         105 kB
+├ ƒ /api/operator/[...path]                      132 B         105 kB
+├ ○ /dashboard                                 6.06 kB         140 kB
+├ ○ /dashboard/agents                           4.1 kB         135 kB
+├ ƒ /dashboard/agents/[agentId]                6.96 kB         137 kB
+├ ○ /dashboard/approvals                       4.57 kB         150 kB
+├ ○ /dashboard/audit                           3.99 kB         131 kB
+├ ○ /dashboard/compliance                      2.92 kB         130 kB
+├ ○ /dashboard/contracts                       3.77 kB         126 kB
+├ ○ /dashboard/demo/robinhood-tsla             4.03 kB         135 kB
+├ ○ /dashboard/executions                      4.32 kB         135 kB
+├ ƒ /dashboard/executions/[executionId]        3.21 kB         153 kB
+├ ƒ /dashboard/executions/[executionId]/proof  1.54 kB         136 kB
+├ ○ /dashboard/executions/new                  8.07 kB         238 kB
+├ ○ /dashboard/governance                       4.3 kB         127 kB
+├ ○ /dashboard/policies                        3.66 kB         134 kB
+├ ƒ /dashboard/policies/[policyId]             4.18 kB         135 kB
+├ ○ /dashboard/policies/new                    5.01 kB         136 kB
+├ ○ /dashboard/register-agent                  3.74 kB         134 kB
+├ ○ /dashboard/settings                        3.29 kB         130 kB
+├ ○ /dashboard/settlements                     4.79 kB         135 kB
+├ ○ /dashboard/team                             4.2 kB         131 kB
+├ ○ /dashboard/treasury                        3.77 kB         126 kB
+├ ○ /dashboard/wallets                         12.1 kB         242 kB
+├ ○ /dashboard/webhooks                        4.53 kB         132 kB
+├ ○ /login                                     4.06 kB         121 kB
+└ ○ /onboarding                                3.74 kB         307 kB
++ First Load JS shared by all                   105 kB
+  ├ chunks/0ebbc214-b3f5dcd3763cf850.js        54.2 kB
+  ├ chunks/1174-c0afcee69abc2b26.js            46.3 kB
+  └ other shared chunks (total)                4.31 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+## pnpm --filter backend test -- --runInBand dashboard
+
+> backend@0.0.1 test /mnt/d/route/valen/backend
+> jest "--runInBand" "dashboard"
+
+No tests found, exiting with code 1
+Run with `--passWithNoTests` to exit with code 0
+In /mnt/d/route/valen/backend/src
+  187 files checked.
+  testMatch:  - 0 matches
+  testPathIgnorePatterns: /node_modules/ - 187 matches
+  testRegex: .*\.spec\.ts$ - 6 matches
+Pattern: dashboard - 0 matches
+/mnt/d/route/valen/backend:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  backend@0.0.1 test: `jest "--runInBand" "dashboard"`
+Exit status 1
+
+## git diff --check Phase B files
