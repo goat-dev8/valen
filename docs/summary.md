@@ -2081,7 +2081,7 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 |-------|---------|--------|-------|
 | `/dashboard` | Mission Control + stats | **PASS** | Flow ready; executed counts update after intents |
 | `/dashboard/executions` | Execution list + status | **PASS** | Robinhood **Executed** visible |
-| `/dashboard/executions/new` | Intent Builder + templates | **PASS** | Robinhood Demo 0.001 ETH; mandate match green |
+| `/dashboard/executions/new` | Intent Builder + asset picker + balances | **PASS** | ETH / USDC / TSLA templates; settlement notes |
 | `/dashboard/executions/:id` | Pipeline timeline + verdicts | **PASS** | Compliance/risk/settlement sections |
 | `/dashboard/executions/:id/proof` | Proof + relayer txs | **PASS** | Status **Executed**; tx links in DB (UI refresh if unavailable) |
 | `/dashboard/approvals` | Approval queue | **PASS** | Loads; no pending for auto-approved intents |
