@@ -2,14 +2,18 @@ import { ApiClientError, apiRequest, apiRequestOrNull } from '@/lib/api-client';
 import { asArray } from '@/lib/array';
 import type {
   AgentDto,
+  AgentIdentityDto,
   AgentWalletDto,
   ApiKeyDto,
   ApprovalInput,
   AuditLogDto,
+  BudgetDto,
+  BudgetEventDto,
   ComplianceCheckDto,
   ComplianceSubjectDto,
   CreateSignedMandateDto,
   CreateExecutionInput,
+  DashboardSummaryDto,
   ExecutionDto,
   MandateDto,
   MandateTypedDataRequestDto,
@@ -20,6 +24,7 @@ import type {
   PolicyDetailDto,
   PolicyDto,
   RiskScoreDto,
+  RobinhoodAssetDto,
   SettlementDto,
   TeamMemberDto,
   TimelineEventDto,
@@ -86,6 +91,24 @@ export const api = {
       apiRequest<OrganizationDto>(orgPath(orgId, ''), { method: 'PATCH', body, token }),
   },
 
+  dashboard: {
+    summary: (token: string, orgId: string) =>
+      apiRequest<DashboardSummaryDto>(orgPath(orgId, '/dashboard/summary'), { token }),
+  },
+
+  budget: {
+    get: (token: string, orgId: string, agentId: string) =>
+      apiRequestOrNull<BudgetDto>(orgPath(orgId, `/budget/${agentId}`), { token }),
+    events: (token: string, orgId: string, agentId: string) =>
+      apiRequest<BudgetEventDto[]>(orgPath(orgId, `/budget/${agentId}/events`), { token }),
+    topup: (
+      token: string,
+      orgId: string,
+      agentId: string,
+      body: { chainId: number; assetAddress: string; assetSymbol: string; cap: string },
+    ) => apiRequest<BudgetDto>(orgPath(orgId, `/budget/${agentId}/topup`), { method: 'POST', body, token }),
+  },
+
   wallets: {
     list: (token: string, orgId: string) =>
       apiRequest<WalletVerificationDto[] | PaginatedResult<WalletVerificationDto>>(
@@ -143,6 +166,19 @@ export const api = {
       apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}/activate`), { method: 'POST', body: {}, token }),
     get: (token: string, orgId: string, agentId: string) =>
       apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}`), { token }),
+    identity: (token: string, orgId: string, agentId: string) =>
+      apiRequest<AgentIdentityDto>(orgPath(orgId, `/agents/${agentId}/identity`), { token }),
+    prepareErc8004: (
+      token: string,
+      orgId: string,
+      agentId: string,
+      body: { resolverAddress?: string; ownerAddress?: string; tokenUri?: string; metadata?: Record<string, unknown> },
+    ) =>
+      apiRequest<AgentIdentityDto>(orgPath(orgId, `/agents/${agentId}/erc8004/register`), {
+        method: 'POST',
+        body,
+        token,
+      }),
     update: (
       token: string,
       orgId: string,
@@ -253,6 +289,13 @@ export const api = {
   risk: {
     get: (token: string, orgId: string, executionId: string) =>
       apiRequestOrNull<RiskScoreDto>(orgPath(orgId, `/executions/${executionId}/risk`), { token }),
+  },
+
+  robinhood: {
+    assets: (token: string) =>
+      apiRequest<RobinhoodAssetDto[]>('/v1/robinhood/assets', { token }),
+    asset: (token: string, ticker: string) =>
+      apiRequest<RobinhoodAssetDto>(`/v1/robinhood/assets/${ticker}`, { token }),
   },
 
   settlements: {

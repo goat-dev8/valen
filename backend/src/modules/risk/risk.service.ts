@@ -13,6 +13,8 @@ import {
   RiskScoreResponseDto,
 } from './dto/risk.dto';
 import { PolicyProducer } from '../../queues/producers/index';
+import { evaluateRobinhoodPolicy } from './robinhood.policy';
+import { BudgetService } from '../budget/budget.service';
 
 const TERMINAL = ['executed', 'failed', 'cancelled'];
 
@@ -179,6 +181,7 @@ export class RiskWorkerService {
   constructor(
     private readonly riskScoresRepository: RiskScoresRepository,
     private readonly executionsRepository: ExecutionsRepository,
+    private readonly budgetService: BudgetService,
     private readonly policyProducer: PolicyProducer,
   ) {}
 
@@ -187,6 +190,51 @@ export class RiskWorkerService {
     if (!execution) return;
 
     try {
+      const robinhoodVerdict = evaluateRobinhoodPolicy({
+        actionType: execution.action_type,
+        metadata: execution.metadata,
+      });
+      if (!robinhoodVerdict.allowed) {
+        await this.riskScoresRepository.create({
+          organizationId: execution.organization_id,
+          executionId,
+          score: 95,
+          tier: 'critical',
+          factorSummary: {
+            model: 'robinhood-deterministic-policy',
+            ticker: robinhoodVerdict.ticker,
+            reasonCode: robinhoodVerdict.reasonCode,
+          },
+          scoreHash: sha256(hashPayload(robinhoodVerdict)),
+          requiresApproval: false,
+        });
+        await this.executionsRepository.updateStatus(executionId, 'risk_failed');
+        return;
+      }
+
+      if (execution.asset_address && execution.asset_address !== 'native') {
+        const budget = await this.budgetService.evaluateExecution(execution);
+        if (!budget.allow) {
+          await this.riskScoresRepository.create({
+            organizationId: execution.organization_id,
+            executionId,
+            score: 100,
+            tier: 'critical',
+            factorSummary: {
+              model: 'budget-engine',
+              reasonCode: budget.reasonCode,
+              evidenceHash: budget.evidenceHash,
+              amount: budget.amount.toString(),
+              remaining: budget.remaining.toString(),
+            },
+            scoreHash: budget.evidenceHash,
+            requiresApproval: false,
+          });
+          await this.executionsRepository.updateStatus(executionId, 'risk_failed');
+          return;
+        }
+      }
+
       const onchain = getOnChainMetadata(execution);
       const riskHash = requireHex(onchain.riskHash, 'riskHash');
       const factorSummary = {

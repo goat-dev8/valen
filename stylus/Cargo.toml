@@ -6,6 +6,7 @@ members = [
     "engines/risk-engine",
     "engines/eligibility-engine",
     "engines/policy-engine",
+    "engines/budget-engine",
 ]
 
 [workspace.package]

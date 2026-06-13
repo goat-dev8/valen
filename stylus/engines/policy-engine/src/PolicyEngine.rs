@@ -87,6 +87,25 @@ impl PolicyEngine {
     pub fn get_active_policy_registry(&self) -> Result<B256, Vec<u8>> {
         Ok(self.active_policy_registry.get())
     }
+
+    pub fn evaluate_robinhood_policy(
+        &self,
+        mandate: B256,
+        asset_key: B256,
+        amount: alloy_primitives::U256,
+        timestamp: u64,
+    ) -> Result<u8, Vec<u8>> {
+        if mandate.is_zero() || asset_key.is_zero() {
+            return Ok(3);
+        }
+        if timestamp == 0 {
+            return Ok(1);
+        }
+        if amount > alloy_primitives::U256::from(100u64) {
+            return Ok(2);
+        }
+        Ok(0)
+    }
 }
 
 impl PolicyEngine {
@@ -157,5 +176,40 @@ mod tests {
 
         assert_eq!(verdict.verdict.status, VerdictStatus::ApprovalRequired as u8);
         assert_eq!(verdict.policy_reason, PolicyReason::ApprovalRequired as u8);
+    }
+
+    #[test]
+    fn robinhood_policy_returns_all_phase_d_verdicts() {
+        let vm = TestVM::new();
+        let contract = PolicyEngine::from(&vm);
+        let mandate =
+            b256!("0x0000000000000000000000000000000000000000000000000000000000000001");
+        let asset_key =
+            b256!("0x0000000000000000000000000000000000000000000000000000000000000002");
+
+        assert_eq!(
+            contract
+                .evaluate_robinhood_policy(mandate, asset_key, U256::from(10u64), 1)
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            contract
+                .evaluate_robinhood_policy(mandate, asset_key, U256::from(10u64), 0)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            contract
+                .evaluate_robinhood_policy(mandate, asset_key, U256::from(250u64), 1)
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            contract
+                .evaluate_robinhood_policy(B256::ZERO, asset_key, U256::from(10u64), 1)
+                .unwrap(),
+            3
+        );
     }
 }

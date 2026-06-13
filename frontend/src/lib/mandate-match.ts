@@ -5,12 +5,12 @@ export function mandateActionAllowed(
 ): boolean {
   if (!allowedActions.length || allowedActions.includes('*')) return true;
   if (allowedActions.includes(actionType)) return true;
-  if (actionType === 'custom') {
+  if (actionType === 'custom' || actionType === 'robinhood_token_transfer') {
     if (allowedActions.includes('demo_trade')) return true;
-    // Robinhood demo intents use actionType custom; transfer mandates on chain 46630 are valid.
+    // Robinhood demo intents are transfer-compatible when scoped by asset/chain.
     if (allowedActions.includes('transfer')) return true;
   }
-  if (templateId === 'robinhood-demo' && allowedActions.includes('demo_trade')) return true;
+  if (templateId?.startsWith('robinhood-') && allowedActions.includes('demo_trade')) return true;
   return false;
 }
 

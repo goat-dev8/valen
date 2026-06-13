@@ -82,6 +82,8 @@ function actionAllowed(allowedActions: string[], actionType: string): boolean {
   if (allowedActions.includes(actionType)) return true;
   if (actionType === 'custom' && allowedActions.includes('demo_trade')) return true;
   if (actionType === 'custom' && allowedActions.includes('transfer')) return true;
+  if (actionType === 'robinhood_token_transfer' && allowedActions.includes('transfer')) return true;
+  if (actionType === 'robinhood_token_transfer' && allowedActions.includes('demo_trade')) return true;
   return false;
 }
 

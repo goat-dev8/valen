@@ -33,11 +33,48 @@ export function useAgents(params?: { status?: string; page?: number; limit?: num
   });
 }
 
+export function useDashboardSummary() {
+  const { token, orgId, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['dashboard-summary', orgId],
+    queryFn: () => api.dashboard.summary(token!, orgId!),
+    enabled,
+    staleTime: 5000,
+  });
+}
+
+export function useBudget(agentId?: string | null) {
+  const { token, orgId, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['budget', orgId, agentId],
+    queryFn: () => api.budget.get(token!, orgId!, agentId!),
+    enabled: enabled && Boolean(agentId),
+  });
+}
+
+export function useBudgetEvents(agentId?: string | null) {
+  const { token, orgId, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['budget-events', orgId, agentId],
+    queryFn: () => api.budget.events(token!, orgId!, agentId!),
+    enabled: enabled && Boolean(agentId),
+  });
+}
+
 export function useAgent(agentId: string) {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({
     queryKey: ['agent', orgId, agentId],
     queryFn: () => api.agents.get(token!, orgId!, agentId),
+    enabled: enabled && Boolean(agentId),
+  });
+}
+
+export function useAgentIdentity(agentId: string) {
+  const { token, orgId, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['agent-identity', orgId, agentId],
+    queryFn: () => api.agents.identity(token!, orgId!, agentId),
     enabled: enabled && Boolean(agentId),
   });
 }
@@ -103,6 +140,24 @@ export function useExecutionSettlement(executionId: string, queryEnabled = true)
     queryFn: () => api.settlements.get(token!, orgId!, executionId),
     enabled: enabled && Boolean(executionId) && queryEnabled,
     retry: false,
+  });
+}
+
+export function useRobinhoodAssets() {
+  const { token, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['robinhood-assets'],
+    queryFn: () => api.robinhood.assets(token!),
+    enabled,
+  });
+}
+
+export function useRobinhoodAsset(ticker: string) {
+  const { token, enabled } = useAuthOrg();
+  return useQuery({
+    queryKey: ['robinhood-asset', ticker],
+    queryFn: () => api.robinhood.asset(token!, ticker),
+    enabled: enabled && Boolean(ticker),
   });
 }
 

@@ -5,6 +5,8 @@ interface IPolicyEngine {
 
     function getActivePolicyRegistry() external view returns (bytes32);
 
+    function evaluateRobinhoodPolicy(bytes32 mandate, bytes32 asset_key, uint256 amount, uint64 timestamp) external view returns (uint8);
+
     struct EngineVerdict {uint8 status;uint8 reason_code;bytes32 result_hash;bytes32 engine_version;uint64 expires_at;}
 
     struct PolicyVerdict {EngineVerdict verdict;uint8 policy_reason;uint8 approval_level;bytes32 result_hash;}
