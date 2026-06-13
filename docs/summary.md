@@ -2086,7 +2086,7 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | `/dashboard/executions/:id/proof` | Proof + relayer txs | **PASS** | Status **Executed**; tx links in DB (UI refresh if unavailable) |
 | `/dashboard/approvals` | Approval queue | **PASS** | Loads; no pending for auto-approved intents |
 | `/dashboard/settlements` | Settlement list | **PASS** | Robinhood confirmed settlement present |
-| `/dashboard/wallets` | Verify wallet + sign mandate | **PASS** | 2 active mandates (421614 + 46630) |
+| `/dashboard/wallets` | Verify wallet + sign mandate + live balances | **PASS** | ETH + USDC (Arb) + ETH (RH) from RPC |
 | `/dashboard/agents` | Agent register/activate/API keys | **PASS** | Agent `valen` active |
 | `/dashboard/policies` | Policy templates + rules | **PASS** | Conservative Transfer Guard active |
 | `/dashboard/compliance` | Compliance checks | **PASS** | Loads |
@@ -2099,7 +2099,70 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | `/dashboard/team` | Team | **PASS** | Loads |
 | `/dashboard/settings` | Settings | **PASS** | Loads |
 
-### Production E2E — what we tested, fixed, and what remains (2026-06-13)
+### Dashboard page guide — what each page does & how to test (2026-06-13)
+
+**Production org snapshot:** `702be0ea…` · Agent `valen` active · Policy `Conservative Transfer Guard` · Mandates on 421614 + 46630 · **3 executed** / **3 failed** intents · **0** pending approvals · **0** webhooks
+
+#### New user path (recommended order)
+
+| Step | Page | Action |
+|------|------|--------|
+| 1 | `/login` | Sign in with Privy (email or wallet) |
+| 2 | `/onboarding` or `/dashboard` | Create or select organization |
+| 3 | `/dashboard/register-agent` | Register agent → activate |
+| 4 | `/dashboard/policies/new` | Create policy from template → publish → activate |
+| 5 | `/dashboard/wallets` | Verify owner wallet → sign mandate (per chain) |
+| 6 | `/dashboard/agents/:id` | Optional: create mandate-bound API key |
+| 7 | `/dashboard/executions/new` | Submit intent → watch pipeline |
+| 8 | `/dashboard/executions/:id/proof` | View proof + relayer txs |
+
+---
+
+#### Main menu (sidebar top)
+
+| Page | Route | What it does | How to test (new user) | Prod test |
+|------|-------|--------------|------------------------|-----------|
+| **Dashboard** | `/dashboard` | Mission Control: 7-step setup checklist, stats (agents, executions, settlements, treasury, governance queue), recent executions, status breakdown | After login, confirm checklist progresses as you complete steps; stats update after first executed intent | **PASS** — flow ready; 3 executed |
+| **Executions** | `/dashboard/executions` | List all agent intents with status filter; link to detail + Intent Builder | Filter **Executed** → see `d872b0a7…` (Arb) and `7cfa54c3…` (RH); click row for pipeline | **PASS** |
+| **Intent Builder** | `/dashboard/executions/new` | Build mandate-aware intent from template (Arb ETH, Arb USDC policy, Robinhood demo); readiness checks; wallet balances | Select template → agent `valen` → green mandate match → Submit; expect redirect to execution detail | **PASS** |
+| **Execution detail** | `/dashboard/executions/:id` | Pipeline timeline, compliance/risk/settlement panels, approve/cancel/retry actions | Open executed intent → compliance PASS, risk 10/low, settlement confirmed | **PASS** |
+| **Proof** | `/dashboard/executions/:id/proof` | Authority (agent/mandate/policy), verdicts, settlement proof (submit/approve/execute tx links) | Open proof for `7cfa54c3…` or `d872b0a7…` → status **Executed**; refresh if tx links unavailable | **PASS** |
+| **Approvals** | `/dashboard/approvals` | Human approval queue for high-risk intents; wallet-signed approve/reject | Empty when risk is low (expected); test by policy requiring approval | **PASS** — 0 pending |
+| **Settlements** | `/dashboard/settlements` | Monitor on-chain settlement status per execution (tx hash, chain) | See 3 confirmed + 2 failed settlements; click through to execution | **PASS** |
+| **Wallets** | `/dashboard/wallets` | Verify owner wallet, sign/revoke mandates, live ETH + USDC balances (RPC), authority chain selector | Switch chain 421614/46630 → Verify → Sign Mandate; balances panel shows Arb ETH + USDC + RH ETH | **PASS** |
+
+#### Pages menu (sidebar bottom)
+
+| Page | Route | What it does | How to test (new user) | Prod test |
+|------|-------|--------------|------------------------|-----------|
+| **Agents** | `/dashboard/agents` | List agents with readiness (policy, mandate, wallet); link to detail | See `valen` active; readiness 4/4; click card for API keys | **PASS** |
+| **Register Agent** | `/dashboard/register-agent` | Create new agent (hosted/external/service) and activate | Fill name + type → submit → activates on dashboard | **PASS** |
+| **Agent detail** | `/dashboard/agents/:id` | Agent profile, default policy, mandate-bound API keys, submit intent shortcut | Open `valen` → see API key `E2E production key`; create new key | **PASS** |
+| **Policies** | `/dashboard/policies` | List org policies with status and active version | See **Conservative Transfer Guard** active; click name for rules | **PASS** |
+| **Create Policy** | `/dashboard/policies/new` | Template-driven policy (Conservative Transfer / Robinhood TSLA demo) → submit → publish → activate | Pick template → create → publish → activate; assign to agent | **PASS** |
+| **Policy detail** | `/dashboard/policies/:id` | Permission rules preview, versions, lifecycle actions | Open policy → see allowed chains/actions/assets | **PASS** |
+| **Compliance** | `/dashboard/compliance` | Per-agent compliance subject rows: attestations and recent checks | See agent `valen` row; expands with check history from executions | **PASS** |
+| **Audit Logs** | `/dashboard/audit` | Immutable audit trail; filter by action; export JSON bundle | Filter `settlement.executed` / `execution.attested`; click Export | **PASS** |
+| **Governance** | `/dashboard/governance` | Read-only ValenGovernance + Timelock state (delay, roles, queued actions) | Switch Arb/RH → Refresh → roles Granted; note 24h timelock blocks execute | **PASS** |
+| **Treasury** | `/dashboard/treasury` | Live ValenTreasury balance, accrued/collected fees via operator API | Switch chain → see treasury address + ETH balance + fee counters | **PASS** |
+| **Contracts** | `/dashboard/contracts` | Deployed Solidity + Stylus addresses for Sepolia and Robinhood; explorer links | Confirm Registry, Settlement, 4 engines listed per network | **PASS** |
+| **Robinhood Demo** | `/dashboard/demo/robinhood-tsla` | Demo guide: allowed vs refused TSLA scenarios; links to Intent Builder | Shows active Robinhood mandate count; click Build Allowed Intent | **PASS** |
+| **Webhooks** | `/dashboard/webhooks` | Create/test/delete webhooks for execution/settlement events | Add URL + events → Test delivery (empty until you create one) | **PASS** — 0 configured |
+| **Team** | `/dashboard/team` | Invite members with roles (compliance, auditor, developer, etc.) | Invite email + role → member appears in list | **PASS** |
+| **Settings** | `/dashboard/settings` | Org name, default chain, risk/compliance mode | Edit org name → Save → success message | **PASS** |
+
+#### What each page does NOT do (important)
+
+| Page | Limitation |
+|------|------------|
+| Wallets | Does not move funds; shows balances + verify + sign mandates |
+| Intent Builder | Settlement relayer sends **native ETH** today (not ERC-20 transfer) |
+| Governance | Read-only — cannot queue/execute proposals from dashboard |
+| Treasury | Read-only contract stats — not your personal wallet |
+| Robinhood Demo | Guidance shell — actual run is via Intent Builder + pipeline |
+
+| 2026-06-13 08:00 | Full dashboard page audit | — | All 18 routes + 5 sub-routes documented; DB verified 3 executed intents, 2 mandates, 1 policy, 0 approvals/webhooks | Page guide added to summary; code + DB review (browser automation session lacks Privy auth) | `docs/summary.md` | **PASS** |
+
 
 **Environment:** Org `702be0ea…` · Agent `valen` (`64f56184…`) · Wallet `0xf76e…71a3` · Frontend https://valenai.vercel.app · API https://valen-api-m3g4.onrender.com
 
