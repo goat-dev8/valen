@@ -42,6 +42,17 @@ export function executionAmountWeiOrDefault(
   return parseExecutionAmountWei(value);
 }
 
+/** Reads value_amount from DB — already normalized base units, never re-parse as human amount. */
+export function readStoredBaseUnits(
+  value: string | null | undefined,
+  fallback: bigint,
+): bigint {
+  if (!value?.trim()) {
+    return fallback;
+  }
+  return BigInt(value.trim());
+}
+
 const USDC_SEPOLIA = '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d';
 
 export function formatBaseUnitsForDisplay(

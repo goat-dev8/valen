@@ -8,7 +8,7 @@ import {
 } from 'viem';
 import { ExecutionsRepository } from '../../database/repositories/executions.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
-import { executionAmountWeiOrDefault } from '../../common/utils/amount.util';
+import { readStoredBaseUnits } from '../../common/utils/amount.util';
 import { resolveOnChainAssetAddress } from '../../common/utils/execution-asset.util';
 import { hasStoredOnChainAttestation } from '../../common/utils/execution-onchain.util';
 import { hashPayload } from '../../common/utils/hash.util';
@@ -55,7 +55,7 @@ export class OnChainAttestationService {
     const executionHash = this.requireExecutionHash(execution.request_payload_hash);
     const target = this.normalizeAddress(execution.target_address ?? settlementAgent, settlementAgent);
     const asset = resolveOnChainAssetAddress(execution.asset_address);
-    const amount = executionAmountWeiOrDefault(
+    const amount = readStoredBaseUnits(
       execution.value_amount,
       DEFAULT_SETTLEMENT_AMOUNT_WEI,
     );

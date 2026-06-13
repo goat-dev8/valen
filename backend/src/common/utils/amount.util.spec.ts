@@ -1,6 +1,7 @@
 import {
   normalizeExecutionAmount,
   normalizeExecutionAmountWei,
+  readStoredBaseUnits,
 } from './amount.util';
 
 describe('amount util', () => {
@@ -17,5 +18,12 @@ describe('amount util', () => {
 
   it('preserves the legacy ETH wei parser', () => {
     expect(normalizeExecutionAmountWei('0.001')).toBe('1000000000000000');
+  });
+
+  it('reads stored base units without re-parsing as human amount', () => {
+    expect(readStoredBaseUnits('1000000', 0n)).toBe(1000000n);
+    expect(readStoredBaseUnits('1000000', 0n)).not.toBe(
+      BigInt('1000000000000000000000000'),
+    );
   });
 });

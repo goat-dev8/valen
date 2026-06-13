@@ -14,7 +14,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { AppConfig } from '../../config/config.types';
-import { executionAmountWeiOrDefault } from '../../common/utils/amount.util';
+import { readStoredBaseUnits } from '../../common/utils/amount.util';
 import { writeContractWithFreshNonce } from '../../common/utils/chain-write.util';
 import { resolveOnChainAssetAddress } from '../../common/utils/execution-asset.util';
 import { ExecutionRow } from '../../database/repositories/executions.repository';
@@ -279,7 +279,7 @@ function getNativeValue(execution: ExecutionRow): bigint {
   if (!execution.value_amount) {
     return 0n;
   }
-  return executionAmountWeiOrDefault(execution.value_amount, DEFAULT_SETTLEMENT_AMOUNT_WEI);
+  return readStoredBaseUnits(execution.value_amount, DEFAULT_SETTLEMENT_AMOUNT_WEI);
 }
 
 @Injectable()
