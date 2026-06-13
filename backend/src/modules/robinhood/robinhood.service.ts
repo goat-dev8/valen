@@ -31,8 +31,7 @@ export class RobinhoodService {
   }
 
   private withScenarios(asset: Awaited<ReturnType<AssetsService['get']>>) {
-    const metadataOnly = asset.supportLevel === 'metadata-only';
-    const settlementRail = asset.symbol === 'USDG' ? 'USDG' : 'USDG/native proof fallback';
+    const settlementRail = asset.symbol;
     return {
       ...asset,
       chainId: ROBINHOOD_CHAIN_ID,
@@ -44,19 +43,17 @@ export class RobinhoodService {
           label: `${asset.symbol} within policy`,
           amount: asset.symbol === 'USDG' ? '0.001' : '10',
           supportLevel: asset.supportLevel,
-          settlementMode: metadataOnly ? 'metadata_policy_asset' : 'erc20_transfer',
-          note: metadataOnly
-            ? 'Policy/proof asset only until Robinhood stock-token contract address is verified.'
-            : 'Official Robinhood ERC-20 settlement-ready asset.',
+          settlementMode: 'erc20_transfer',
+          note: 'ERC-20 settlement via ValenTokenSettlementAdapter on Robinhood Testnet.',
         },
         {
           id: `${asset.symbol.toLowerCase()}-refused-over-limit`,
           kind: 'refused',
           label: `${asset.symbol} over limit`,
-          amount: asset.symbol === 'USDG' ? '250' : '250',
+          amount: '250',
           supportLevel: asset.supportLevel,
           settlementMode: 'no_settlement_on_refusal',
-          note: 'Refused path stops before settlement and should create a durable refusal proof in the receipt phase.',
+          note: 'Refused path stops before settlement and creates a durable refusal proof.',
         },
       ],
     };

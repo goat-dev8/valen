@@ -42,7 +42,7 @@ async function main() {
         robinhood: {
           ticker: TICKER,
           scenario: 'refused',
-          policyAssetSupportLevel: 'metadata-only',
+          policyAssetSupportLevel: 'demo-ready',
           settlementAsset: 'USDG',
         },
       },

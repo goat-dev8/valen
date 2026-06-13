@@ -2,7 +2,13 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { ethers, network } from "hardhat";
 
-const STOCK_TICKERS = ["TSLA", "AMZN", "PLTR", "NFLX", "AMD"] as const;
+const STOCK_TOKENS = {
+  TSLA: "0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E",
+  AMZN: "0x5884aD2f920c162CFBbACc88C9C51AA75eC09E02",
+  PLTR: "0x1FBE1a0e43594b3455993B5dE5Fd0A7A266298d0",
+  NFLX: "0x3b8262A63d25f0477c4DDE23F83cfe22Cb768C93",
+  AMD: "0x71178BAc73cBeb415514eB542a8995b82669778d",
+} as const;
 
 async function main(): Promise<void> {
   const deployment = JSON.parse(
@@ -13,14 +19,14 @@ async function main(): Promise<void> {
   const registry = await ethers.getContractAt("RobinhoodAssetRegistry", address);
 
   const usdg = await registry.getAsset(ethers.encodeBytes32String("USDG"));
-  if (!usdg.verified || usdg.decimals !== 6n) {
-    throw new Error("USDG registry record is not verified with 6 decimals");
+  if (!usdg.verified || usdg.decimals !== 6n || usdg.supportLevel !== "demo-ready") {
+    throw new Error("USDG registry record is not demo-ready with 6 decimals");
   }
 
-  for (const ticker of STOCK_TICKERS) {
+  for (const [ticker, tokenAddress] of Object.entries(STOCK_TOKENS)) {
     const record = await registry.getAsset(ethers.encodeBytes32String(ticker));
-    if (record.verified || record.token !== ethers.ZeroAddress || record.supportLevel !== "metadata-only") {
-      throw new Error(`${ticker} registry record is not metadata-only`);
+    if (!record.verified || record.token !== tokenAddress || record.supportLevel !== "demo-ready") {
+      throw new Error(`${ticker} registry record is not demo-ready with verified token ${tokenAddress}`);
     }
   }
 
@@ -29,7 +35,7 @@ async function main(): Promise<void> {
       {
         network: network.name,
         registry: address,
-        verified: ["USDG", ...STOCK_TICKERS],
+        verified: ["USDG", ...Object.keys(STOCK_TOKENS)],
       },
       null,
       2,

@@ -14,6 +14,13 @@ type DeploymentRecord = {
 
 const STOCK_TICKERS = ["TSLA", "AMZN", "PLTR", "NFLX", "AMD"] as const;
 const USDG = "0x7E955252E15c84f5768B83c41a71F9eba181802F";
+const STOCK_TOKENS = {
+  TSLA: "0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E",
+  AMZN: "0x5884aD2f920c162CFBbACc88C9C51AA75eC09E02",
+  PLTR: "0x1FBE1a0e43594b3455993B5dE5Fd0A7A266298d0",
+  NFLX: "0x3b8262A63d25f0477c4DDE23F83cfe22Cb768C93",
+  AMD: "0x71178BAc73cBeb415514eB542a8995b82669778d",
+} as const;
 
 async function waitTx(tx: { wait: () => Promise<{ hash?: string } | null>; hash: string }) {
   const receipt = await tx.wait();
@@ -55,11 +62,11 @@ async function main(): Promise<void> {
       await waitTx(
         await registry.registerAsset(
           ethers.encodeBytes32String(ticker),
-          ethers.ZeroAddress,
+          STOCK_TOKENS[ticker],
           18,
-          false,
-          "metadata-only",
-          "https://blog.arbitrum.io/robinhood-chain-testnet/",
+          true,
+          "demo-ready",
+          "https://docs.robinhood.com/chain/contracts/",
         ),
       ),
     );
