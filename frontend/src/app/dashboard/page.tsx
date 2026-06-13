@@ -219,7 +219,7 @@ export default function DashboardPage() {
           </h3>
           <p className="mt-2 text-sm leading-6 text-[#64748b]">
             {latestPayment
-              ? `${latestPayment.status} · ${formatProofAmount(latestPayment.amount, latestPayment.chainId ?? chainId, undefined, 'USDC').replace(' USDC', '')} USDC`
+              ? `${latestPayment.status} · ${formatProofAmount(latestPayment.amount, chainId, undefined, 'USDC').replace(' USDC', '')} USDC`
               : 'Initiate and settle a governed x402 USDC payment with budget enforcement.'}
           </p>
         </Link>
