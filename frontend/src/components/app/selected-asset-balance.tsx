@@ -1,3 +1,6 @@
+'use client';
+
+import { useWalletBalanceForChain } from '@/hooks/use-wallet-balances';
 import { knownAssetForMandateValue } from '@/lib/known-assets';
 
 type SelectedAssetBalanceProps = {
