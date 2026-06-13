@@ -53,7 +53,24 @@ export function readStoredBaseUnits(
   return BigInt(value.trim());
 }
 
+import {
+  ROBINHOOD_STOCK_TOKENS,
+  ROBINHOOD_TESTNET_USDG,
+} from '../constants/robinhood.constants';
+
 const USDC_SEPOLIA = '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d';
+
+export function assetDecimalsForAddress(assetAddress?: string | null): number {
+  if (!assetAddress || assetAddress.toLowerCase() === 'native') return 18;
+  const lower = assetAddress.toLowerCase();
+  if (lower === USDC_SEPOLIA || lower === ROBINHOOD_TESTNET_USDG.toLowerCase()) {
+    return 6;
+  }
+  for (const token of Object.values(ROBINHOOD_STOCK_TOKENS)) {
+    if (token.address.toLowerCase() === lower) return token.decimals;
+  }
+  return 18;
+}
 
 export function formatBaseUnitsForDisplay(
   baseUnits: string | null | undefined,
@@ -61,13 +78,7 @@ export function formatBaseUnitsForDisplay(
 ): string | null {
   if (!baseUnits) return null;
   try {
-    const decimals =
-      assetAddress && assetAddress.toLowerCase() !== 'native'
-        ? assetAddress.toLowerCase() === USDC_SEPOLIA
-          ? 6
-          : 18
-        : 18;
-    return formatUnits(BigInt(baseUnits), decimals);
+    return formatUnits(BigInt(baseUnits), assetDecimalsForAddress(assetAddress));
   } catch {
     return baseUnits;
   }

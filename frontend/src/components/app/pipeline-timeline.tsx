@@ -1,16 +1,16 @@
 import type { TimelineEventDto } from '@/types/api';
 
-const PIPELINE_LABELS = [
-  'intent.received',
-  'mandate.verified',
-  'compliance',
-  'eligibility',
-  'risk',
-  'policy',
-  'approval',
-  'settlement',
-  'proof',
-];
+const PIPELINE_STAGES = [
+  { key: 'intent.received', label: 'Intent received' },
+  { key: 'mandate.verified', label: 'Mandate verified' },
+  { key: 'compliance', label: 'Compliance' },
+  { key: 'eligibility', label: 'Eligibility' },
+  { key: 'risk', label: 'Risk' },
+  { key: 'policy', label: 'Policy' },
+  { key: 'approval', label: 'Approval' },
+  { key: 'settlement', label: 'Settlement' },
+  { key: 'proof', label: 'Proof' },
+] as const;
 
 function labelFor(eventName: string) {
   if (eventName.includes('created')) return 'Intent received';
@@ -25,6 +25,34 @@ function labelFor(eventName: string) {
   return eventName;
 }
 
+/** How many pipeline stages are complete for a terminal/non-terminal status. */
+function completedStageCount(status?: string): number {
+  switch (status) {
+    case 'executed':
+      return PIPELINE_STAGES.length;
+    case 'settlement_submitted':
+      return 8;
+    case 'approved':
+    case 'approval_required':
+      return 7;
+    case 'validated':
+      return 5;
+    case 'created':
+      return 1;
+    case 'compliance_failed':
+      return 3;
+    case 'risk_failed':
+      return 5;
+    case 'policy_rejected':
+      return 6;
+    case 'failed':
+    case 'cancelled':
+      return 4;
+    default:
+      return 1;
+  }
+}
+
 export function PipelineTimeline({
   events,
   status,
@@ -32,7 +60,12 @@ export function PipelineTimeline({
   events?: TimelineEventDto[];
   status?: string;
 }) {
-  const terminal = status && ['executed', 'failed', 'cancelled', 'compliance_failed', 'risk_failed', 'policy_rejected'].includes(status);
+  const terminal =
+    status &&
+    ['executed', 'failed', 'cancelled', 'compliance_failed', 'risk_failed', 'policy_rejected'].includes(
+      status,
+    );
+  const completedStages = completedStageCount(status);
 
   if (!events?.length) {
     return (
@@ -60,17 +93,32 @@ export function PipelineTimeline({
           </div>
         </div>
       ))}
+      {terminal && status === 'executed' && (
+        <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Pipeline complete — settlement executed and proof is available.
+        </div>
+      )}
       {!terminal && (
         <div className="rounded-2xl bg-[#f8fafc] p-4 text-sm text-[#64748b]">
           Polling continues until the execution reaches a terminal status.
         </div>
       )}
       <div className="mt-4 flex flex-wrap gap-2">
-        {PIPELINE_LABELS.map((label) => (
-          <span key={label} className="rounded-full bg-[#f8fafc] px-3 py-1 text-xs text-[#64748b]">
-            {label}
-          </span>
-        ))}
+        {PIPELINE_STAGES.map((stage, index) => {
+          const done = index < completedStages;
+          return (
+            <span
+              key={stage.key}
+              className={
+                done
+                  ? 'rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700'
+                  : 'rounded-full bg-[#f8fafc] px-3 py-1 text-xs text-[#64748b]'
+              }
+            >
+              {stage.label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
