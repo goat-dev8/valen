@@ -12,17 +12,30 @@ export type IntentTemplate = {
 export const INTENT_TEMPLATES: IntentTemplate[] = [
   {
     id: 'arbitrum-transfer',
-    name: 'Arbitrum Transfer',
-    description: 'Submit a standard Arbitrum Sepolia transfer through compliance, risk, policy, mandate, and settlement.',
+    name: 'Arbitrum ETH Transfer',
+    description: 'Submit a native ETH transfer on Arbitrum Sepolia through compliance, risk, policy, mandate, and settlement.',
     actionType: 'transfer',
     targetChainId: 421614,
     targetAddress: '0x0000000000000000000000000000000000000000',
-    amount: '0.01',
+    assetAddress: 'native',
+    amount: '0.001',
+  },
+  {
+    id: 'arbitrum-usdc',
+    name: 'Arbitrum USDC (policy scope)',
+    description:
+      'Validate a USDC-scoped intent on Arbitrum Sepolia. Mandate must allow USDC 0x75fa…AA4d. Settlement relayer still delivers native ETH today.',
+    actionType: 'transfer',
+    targetChainId: 421614,
+    targetAddress: '0x0000000000000000000000000000000000000000',
+    assetAddress: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+    amount: '0.001',
   },
   {
     id: 'robinhood-demo',
     name: 'Robinhood Demo Intent',
-    description: 'Run the Robinhood Testnet demo path using the same mandate and proof model.',
+    description:
+      'Run the Robinhood Testnet demo path. TSLA is a demo asset label for mandate/policy; settlement relays native ETH.',
     actionType: 'custom',
     targetChainId: 46630,
     targetAddress: '0x0000000000000000000000000000000000000000',

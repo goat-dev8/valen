@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircle, Copy, ExternalLink, ShieldCheck, Wallet } from 'lucide-react';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
+import { WalletBalancesPanel } from '@/components/app/wallet-balances-panel';
 import { useOrganization } from '@/contexts/org-context';
 import {
   useAgents,
@@ -18,6 +19,7 @@ import {
   useVerifyWallet,
   useWalletVerifications,
 } from '@/hooks/use-valen-api';
+import { useWalletBalances } from '@/hooks/use-wallet-balances';
 import { operatorFetch } from '@/lib/api';
 import { chainName } from '@/lib/constants';
 import { explorerAddressUrl } from '@/lib/explorer';
@@ -76,6 +78,12 @@ function normalizeChainId(chainId: unknown): number | null {
 function shortAddress(address?: string | null) {
   if (!address) return 'Unavailable';
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+function trimBalance(value: string): string {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return value;
+  return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 async function requestPersonalSignature(wallet: SignableWallet, message: string): Promise<string> {
@@ -203,6 +211,18 @@ export default function WalletsPage() {
   });
 
   const connectedWallet = wallets[0];
+  const { data: walletBalances } = useWalletBalances(connectedWallet?.address);
+  const arbBalance = walletBalances?.find((row) => row.chainId === 421614);
+  const rhBalance = walletBalances?.find((row) => row.chainId === 46630);
+  const connectedBalanceSummary = connectedWallet?.address
+    ? [
+        arbBalance ? `Arb ${trimBalance(arbBalance.nativeFormatted)} ETH` : null,
+        arbBalance?.tokens[0] ? `${trimBalance(arbBalance.tokens[0].formatted)} ${arbBalance.tokens[0].symbol}` : null,
+        rhBalance ? `RH ${trimBalance(rhBalance.nativeFormatted)} ETH` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || 'Loading…'
+    : null;
   const signableWallet = connectedWallet as SignableWallet | undefined;
   const connectedChainId = normalizeChainId(connectedWallet?.chainId);
   const authorityChainId = chainId;
@@ -655,15 +675,20 @@ export default function WalletsPage() {
       </section>
 
       <div className="grid gap-5 xl:grid-cols-2">
+        <div className="app-card xl:col-span-2">
+          <h3 className="app-card-title mb-3">Live wallet balances</h3>
+          <WalletBalancesPanel walletAddress={connectedWallet?.address} />
+        </div>
+
         <WalletCard
           title="Connected Wallet"
           subtitle={ready ? 'Privy wallet connection state' : 'Loading Privy wallet state'}
           address={connectedWallet?.address}
           chainId={effectiveWalletChainId}
-          balance={null}
+          balance={connectedBalanceSummary}
           status={connectedWallet ? 'Connected' : ready ? 'Disconnected' : 'Loading'}
           statusTone={connectedWallet ? (unsupportedConnectedChain ? 'warn' : 'ok') : 'warn'}
-          note="Address and chain come from Privy. Balance is not displayed until Render exposes a wallet balance endpoint or approved wallet-provider balance flow."
+          note="ETH on Arbitrum Sepolia and Robinhood Testnet, plus USDC on Arbitrum Sepolia when available. Read from chain RPC — not from Render."
         />
 
         <WalletCard

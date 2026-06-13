@@ -4,17 +4,22 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle, Circle } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useWallets } from '@privy-io/react-auth';
 import { keccak256, toHex } from 'viem';
 import { PageHeader } from '@/components/app/page-header';
 import { ChainBadge } from '@/components/app/chain-badge';
+import { WalletBalancesPanel } from '@/components/app/wallet-balances-panel';
 import { useAgents, useCreateExecution, useMandates } from '@/hooks/use-valen-api';
 import { INTENT_TEMPLATES, intentTemplateById } from '@/lib/intent-templates';
+import { knownAssetsForChain, settlementLabelForAsset } from '@/lib/known-assets';
 import { mandateMatchesIntent } from '@/lib/mandate-match';
 import { formatApiErrorMessage } from '@/lib/utils';
 
 export default function SubmitIntentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { wallets } = useWallets();
+  const connectedWallet = wallets[0]?.address;
   const { data: agents, isLoading: agentsLoading } = useAgents({ limit: 100, status: 'active' });
   const { data: mandates } = useMandates();
   const createMutation = useCreateExecution();
@@ -42,6 +47,11 @@ export default function SubmitIntentPage() {
     [mandates, selectedAgent?.id, selectedTemplate, targetAddress, assetAddress],
   );
   const selectedMandate = activeMandates[0];
+  const chainAssets = knownAssetsForChain(selectedTemplate.targetChainId);
+  const settlementNote = settlementLabelForAsset(
+    selectedTemplate.targetChainId,
+    assetAddress || selectedTemplate.assetAddress || 'native',
+  );
   const submitBlockedReason = !selectedAgent
     ? 'Select an active agent.'
     : !selectedAgent.defaultPolicyId
@@ -164,7 +174,31 @@ export default function SubmitIntentPage() {
           </div>
           <div className="app-form-group">
             <label htmlFor="assetAddress">Asset</label>
-            <input id="assetAddress" name="assetAddress" type="text" value={assetAddress} onChange={(e) => setAssetAddress(e.target.value)} placeholder="native or token address" className="app-input" />
+            <select
+              id="assetAddress"
+              name="assetAddress"
+              className="app-input"
+              value={chainAssets.some((a) => a.mandateValue === assetAddress) ? assetAddress : 'custom'}
+              onChange={(e) => {
+                if (e.target.value !== 'custom') setAssetAddress(e.target.value);
+              }}
+            >
+              {chainAssets.map((asset) => (
+                <option key={asset.id} value={asset.mandateValue}>
+                  {asset.label}
+                </option>
+              ))}
+              <option value="custom">Custom address or symbol</option>
+            </select>
+            <input
+              aria-label="Custom asset address or symbol"
+              type="text"
+              value={assetAddress}
+              onChange={(e) => setAssetAddress(e.target.value)}
+              placeholder="native, USDC address, or demo symbol"
+              className="app-input mt-2 font-mono text-sm"
+            />
+            <p className="mt-2 text-xs leading-5 text-[#64748b]">{settlementNote}</p>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           {submitBlockedReason && <p className="text-sm font-medium text-amber-700">{submitBlockedReason}</p>}
@@ -184,6 +218,7 @@ export default function SubmitIntentPage() {
                 ['Action', selectedTemplate.actionType],
                 ['Target', targetAddress],
                 ['Amount', amount || 'Not set'],
+                ['Asset', assetAddress || 'native'],
                 ['Mandate', selectedMandate?.id ?? 'No matching mandate'],
               ].map(([label, value]) => (
                 <div key={label} className="wallet-row">
@@ -211,6 +246,13 @@ export default function SubmitIntentPage() {
             <p className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm leading-6 text-[#64748b]">
               {approvalExplanation}
             </p>
+          </div>
+
+          <div className="app-card">
+            <h3 className="app-card-title">Wallet on this chain</h3>
+            <div className="mt-4">
+              <WalletBalancesPanel walletAddress={connectedWallet} chainId={selectedTemplate.targetChainId} compact />
+            </div>
           </div>
         </div>
       </div>

@@ -2052,6 +2052,16 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | 2026-06-13 05:20 | 18–12 Robinhood pipeline | Execution `4f99b5fc…` **Failed** after compliance PASS; UI said "failed before risk" but risk score 10/low exists | Submit+approve on chain 46630 succeeded; execute needs 0.5 ETH but relayer has ~0.009 ETH; recovery retried submit → `SettlementAlreadyUsed (0x087103d2)` | Idempotent settlement resume; Robinhood E2E mandate ID; demo amount `0.001` ETH | `592c5df` | FIX deployed |
 | 2026-06-13 06:40 | 18–12 Robinhood pipeline (retest) | — | Intent Builder Robinhood Demo 0.001 ETH; mandate `aab33461…`; target `0x18398a…` | — | — | **PASS** — `7cfa54c3-7cea-4cf3-bb6d-b207b3045b4c` **Executed** on 46630; compliance ONCHAIN_ENGINE_ATTESTED; risk 10/low; settlement confirmed submit `0x641d…` approve `0xb620…` execute `0x200a…`; block 74414881; on-chain settlement `0xf3d27b…` |
 | 2026-06-13 06:45 | Production page smoke (post-Robinhood) | — | User session on https://valenai.vercel.app — Intent Builder, Execution detail, Proof page load; Mission Control + sidebar routes reachable | Proof page showed **Executed** badge; settlement tx links may show unavailable until refresh (DB has tx hashes) | — | **PASS** (pages load; Robinhood E2E confirmed in DB) |
+| 2026-06-13 07:30 | UX — wallet balances + assets | User asked why wallet balances hidden and why only ETH settles | Wallets page had `balance={null}` by design; settlement contract sends native ETH only; TSLA/USDC are mandate/policy labels today | Live balances via chain RPC (ETH + USDC on Arb, ETH on RH); asset picker + settlement notes in Intent Builder; Arbitrum USDC template `0x75fa…AA4d`; Governance page copy | `frontend/src/lib/wallet-balances.ts`, `frontend/src/lib/known-assets.ts`, `frontend/src/components/app/wallet-balances-panel.tsx`, `frontend/src/app/dashboard/wallets/page.tsx`, `frontend/src/app/dashboard/executions/new/page.tsx`, `frontend/src/app/dashboard/governance/page.tsx`, `docs/summary.md` | **REDEPLOY REQUIRED** (Vercel) |
+
+### Why tokens behave the way they do (product note)
+
+| Question | Answer |
+|----------|--------|
+| Why no wallet balance before? | UI intentionally showed `Unavailable from Render API`. Now reads **live balances from chain RPC** on Wallets + Intent Builder. |
+| Why TSLA / USDC not “transferred”? | `ValenSettlement.executeSettlement` sends **native ETH** to the target. Token symbols/addresses are used in **mandate, compliance, risk, and policy** validation — not ERC-20 transfer yet. |
+| Can I use USDC `0x75fa…AA4d` on Arbitrum? | **Policy scope yes** — add USDC to mandate `allowedAssets` when signing. **Settlement today** still relays ETH amount you enter. Full ERC-20 settlement = contract upgrade (roadmap). |
+| Governance page | **Read-only live state** from on-chain timelock (86400s delay). Roles + queue load via operator API; execute not exposed in dashboard by design. |
 
 ### E2E progress (production — 2026-06-13, updated)
 
@@ -2081,7 +2091,7 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | `/dashboard/policies` | Policy templates + rules | **PASS** | Conservative Transfer Guard active |
 | `/dashboard/compliance` | Compliance checks | **PASS** | Loads |
 | `/dashboard/audit` | Audit log | **PASS** | Loads |
-| `/dashboard/governance` | Governance proposals | **PASS** | Loads; execute blocked by timelock |
+| `/dashboard/governance` | Timelock + roles (read-only) | **PASS** | Live contract state; 24h delay; no dashboard execute |
 | `/dashboard/treasury` | Treasury | **PASS** | Loads |
 | `/dashboard/contracts` | Contract addresses | **PASS** | Sepolia + Robinhood deployments |
 | `/dashboard/demo/robinhood-tsla` | Robinhood demo shell | **PASS** | Demo guidance page |
@@ -2135,6 +2145,9 @@ NEXT_PUBLIC_ROBINHOOD_TESTNET_TREASURY_ADDRESS=0xd9aDaab0E9660777B979D4C44294bE0
 | Old failed executions (Arbitrum pre-fix) | **EXPECTED** | `d2c1ac09…`, `414c0d56…` — ignore |
 | Wallets chain banner (4331028) | **COSMETIC** | Misconfigured chain ID display; signing works in browser popup |
 | Proof page tx link display | **MINOR** | DB has submit/approve/execute hashes; refresh proof page if UI shows unavailable |
+| Wallet balance display | **FIXED** | Live ETH + USDC (Arb) + ETH (RH) via chain RPC on Wallets + Intent Builder (`ba33613+`) |
+| Token settlement (USDC/TSLA) | **LIMITATION** | Mandate/policy validate token scope; relayer settlement delivers **native ETH only** until token settlement ships |
+| USDC Arbitrum intent | **READY (policy scope)** | Template `0x75fa…AA4d`; mandate must list USDC in allowed assets (not only `native`) |
 
 **PR #4 verdict:** Implementation matches the frontend integration masterplan for wallet verification, signed mandates, mandate-bound API keys, onboarding/setup checklist, policy/intent templates, wallet-signed approvals, pipeline/proof UI, and Robinhood demo shell. Review fixes closed the remaining P0 enforcement gaps without changing architecture.
 
