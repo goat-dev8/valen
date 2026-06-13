@@ -5,12 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle, Circle } from 'lucide-react';
 import { ChainBadge } from '@/components/app/chain-badge';
+import { BudgetMeter } from '@/components/app/budget-meter';
+import { Erc8004Badge } from '@/components/app/erc8004-badge';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { AgentStatusBadge, StatusBadge } from '@/components/app/status-badge';
 import {
   useActivateAgent,
   useAgent,
+  useAgentIdentity,
   useAgentApiKeys,
   useCreateAgentApiKey,
   useExecutions,
@@ -30,6 +33,7 @@ export default function AgentDetailPage() {
   const agentId = params.agentId as string;
   const reserved = agentId === 'new' || agentId === 'register';
   const { data: agent, isLoading, error } = useAgent(reserved ? '' : agentId);
+  const { data: identity } = useAgentIdentity(reserved ? '' : agentId);
   const { data: executions } = useExecutions({ agentId: reserved ? undefined : agentId, limit: 10 });
   const { data: policies } = usePolicies();
   const { data: walletVerifications } = useWalletVerifications();
@@ -265,7 +269,11 @@ export default function AgentDetailPage() {
               </div>
             </div>
 
+            <BudgetMeter agentId={agent.id} />
+
             <div className="grid gap-5 lg:grid-cols-2">
+              <Erc8004Badge identity={identity?.erc8004} />
+
               <div className="app-card">
                 <h3 className="app-card-title mb-3">Agent Profile</h3>
                 <dl className="app-detail-list">
@@ -276,6 +284,54 @@ export default function AgentDetailPage() {
                   <div><dt>Created</dt><dd>{new Date(agent.createdAt).toLocaleString()}</dd></div>
                 </dl>
               </div>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="app-card">
+                <h3 className="app-card-title mb-3">Wallet Bindings</h3>
+                {!identity?.walletBindings.length ? (
+                  <p className="text-sm text-[#64748b]">No wallet bindings yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {identity.walletBindings.map((wallet) => (
+                      <div key={wallet.id} className="rounded-2xl border border-[#eef0f3] p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <ChainBadge chainId={wallet.chainId} />
+                          <span className="wallet-status wallet-status-ok">{wallet.status}</span>
+                        </div>
+                        <p className="mt-2 break-all font-mono text-xs text-[#012b54]">{wallet.walletAddress}</p>
+                        <p className="mt-1 text-xs text-[#64748b]">
+                          {wallet.walletType}{wallet.isPrimary ? ' · primary' : ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="app-card">
+                <h3 className="app-card-title mb-3">Signed Mandates</h3>
+                {!identity?.mandates.length ? (
+                  <p className="text-sm text-[#64748b]">No signed mandates yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {identity.mandates.map((mandate) => (
+                      <div key={mandate.id} className="rounded-2xl border border-[#eef0f3] p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <ChainBadge chainId={mandate.chainId} />
+                          <StatusBadge status={mandate.status} />
+                        </div>
+                        <p className="mt-2 break-all font-mono text-xs text-[#012b54]">{mandate.id}</p>
+                        <p className="mt-1 break-all text-xs text-[#64748b]">Signer: {mandate.signerAddress ?? 'unknown'}</p>
+                        <p className="mt-1 break-all text-xs text-[#64748b]">Typed data: {mandate.typedDataHash ?? 'none'}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-2">
 
               <div className="app-card">
                 <h3 className="app-card-title mb-3">Assign Default Policy</h3>

@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AgentsService } from './agents.service';
 import { AgentWalletsService } from './agent-wallets.service';
 import { AgentApiKeysService } from './agent-api-keys.service';
+import { Erc8004Service } from '../erc8004/erc8004.service';
 import {
   AgentResponseDto,
   AgentWalletResponseDto,
@@ -40,6 +41,7 @@ export class AgentsController {
     private readonly agentsService: AgentsService,
     private readonly agentWalletsService: AgentWalletsService,
     private readonly agentApiKeysService: AgentApiKeysService,
+    private readonly erc8004Service: Erc8004Service,
   ) {}
 
   @Post()
@@ -79,6 +81,34 @@ export class AgentsController {
     @Param('agentId', ParseUUIDPipe) agentId: string,
   ): Promise<AgentResponseDto> {
     return this.agentsService.get(organizationId, agentId);
+  }
+
+  @Get(':agentId/identity')
+  @ApiOperation({ summary: 'Get agent identity, mandates, and wallet bindings' })
+  getIdentity(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+  ) {
+    return this.erc8004Service.getIdentity(organizationId, agentId);
+  }
+
+  @Post(':agentId/erc8004/register')
+  @UseGuards(PrivyAuthGuard)
+  @Roles('organization_owner', 'developer')
+  @ApiOperation({ summary: 'Prepare or refresh ERC-8004 registration metadata for an agent' })
+  prepareErc8004(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+    @Body() dto: { resolverAddress?: string; ownerAddress?: string; tokenUri?: string; metadata?: Record<string, unknown> },
+  ) {
+    return this.erc8004Service.ensurePendingIdentity({
+      organizationId,
+      agentId,
+      resolverAddress: dto.resolverAddress,
+      ownerAddress: dto.ownerAddress,
+      tokenUri: dto.tokenUri,
+      metadata: dto.metadata,
+    });
   }
 
   @Patch(':agentId')
