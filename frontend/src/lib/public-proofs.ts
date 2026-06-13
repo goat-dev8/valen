@@ -33,15 +33,36 @@ export type ProofPackDto = {
   payments: PublicProofDto[];
 };
 
+const RENDER_API_URL = 'https://valen-api-m3g4.onrender.com';
+
 function apiBase(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://127.0.0.1:3000';
+  if (typeof window !== 'undefined') {
+    return '/api-proxy';
+  }
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_URL ??
+    process.env.NEXT_PUBLIC_BACKEND_URL ??
+    RENDER_API_URL;
+  if (!apiUrl.startsWith(RENDER_API_URL)) {
+    throw new Error(`Frontend API URL must target Render API (${RENDER_API_URL})`);
+  }
+  return apiUrl;
+}
+
+function buildPublicUrl(path: string): string {
+  const base = apiBase().replace(/\/$/, '');
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined') {
+    return `${base}${normalized}`;
+  }
+  return `${base}${normalized}`;
 }
 
 export async function fetchPublicProof(
   kind: 'executions' | 'refusals' | 'payments',
   id: string,
 ): Promise<PublicProofDto> {
-  const response = await fetch(`${apiBase()}/v1/public/proofs/${kind}/${id}`, {
+  const response = await fetch(buildPublicUrl(`/v1/public/proofs/${kind}/${id}`), {
     headers: { Accept: 'application/json' },
     cache: 'no-store',
   });
@@ -52,7 +73,7 @@ export async function fetchPublicProof(
 }
 
 export async function fetchProofPack(): Promise<ProofPackDto> {
-  const response = await fetch(`${apiBase()}/v1/public/proofs/pack`, {
+  const response = await fetch(buildPublicUrl('/v1/public/proofs/pack'), {
     headers: { Accept: 'application/json' },
     cache: 'no-store',
   });
@@ -63,7 +84,7 @@ export async function fetchProofPack(): Promise<ProofPackDto> {
 }
 
 export async function fetchPublicAgent(slug: string) {
-  const response = await fetch(`${apiBase()}/v1/public/agents/${slug}`, {
+  const response = await fetch(buildPublicUrl(`/v1/public/agents/${slug}`), {
     headers: { Accept: 'application/json' },
     cache: 'no-store',
   });
