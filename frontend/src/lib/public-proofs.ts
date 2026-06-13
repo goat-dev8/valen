@@ -1,0 +1,64 @@
+export type PublicProofDto = {
+  proofVersion: '1.0';
+  id: string;
+  kind: 'execution' | 'refusal' | 'payment';
+  chainId: number;
+  publishedAt: string;
+  action?: string;
+  asset?: string | null;
+  amount?: string | null;
+  status: string;
+  mandateSigner?: string | null;
+  mandateHash?: string | null;
+  settlementTx?: string | null;
+  evidenceHash?: string | null;
+  refusalFactors?: Record<string, unknown> | null;
+  agentId?: string;
+};
+
+export type ProofPackDto = {
+  proofVersion: '1.0';
+  executions: PublicProofDto[];
+  refusals: PublicProofDto[];
+  payments: PublicProofDto[];
+};
+
+function apiBase(): string {
+  return process.env.NEXT_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://127.0.0.1:3000';
+}
+
+export async function fetchPublicProof(
+  kind: 'executions' | 'refusals' | 'payments',
+  id: string,
+): Promise<PublicProofDto> {
+  const response = await fetch(`${apiBase()}/v1/public/proofs/${kind}/${id}`, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`Proof fetch failed (${response.status})`);
+  }
+  return response.json() as Promise<PublicProofDto>;
+}
+
+export async function fetchProofPack(): Promise<ProofPackDto> {
+  const response = await fetch(`${apiBase()}/v1/public/proofs/pack`, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`Proof pack fetch failed (${response.status})`);
+  }
+  return response.json() as Promise<ProofPackDto>;
+}
+
+export async function fetchPublicAgent(slug: string) {
+  const response = await fetch(`${apiBase()}/v1/public/agents/${slug}`, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`Agent profile fetch failed (${response.status})`);
+  }
+  return response.json();
+}
