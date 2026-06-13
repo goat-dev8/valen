@@ -17,6 +17,7 @@ import { AppConfig } from '../../config/config.types';
 import { readStoredBaseUnits } from '../../common/utils/amount.util';
 import { writeContractWithFreshNonce } from '../../common/utils/chain-write.util';
 import { resolveOnChainAssetAddress } from '../../common/utils/execution-asset.util';
+import { agentKeyFromId } from '../../common/utils/agent-key.util';
 import { ExecutionRow } from '../../database/repositories/executions.repository';
 import { DEFAULT_SETTLEMENT_AMOUNT_WEI } from '../../common/constants/onchain.constants';
 
@@ -115,6 +116,8 @@ const erc20Abi = parseAbi([
 
 const budgetVaultAbi = parseAbi([
   'function commitSpend(bytes32 executionHash, uint256 amount) external',
+  'function agentKey() view returns (bytes32)',
+  'function remaining() view returns (uint256)',
 ]);
 
 const SETTLEMENT_STATUS = {
@@ -513,17 +516,35 @@ export class SettlementChainService {
       await this.assertTokenSettlementFunding(publicClient, asset, agent, tokenAdapter!, amount);
       const vaultAddress = this.chainService.getBudgetVaultAddress(chainId);
       if (vaultAddress) {
-        const vaultTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
+        const vaultAgentKey = await publicClient.readContract({
           address: vaultAddress,
           abi: budgetVaultAbi,
-          functionName: 'commitSpend',
-          args: [executionHash, amount],
-          account,
-          chain: null,
+          functionName: 'agentKey',
         });
-        const vaultReceipt = await publicClient.waitForTransactionReceipt({ hash: vaultTxHash });
-        if (vaultReceipt.status !== 'success') {
-          throw new Error(`Budget vault commitSpend reverted: ${vaultTxHash}`);
+        const executionAgentKey = agentKeyFromId(execution.agent_id);
+        if (vaultAgentKey.toLowerCase() === executionAgentKey.toLowerCase()) {
+          const vaultRemaining = await publicClient.readContract({
+            address: vaultAddress,
+            abi: budgetVaultAbi,
+            functionName: 'remaining',
+          });
+          if (vaultRemaining < amount) {
+            throw new Error(
+              `On-chain budget vault cap exceeded: ${vaultRemaining.toString()} base units remaining, need ${amount.toString()}. Top up ValenBudgetVault or wait for the 24h period reset.`,
+            );
+          }
+          const vaultTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
+            address: vaultAddress,
+            abi: budgetVaultAbi,
+            functionName: 'commitSpend',
+            args: [executionHash, amount],
+            account,
+            chain: null,
+          });
+          const vaultReceipt = await publicClient.waitForTransactionReceipt({ hash: vaultTxHash });
+          if (vaultReceipt.status !== 'success') {
+            throw new Error(`Budget vault commitSpend reverted: ${vaultTxHash}`);
+          }
         }
       }
     } else {

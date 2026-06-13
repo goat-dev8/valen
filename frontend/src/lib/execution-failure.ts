@@ -63,11 +63,21 @@ export function explainExecutionFailure(input: {
   }
 
   if (settlement && ['failed', 'reverted'].includes(settlement.status)) {
+    const reason = settlement.failureReason ?? `settlement.status=${settlement.status}`;
+    const vaultCapExceeded =
+      reason.includes('CapExceeded') ||
+      reason.includes('0xa4875a49') ||
+      reason.includes('commitSpend') ||
+      reason.includes('budget vault cap exceeded');
     return {
-      headline: 'Settlement failed on-chain',
-      humanReason: settlement.failureReason ?? 'The relayer transaction failed or reverted.',
-      technicalReason: settlement.failureReason ?? `settlement.status=${settlement.status}`,
-      suggestedFix: 'Check wallet allowance, relayer balance, mandate validity, and retry settlement from this page.',
+      headline: vaultCapExceeded ? 'On-chain budget vault blocked settlement' : 'Settlement failed on-chain',
+      humanReason: vaultCapExceeded
+        ? 'The shared on-chain USDC budget vault is exhausted for this agent. DB budget can still show remaining while the vault cap is spent.'
+        : settlement.failureReason ?? 'The relayer transaction failed or reverted.',
+      technicalReason: reason.slice(0, 500),
+      suggestedFix: vaultCapExceeded
+        ? 'Top up the agent USDC budget on Fund & Authority, or use an agent whose on-chain vault has remaining cap. Then submit a new intent or retry settlement.'
+        : 'Check wallet allowance, relayer balance, mandate validity, and retry settlement from this page.',
     };
   }
 
