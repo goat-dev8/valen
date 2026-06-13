@@ -23,6 +23,7 @@ import {
 import { operatorFetch } from '@/lib/api';
 import { chainName } from '@/lib/constants';
 import { buildSetupSteps, setupProgress } from '@/lib/setup-state';
+import { formatProofAmount } from '@/lib/token-amount';
 
 type TreasuryData = {
   nativeBalanceEth?: string;
@@ -218,7 +219,7 @@ export default function DashboardPage() {
           </h3>
           <p className="mt-2 text-sm leading-6 text-[#64748b]">
             {latestPayment
-              ? `${latestPayment.status} · ${latestPayment.amount ?? '0'} USDC`
+              ? `${latestPayment.status} · ${formatProofAmount(latestPayment.amount, latestPayment.chainId ?? chainId, undefined, 'USDC').replace(' USDC', '')} USDC`
               : 'Initiate and settle a governed x402 USDC payment with budget enforcement.'}
           </p>
         </Link>
