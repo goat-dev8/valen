@@ -1,3 +1,5 @@
+import { ROBINHOOD_STOCK_TOKENS, ROBINHOOD_TESTNET_USDG } from './robinhood-assets';
+
 export type IntentTemplate = {
   id: string;
   name: string;
@@ -11,28 +13,32 @@ export type IntentTemplate = {
 };
 
 const ROBINHOOD_TARGET = '0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3';
-const ROBINHOOD_USDG = '0x7E955252E15c84f5768B83c41a71F9eba181802F';
-const ROBINHOOD_TICKERS = ['TSLA', 'AMZN', 'PLTR', 'NFLX', 'AMD'] as const;
+const ROBINHOOD_TICKERS = Object.keys(ROBINHOOD_STOCK_TOKENS) as Array<keyof typeof ROBINHOOD_STOCK_TOKENS>;
 
-function robinhoodTemplate(ticker: (typeof ROBINHOOD_TICKERS)[number], scenario: 'allowed' | 'refused'): IntentTemplate {
+function robinhoodStockTemplate(
+  ticker: keyof typeof ROBINHOOD_STOCK_TOKENS,
+  scenario: 'allowed' | 'refused',
+): IntentTemplate {
+  const token = ROBINHOOD_STOCK_TOKENS[ticker];
   const isAllowed = scenario === 'allowed';
   return {
     id: `robinhood-${ticker.toLowerCase()}-${scenario}`,
     name: `Robinhood ${ticker} ${isAllowed ? 'Allowed' : 'Refused'}`,
     description: isAllowed
-      ? `${ticker} policy asset within demo limits. Stock token remains metadata-only until its contract is verified; proof labels the policy asset honestly.`
-      : `${ticker} over-limit scenario. This should be refused by policy/risk once refusal receipts are active; no fake stock-token settlement is attempted.`,
-    actionType: 'robinhood_token_transfer',
+      ? `${ticker} ERC-20 transfer on Robinhood Testnet through the Phase C token adapter.`
+      : `${ticker} over-limit scenario refused by Robinhood policy before settlement.`,
+    actionType: isAllowed ? 'transfer' : 'robinhood_token_transfer',
     targetChainId: 46630,
     targetAddress: ROBINHOOD_TARGET,
-    assetAddress: ticker,
+    assetAddress: isAllowed ? token.address : ticker,
     amount: isAllowed ? '10' : '250',
     metadata: {
       robinhood: {
         ticker,
         scenario,
-        policyAssetSupportLevel: 'metadata-only',
-        settlementAsset: 'USDG',
+        settlementAsset: ticker,
+        policyAssetSupportLevel: 'demo-ready',
+        tokenAddress: token.address,
       },
     },
   };
@@ -42,8 +48,7 @@ export const INTENT_TEMPLATES: IntentTemplate[] = [
   {
     id: 'arbitrum-usdc',
     name: 'USDC Agent Payment',
-    description:
-      'Default VALEN action: a USDC-scoped governed payment on Arbitrum Sepolia with proof-ready asset metadata.',
+    description: 'USDC-scoped governed payment on Arbitrum Sepolia with proof-ready settlement.',
     actionType: 'transfer',
     targetChainId: 421614,
     targetAddress: '0x0000000000000000000000000000000000000000',
@@ -53,7 +58,7 @@ export const INTENT_TEMPLATES: IntentTemplate[] = [
   {
     id: 'arbitrum-legacy-eth',
     name: 'Legacy / Gas ETH Transfer',
-    description: 'Legacy native ETH transfer on Arbitrum Sepolia. Keep for backward-compatible proofs and gas-path fallback.',
+    description: 'Legacy native ETH transfer on Arbitrum Sepolia.',
     actionType: 'transfer',
     targetChainId: 421614,
     targetAddress: '0x0000000000000000000000000000000000000000',
@@ -63,24 +68,19 @@ export const INTENT_TEMPLATES: IntentTemplate[] = [
   {
     id: 'robinhood-usdg-allowed',
     name: 'Robinhood USDG Allowed',
-    description:
-      'Real Robinhood Testnet ERC-20 settlement path using official USDG and the Phase C token adapter.',
+    description: 'USDG ERC-20 settlement on Robinhood Testnet via the Phase C token adapter.',
     actionType: 'transfer',
     targetChainId: 46630,
     targetAddress: ROBINHOOD_TARGET,
-    assetAddress: ROBINHOOD_USDG,
+    assetAddress: ROBINHOOD_TESTNET_USDG,
     amount: '0.001',
     metadata: {
-      robinhood: {
-        ticker: 'USDG',
-        scenario: 'allowed',
-        settlementAsset: 'USDG',
-      },
+      robinhood: { ticker: 'USDG', scenario: 'allowed', settlementAsset: 'USDG' },
     },
   },
   ...ROBINHOOD_TICKERS.flatMap((ticker) => [
-    robinhoodTemplate(ticker, 'allowed'),
-    robinhoodTemplate(ticker, 'refused'),
+    robinhoodStockTemplate(ticker, 'allowed'),
+    robinhoodStockTemplate(ticker, 'refused'),
   ]),
 ];
 

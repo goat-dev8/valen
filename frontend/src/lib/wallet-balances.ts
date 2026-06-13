@@ -1,6 +1,7 @@
 import { Address, createPublicClient, formatEther, formatUnits, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
-import { ARBITRUM_SEPOLIA_USDC, ROBINHOOD_TESTNET_USDG } from './known-assets';
+import { ARBITRUM_SEPOLIA_USDC, ROBINHOOD_STOCK_TICKERS, ROBINHOOD_TESTNET_USDG } from './known-assets';
+import { ROBINHOOD_STOCK_TOKENS } from './robinhood-assets';
 
 const erc20Abi = [
   {
@@ -95,6 +96,13 @@ export async function fetchWalletBalancesForChain(
     const usdg = await readErc20Balance(client, ROBINHOOD_TESTNET_USDG, address);
     if (usdg) {
       tokens.push({ ...usdg, address: ROBINHOOD_TESTNET_USDG });
+    }
+    for (const symbol of ROBINHOOD_STOCK_TICKERS) {
+      const token = ROBINHOOD_STOCK_TOKENS[symbol];
+      const stock = await readErc20Balance(client, token.address as Address, address);
+      if (stock) {
+        tokens.push({ ...stock, address: token.address });
+      }
     }
   }
 

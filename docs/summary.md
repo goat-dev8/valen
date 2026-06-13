@@ -3330,3 +3330,70 @@ Do these steps in order on https://valenai.vercel.app:
 **PR #4 verdict:** Implementation matches the frontend integration masterplan for wallet verification, signed mandates, mandate-bound API keys, onboarding/setup checklist, policy/intent templates, wallet-signed approvals, pipeline/proof UI, and Robinhood demo shell. Review fixes closed the remaining P0 enforcement gaps without changing architecture.
 
 **Remaining non-blocking notes:** `wallet_verifications` has no RLS (backend-only access today); Robinhood intent template uses `custom` action type while mandate allows `transfer` — fix maps both; governance execute proof still blocked by 86400s timelock (unchanged).
+
+---
+
+## Reality Audit — Phases A→I + Robinhood Stock Token Upgrade (2026-06-13)
+
+**Mission:** No metadata-only marketing for executable assets. Convert TSLA, AMZN, PLTR, NFLX, AMD from policy placeholders to first-class ERC-20 settlement assets wherever technically possible.
+
+### Audit questions — answers
+
+| # | Question | Answer | Evidence |
+|---|----------|--------|----------|
+| 1 | What prevented real settlement? | VALEN registered stocks with `address(0)`, `metadata-only`, only USDG on `tokenSettlementAssetEnabled`; intent templates used ticker strings; DB `assets.address = NULL` | Pre-fix registry seed, migration 019/020, `execution-asset.util.ts` |
+| 2 | Are Robinhood stock tokens ERC-20? | **Yes** | On-chain `symbol/decimals/balanceOf/transfer/approve` on 46630 |
+| 3 | Can they be transferred? | **Yes** | Deployer holds 5 of each from faucet |
+| 4 | Can they be approved? | **Yes** | Upgrade script approved adapter for each stock |
+| 5 | SafeERC20 compatible? | **Yes** | `ValenTokenSettlementAdapter` tests PASS |
+| 6 | ValenTokenSettlementAdapter? | **Yes** after upgrade | `phaseD.stockUpgradeTxHashes` in deployment manifest |
+| 7 | Full stack participation | Policy/compliance/risk/settlement/proof on 46630 for ERC-20 `transfer`. Budget/x402 remain USDC/421614 by design. | Same path as USDG Phase C |
+| 8 | Blockers? | **None technical** on Robinhood testnet | Prior metadata-only was VALEN integration gap, not protocol limit |
+
+### Verified Robinhood Testnet (46630) addresses
+
+| Symbol | Address | Decimals |
+|--------|---------|----------|
+| TSLA | `0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E` | 18 |
+| AMZN | `0x5884aD2f920c162CFBbACc88C9C51AA75eC09E02` | 18 |
+| PLTR | `0x1FBE1a0e43594b3455993B5dE5Fd0A7A266298d0` | 18 |
+| NFLX | `0x3b8262A63d25f0477c4DDE23F83cfe22Cb768C93` | 18 |
+| AMD | `0x71178BAc73cBeb415514eB542a8995b82669778d` | 18 |
+| USDG | `0x7E955252E15c84f5768B83c41a71F9eba181802F` | 6 |
+
+**USDC Arbitrum Sepolia:** `0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`
+
+### On-chain upgrade
+
+- Script: `contracts/script/phase-d-upgrade-stock-tokens.ts`
+- Registry: `0x4797e664b719504710c77ed1E8F8A33d09b42A5D`
+- Verify: `phase-d-verify-robinhood-registry.ts` → PASS (USDG + 5 stocks demo-ready)
+- First upgrade tx (TSLA register): `0x766bcf61181c3e07f9d5edaa271e2f06066c055984d402994937a53a8d18450d`
+
+### Migration 025
+
+- `20260101000025_robinhood_stock_tokens.sql` applied to production Supabase
+- All stocks: `demo-ready`, real addresses, `erc20_transfer`
+
+### Tests
+
+- Contracts: 29/29 PASS
+- Backend robinhood specs: PASS
+- Frontend build: PASS
+
+### E2E proof commands (production, post-deploy)
+
+```bash
+cd backend
+PROVE_API_URL=https://valen-api-m3g4.onrender.com \
+PROVE_ORG_ID=702be0ea-c4cb-4f26-a37d-adaeb1b2081b \
+PROVE_AGENT_ID=64f56184-eacf-4eef-bc84-f3b863d3894f \
+PROVE_MANDATE_ID=aab33461-c700-4df7-bbc2-742019d49354 \
+PROVE_CHAIN_ID=46630 PROVE_AMOUNT=1 \
+PROVE_ASSET_ADDRESS=0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E PROVE_ASSET_SYMBOL=TSLA \
+node -r dotenv/config scripts/prove-backend-settlement.ts
+```
+
+*(Settlement proof IDs and tx hashes appended after production runs.)*
+
+**Verdict:** Robinhood stock tokens are first-class executable assets on Robinhood Testnet. Metadata-only stock marketing removed from primary UX.

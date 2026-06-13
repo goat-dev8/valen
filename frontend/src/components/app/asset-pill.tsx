@@ -2,17 +2,13 @@ import { KnownAsset } from '@/lib/known-assets';
 import { cn } from '@/lib/utils';
 
 const SUPPORT_LABEL: Record<KnownAsset['supportLevel'], string> = {
-  'demo-ready': 'Demo-ready',
+  'demo-ready': 'Settlement-ready',
   legacy: 'Legacy',
-  'metadata-only': 'Metadata-only',
-  unverified: 'Unverified',
 };
 
 const SUPPORT_CLASS: Record<KnownAsset['supportLevel'], string> = {
   'demo-ready': 'border-emerald-200 bg-emerald-50 text-emerald-700',
   legacy: 'border-slate-200 bg-slate-50 text-slate-600',
-  'metadata-only': 'border-amber-200 bg-amber-50 text-amber-700',
-  unverified: 'border-red-200 bg-red-50 text-red-700',
 };
 
 type AssetPillProps = {

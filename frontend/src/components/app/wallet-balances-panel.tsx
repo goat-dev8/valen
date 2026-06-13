@@ -60,7 +60,7 @@ export function WalletBalancesPanel({ walletAddress, chainId, compact = false }:
 
       {!compact && (
         <p className="text-xs leading-5 text-[#64748b]">
-          Balances are read directly from chain RPC (your Privy wallet). USDC on Arbitrum Sepolia and USDG on Robinhood Testnet use ERC-20 reads; stock-token tickers stay metadata-only until their token contracts are discovered.
+          Balances are read directly from chain RPC (your Privy wallet). USDC, USDG, and Robinhood stock tokens use verified ERC-20 contract reads.
         </p>
       )}
     </div>

@@ -6,7 +6,7 @@ import { AssetPill } from '@/components/app/asset-pill';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
 import { useDashboardSummary, useMandates } from '@/hooks/use-valen-api';
-import { ROBINHOOD_HEADLINE_ASSETS, ROBINHOOD_TESTNET_USDG } from '@/lib/known-assets';
+import { ROBINHOOD_HEADLINE_ASSETS } from '@/lib/known-assets';
 
 export default function RobinhoodDemoPage() {
   const { data: mandates } = useMandates();
@@ -19,10 +19,10 @@ export default function RobinhoodDemoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Robinhood Token Assets"
-        description="Govern tokenized stock actions with rules and proof. Stock tickers are first-class policy assets; USDG is the real settlement rail currently published in Robinhood docs."
+        description="Govern and settle Robinhood testnet stock tokens and USDG with rules, ERC-20 settlement, and proof."
       >
         <ChainBadge chainId={46630} />
-        <Link href="/dashboard/executions/new?template=robinhood-usdg-allowed" className="app-btn app-btn-primary">
+        <Link href="/dashboard/executions/new?template=robinhood-tsla-allowed" className="app-btn app-btn-primary">
           Run Robinhood Action
           <ArrowRight className="h-4 w-4" />
         </Link>
@@ -33,23 +33,22 @@ export default function RobinhoodDemoPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#007dfc]">Headline Story</p>
           <h2 className="mt-3 text-2xl font-semibold text-[#012b54]">Allowed action, refused action, proof either way.</h2>
           <p className="mt-3 text-sm leading-6 text-[#64748b]">
-            Robinhood Chain exposes USDG as an official ERC-20 and documents five stock-token tickers for the faucet.
-            VALEN treats every ticker as a governed asset now, while clearly marking stock-token settlement as
-            metadata-only until the faucet/explorer reveals verified token contracts.
+            Robinhood Chain testnet publishes verified ERC-20 contracts for TSLA, AMZN, PLTR, NFLX, AMD, and USDG.
+            VALEN treats each as a first-class settlement asset through ValenTokenSettlementAdapter when policy allows.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
               <CheckCircle className="h-5 w-5 text-emerald-600" />
               <p className="mt-2 text-sm font-semibold text-emerald-800">Allowed path</p>
               <p className="mt-1 text-xs leading-5 text-emerald-700">
-                Small USDG-backed Robinhood action settles through the Phase C token adapter and shows proof.
+                Within-cap stock or USDG transfer settles on-chain and produces proof.
               </p>
             </div>
             <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
               <ShieldAlert className="h-5 w-5 text-amber-600" />
               <p className="mt-2 text-sm font-semibold text-amber-800">Refused path</p>
               <p className="mt-1 text-xs leading-5 text-amber-700">
-                Over-limit ticker action is classified as refused and never pretends to settle unpublished stock tokens.
+                Over-limit actions are refused before settlement and persist a refusal proof.
               </p>
             </div>
           </div>
@@ -59,11 +58,11 @@ export default function RobinhoodDemoPage() {
           <h3 className="app-card-title">Robinhood Readiness</h3>
           <dl className="app-detail-list mt-4">
             <div><dt>Active Robinhood mandates</dt><dd>{robinhoodMandates.length}</dd></div>
-            <div><dt>Real settlement rail</dt><dd className="font-mono text-xs break-all">USDG {ROBINHOOD_TESTNET_USDG}</dd></div>
+            <div><dt>Settlement assets</dt><dd>TSLA, AMZN, PLTR, NFLX, AMD, USDG</dd></div>
             <div><dt>Latest Robinhood proof</dt><dd>{latestRobinhood?.executionId ?? 'Run a Robinhood action'}</dd></div>
           </dl>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href="/dashboard/executions/new?template=robinhood-usdg-allowed" className="app-btn app-btn-primary">
+            <Link href="/dashboard/executions/new?template=robinhood-tsla-allowed" className="app-btn app-btn-primary">
               Build allowed action
             </Link>
             <Link href="/dashboard/executions/new?template=robinhood-tsla-refused" className="app-btn app-btn-outline">
@@ -83,6 +82,7 @@ export default function RobinhoodDemoPage() {
             <AssetPill asset={asset} />
             <h3 className="mt-4 text-xl font-semibold text-[#012b54]">{asset.symbol}</h3>
             <p className="mt-2 text-sm leading-6 text-[#64748b]">{asset.label}</p>
+            <p className="mt-2 font-mono text-[10px] text-[#64748b] break-all">{asset.address}</p>
             <div className="mt-4 space-y-2 text-xs text-[#64748b]">
               <p>Allowed: {asset.scenario?.safePath}</p>
               <p>Refused: {asset.scenario?.refusedPath}</p>
