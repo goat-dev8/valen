@@ -6,11 +6,13 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Bot, CheckCircle, Circle, FileText, Landmark, ScrollText, Shield, TrendingUp, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { PageHeader } from '@/components/app/page-header';
+import { BudgetMeter } from '@/components/app/budget-meter';
 import { StatCard } from '@/components/app/stat-card';
 import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
 import { useOrganization } from '@/contexts/org-context';
 import {
+  useDashboardSummary,
   useAgents,
   useAuditLogs,
   useExecutions,
@@ -40,6 +42,7 @@ export default function DashboardPage() {
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
   const { data: allExec, isLoading: allExecLoading } = useExecutions({ limit: 100 });
   const { data: auditLogs } = useAuditLogs({ limit: 100 });
+  const { data: dashboardSummary } = useDashboardSummary();
   const { data: policies, isLoading: policiesLoading } = usePolicies();
   const { data: walletVerifications, isLoading: walletVerificationsLoading } = useWalletVerifications();
   const { data: mandates, isLoading: mandatesLoading } = useMandates();
@@ -77,6 +80,9 @@ export default function DashboardPage() {
   });
   const progress = setupProgress(setupSteps);
   const nextStep = setupSteps.find((step) => !step.complete);
+  const latestProof = dashboardSummary?.latest.proof;
+  const latestRobinhood = dashboardSummary?.latest.robinhood;
+  const budgetStatus = dashboardSummary?.budget.status ?? 'Checking';
   const setupLoading =
     totalAgentsLoading || allExecLoading || policiesLoading || walletVerificationsLoading || mandatesLoading;
 
@@ -94,32 +100,46 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Mission Control"
-        description="Set up a governed agent, authorize what it can do, then watch every intent become a proof."
+        description="Create an agent, give it a USDC budget and rules, fund it, execute, and see proof for every approval or refusal."
       />
 
       <section className="app-card overflow-hidden">
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <div className="inline-flex rounded-full bg-[#e8f4ff] px-3 py-1 text-xs font-semibold text-[#007dfc]">
-              {progress.complete}/{progress.total} setup steps complete
+              The operating system for autonomous finance
             </div>
             <h2 className="mt-4 text-2xl font-semibold text-[#012b54]">
-              {nextStep ? 'Finish authority setup before the next governed intent' : 'Your governed agent flow is ready'}
+              {nextStep ? 'Finish the setup path, then run a proof-producing action' : 'Your governed agent flow is ready'}
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#64748b]">
-              VALEN uses your Privy identity, a verified owner wallet, signed mandates, live Stylus checks, and the
-              Render settlement relayer to prove what an agent is allowed to do.
+              VALEN binds wallet authority, signed mandates, rules, settlement, and audit evidence so every autonomous
+              finance action ends with a proof URL. USDC budgets enforce deterministic refusals before settlement.
+              honest until then.
             </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-4">
+              {[
+                ['Agent', dashboardSummary?.agent?.name ?? 'Not ready'],
+                ['Rules', `${dashboardSummary?.counts.policies ?? policies?.length ?? 0} active`],
+                ['Budget', budgetStatus ?? 'Checking'],
+                ['Proof', latestProof ? 'Available' : 'Pending'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-2xl border border-[#eef0f3] bg-white p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#94a3b8]">{label}</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-[#012b54]">{value}</p>
+                </div>
+              ))}
+            </div>
             <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#eef6ff]">
               <div className="h-full rounded-full bg-[#007dfc]" style={{ width: `${progress.percent}%` }} />
             </div>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href={nextStep?.href ?? '/dashboard/executions'} className="app-btn app-btn-primary">
-                {nextStep?.actionLabel ?? 'Review executions'}
+              <Link href="/dashboard/executions/new" className="app-btn app-btn-primary">
+                Run governed action
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/dashboard/wallets" className="app-btn app-btn-outline">
-                Wallet & Authority
+              <Link href={latestProof?.href ?? '/dashboard/executions'} className="app-btn app-btn-outline">
+                See latest proof
               </Link>
             </div>
           </div>
@@ -152,6 +172,45 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-3">
+        <Link href={latestProof?.href ?? '/dashboard/executions'} className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#007dfc]">Latest Proof</p>
+          <h3 className="mt-3 text-lg font-semibold text-[#012b54]">
+            {latestProof ? latestProof.executionId.slice(0, 8) : 'No executed proof yet'}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[#64748b]">
+            {latestProof
+              ? `${latestProof.actionType?.replace(/_/g, ' ') ?? 'Execution'} on ${chainName(latestProof.chainId ?? chainId)}`
+              : 'Run a governed action to create a proof page with settlement and audit evidence.'}
+          </p>
+        </Link>
+
+        <Link href={latestRobinhood?.href ?? '/dashboard/demo/robinhood'} className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#007dfc]">Robinhood Proof</p>
+          <h3 className="mt-3 text-lg font-semibold text-[#012b54]">
+            {latestRobinhood ? latestRobinhood.executionId.slice(0, 8) : 'Open Robinhood flow'}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[#64748b]">
+            {latestRobinhood
+              ? `${latestRobinhood.asset ?? 'Tokenized asset'} action on Robinhood Testnet`
+              : 'Open the Robinhood headline demo for TSLA, AMZN, PLTR, NFLX, and AMD with allowed and refused paths.'}
+          </p>
+        </Link>
+
+        <Link href="/dashboard/wallets" className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#007dfc]">Fund Agent</p>
+          <h3 className="mt-3 text-lg font-semibold text-[#012b54]">USDC-first authority</h3>
+          <p className="mt-2 text-sm leading-6 text-[#64748b]">
+            Verify wallet authority and sign mandates now. Phase C makes USDC the default asset and Phase F funds real budget vaults.
+          </p>
+        </Link>
+      </section>
+
+      <section className="app-card">
+        <h3 className="app-card-title mb-4">Live USDC Budget</h3>
+        <BudgetMeter agentId={dashboardSummary?.agent?.id} />
       </section>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">

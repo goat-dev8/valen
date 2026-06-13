@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
 import { keccak256, toHex } from 'viem';
 import { PageHeader } from '@/components/app/page-header';
+import { BudgetMeter } from '@/components/app/budget-meter';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { WalletBalancesPanel } from '@/components/app/wallet-balances-panel';
 import { useAgents, useCreateExecution, useMandates } from '@/hooks/use-valen-api';
@@ -24,11 +25,12 @@ export default function SubmitIntentPage() {
   const { data: mandates } = useMandates();
   const createMutation = useCreateExecution();
   const [error, setError] = useState<string | null>(null);
-  const [templateId, setTemplateId] = useState(INTENT_TEMPLATES[0].id);
+  const initialTemplate = intentTemplateById(searchParams.get('template') ?? INTENT_TEMPLATES[0].id);
+  const [templateId, setTemplateId] = useState(initialTemplate.id);
   const [agentId, setAgentId] = useState(searchParams.get('agentId') ?? '');
-  const [amount, setAmount] = useState(intentTemplateById(templateId).amount);
-  const [targetAddress, setTargetAddress] = useState(intentTemplateById(templateId).targetAddress);
-  const [assetAddress, setAssetAddress] = useState(intentTemplateById(templateId).assetAddress ?? '');
+  const [amount, setAmount] = useState(initialTemplate.amount);
+  const [targetAddress, setTargetAddress] = useState(initialTemplate.targetAddress);
+  const [assetAddress, setAssetAddress] = useState(initialTemplate.assetAddress ?? '');
   const selectedTemplate = intentTemplateById(templateId);
   const selectedAgent = agents?.items.find((agent) => agent.id === agentId) ?? agents?.items[0];
   const activeMandates = useMemo(
@@ -61,7 +63,7 @@ export default function SubmitIntentPage() {
         : null;
   const approvalExplanation = selectedMandate?.approvalThreshold
     ? `This intent may require approval when ${selectedMandate.approvalThreshold}.`
-    : 'This intent can proceed automatically if compliance, eligibility, risk, and policy checks pass.';
+    : 'This intent can proceed automatically when wallet authority, rules, risk, and settlement checks pass.';
 
   const handleTemplateChange = (value: string) => {
     const nextTemplate = intentTemplateById(value);
@@ -106,6 +108,7 @@ export default function SubmitIntentPage() {
         mandateId: selectedMandate.id,
         payloadHash,
         metadata: {
+          ...(selectedTemplate.metadata ?? {}),
           source: 'dashboard-intent-builder',
           templateId,
           mandateId: selectedMandate.id,
@@ -126,7 +129,7 @@ export default function SubmitIntentPage() {
         Back to Executions
       </Link>
 
-      <PageHeader title="Intent Builder" description="Build a mandate-aware intent before it enters compliance, risk, policy, and settlement." />
+      <PageHeader title="Execute Governed Action" description="Choose an agent action, check the matching mandate, then produce an execution proof or refusal." />
 
       <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="app-card">
@@ -245,6 +248,16 @@ export default function SubmitIntentPage() {
             </div>
             <p className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm leading-6 text-[#64748b]">
               {approvalExplanation}
+            </p>
+          </div>
+
+          <div className="app-card">
+            <h3 className="app-card-title">Budget Check</h3>
+            <div className="mt-4">
+              <BudgetMeter agentId={selectedAgent?.id} compact />
+            </div>
+            <p className="mt-3 text-xs leading-5 text-[#64748b]">
+              If this action exceeds the live budget, the backend BudgetEngine records a refusal event and stops before settlement.
             </p>
           </div>
 
