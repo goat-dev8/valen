@@ -6,10 +6,11 @@ import { OperatorChainService } from './operator-chain.service';
 import { OperatorAuthGuard } from './guards/operator-auth.guard';
 import { HealthModule } from '../health/health.module';
 import { SettlementModule } from '../settlement/settlement.module';
+import { X402Module } from '../x402/x402.module';
 import { ChainService } from '../settlement/chain.service';
 
 @Module({
-  imports: [HealthModule, SettlementModule],
+  imports: [HealthModule, SettlementModule, X402Module],
   controllers: [OperatorController],
   providers: [
     OperatorService,

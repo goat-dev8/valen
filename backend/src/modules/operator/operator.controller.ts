@@ -17,6 +17,7 @@ import { OperatorQueueService } from './operator-queue.service';
 import { OperatorChainService } from './operator-chain.service';
 import { CreateExecutionDto } from '../settlement/dto/settlement.dto';
 import { SettlementService } from '../settlement/settlement.service';
+import { X402Service } from '../x402/x402.service';
 import { Hex } from 'viem';
 
 @ApiTags('operator')
@@ -29,6 +30,7 @@ export class OperatorController {
     private readonly queueService: OperatorQueueService,
     private readonly chainService: OperatorChainService,
     private readonly settlementService: SettlementService,
+    private readonly x402Service: X402Service,
   ) {}
 
   @Get('health')
@@ -133,6 +135,31 @@ export class OperatorController {
   @ApiOperation({ summary: 'Run full stack validation report' })
   runFullValidation() {
     return this.operatorService.runFullValidation();
+  }
+
+  @Post('organizations/:organizationId/x402/initiate')
+  @ApiOperation({ summary: 'Initiate x402 payment for operator lab / proof scripts' })
+  initiateX402(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Body()
+    body: {
+      agentId: string;
+      mandateId: string;
+      merchantUrl?: string;
+      recipient: string;
+      amount: string;
+      chainId?: number;
+    },
+  ) {
+    return this.x402Service.initiate({
+      organizationId,
+      agentId: body.agentId,
+      mandateId: body.mandateId,
+      merchantUrl: body.merchantUrl,
+      recipient: body.recipient,
+      amount: body.amount,
+      chainId: body.chainId,
+    });
   }
 
   @Post('organizations/:organizationId/executions')
