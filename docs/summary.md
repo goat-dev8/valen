@@ -3480,3 +3480,53 @@ Proof URLs (Vercel): `https://valenai.vercel.app/dashboard/executions/{id}/proof
 - [ ] Resources page links open correct explorers
 
 **Verdict:** Critical decimal bug fixed at source. First-time user paths for budget, x402, ERC-8004, resources, and onboarding materially improved. Re-test production after deploy.
+
+---
+
+## Full QA Audit — 2026-06-13 (Post-Deploy)
+
+### Production URLs
+
+| Service | URL | Status |
+|---------|-----|--------|
+| Frontend | https://valenai.vercel.app | Deploy OK (after `e169510` build fix) |
+| API | https://valen-api-m3g4.onrender.com | Deploy OK |
+
+### Commits (this QA pass)
+
+| Commit | Fix |
+|--------|-----|
+| `d0ad0b7` | Proof amounts human-readable, budget increment, failure explanations |
+| `a92b71a` | Dashboard x402 amount (broken chainId) |
+| `e169510` | Vercel build fix — use org chainId |
+| `cf3eba2` | Mission Control x402 card — pass USDC address for 6-decimal format |
+
+### Page sitemap — all routes HTTP 200
+
+Mission Control, Create Agent, Set Rules, Fund & Authority, Execute, x402 Payments, See Proof, Robinhood Assets, Resources, Agents, Settings, Contracts, Treasury, Approvals, Settlements, Compliance, Audit, Governance, Webhooks, Team, Proof Pack, Onboarding, Login
+
+### Verified on live production
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| x402 payment proof amount | **PASS** | `/proofs/payments/fec22800…` shows **1 USDC**; API `amount: "1"` |
+| x402 on-chain settlement | **PASS** | Arbiscan tx `0x6a451d57…` = 1 USDC |
+| Executions list failure UX | **PASS** | Rows show “Execution failed before settlement” / “Risk engine refused this intent” |
+| Budget UX labels | **PASS** | “cap 1 · spent 1”, “Add to budget cap”, before/after on top-up |
+| Sidebar discoverability | **PASS** | x402 Payments + Resources visible |
+| Resources page | **PASS** | Explorers, faucets, contract addresses |
+| Mission Control x402 card | **FIX DEPLOYED** | Was `1000000 USDC`; fixed in `cf3eba2` |
+
+### Known historical data (not regressions)
+
+| Item | Explanation |
+|------|-------------|
+| Old execution `c203149e` proof shows `0.000001` | Pre-fix execution stored `value_amount=1` base unit |
+| Budget events show `0.000001 USDC` spends | Same pre-fix executions |
+| ERC-8004 “Registration Pending” | Metadata prepared; on-chain mint requires registry worker (status explained in UI) |
+
+### Production readiness score: **8.5 / 10**
+
+**Ready for hackathon demo** with USDC + x402 + Robinhood flows. Remaining gap: ERC-8004 on-chain mint automation (UX explains pending state).
+
+**Final verdict:** Deploy verified. Critical amount and proof display bugs fixed. Failure explanations and budget UX live. Re-run Execute amount matrix (0.001–10 USDC) with fresh intents to confirm post-fix settlements end-to-end.
