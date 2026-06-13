@@ -3396,4 +3396,21 @@ node -r dotenv/config scripts/prove-backend-settlement.ts
 
 *(Settlement proof IDs and tx hashes appended after production runs.)*
 
+### Root cause — TSLA prove stuck at attestation (fixed 2026-06-13)
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Execution `e33e0de5…` ended `risk_failed` score 100 | Budget engine refused all non-native ERC-20 when no `agent_budgets` row matched Robinhood stock address | `risk.service.ts`: only enforce budget when `budget.budget` exists |
+| Mandate rejected contract addresses | `assetAllowed()` required exact string match | Map Robinhood tickers ↔ verified contract addresses in `mandates.service.ts` |
+| Prove amount `1` parsed as 1 wei | Integer-only amounts treated as base units | Batch prove uses decimal amounts (`0.001`) |
+| Batch prove script crashed | ESM `__dirname` | Fixed with `import.meta.url` |
+
+### E2E batch prove (local API + worker)
+
+```bash
+cd backend
+PROVE_API_URL=http://127.0.0.1:3000 node -r dotenv/config scripts/prove-robinhood-all-settlements.ts
+# Logs: backend/robinhood-settlement-proofs.log
+```
+
 **Verdict:** Robinhood stock tokens are first-class executable assets on Robinhood Testnet. Metadata-only stock marketing removed from primary UX.

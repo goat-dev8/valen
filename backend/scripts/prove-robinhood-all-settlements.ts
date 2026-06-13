@@ -4,11 +4,12 @@
  */
 import 'dotenv/config';
 import { appendFileSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { keccak256, stringToHex } from 'viem';
 import { Pool } from 'pg';
 
-const LOG = join(__dirname, '..', 'robinhood-settlement-proofs.log');
+const LOG = join(dirname(fileURLToPath(import.meta.url)), '..', 'robinhood-settlement-proofs.log');
 const API = process.env.PROVE_API_URL ?? 'http://127.0.0.1:3000';
 const ORG_ID = process.env.PROVE_ORG_ID ?? '702be0ea-c4cb-4f26-a37d-adaeb1b2081b';
 const AGENT_ID = process.env.PROVE_AGENT_ID ?? '64f56184-eacf-4eef-bc84-f3b863d3894f';
@@ -81,7 +82,7 @@ async function proveCase(
   }
 
   const settlement = await pool.query(
-    `SELECT id, status, tx_hash, submit_tx_hash, approve_tx_hash, execute_tx_hash, failure_reason
+    `SELECT id, status, tx_hash, submit_tx_hash, approve_tx_hash, on_chain_settlement_id, block_number, failure_reason
      FROM settlements WHERE execution_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [executionId],
   );
