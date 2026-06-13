@@ -3405,12 +3405,31 @@ node -r dotenv/config scripts/prove-backend-settlement.ts
 | Prove amount `1` parsed as 1 wei | Integer-only amounts treated as base units | Batch prove uses decimal amounts (`0.001`) |
 | Batch prove script crashed | ESM `__dirname` | Fixed with `import.meta.url` |
 
-### E2E batch prove (local API + worker)
+### E2E batch prove results (local API + worker, 2026-06-13)
 
-```bash
-cd backend
-PROVE_API_URL=http://127.0.0.1:3000 node -r dotenv/config scripts/prove-robinhood-all-settlements.ts
-# Logs: backend/robinhood-settlement-proofs.log
-```
+| Asset | Result | Execution ID | Settlement tx |
+|-------|--------|--------------|---------------|
+| USDC | **PASS** | `c8c2a284-a9d9-4f8d-b499-c64db058cb21` | `0xfe5e640ccdb4463895407558f71f2eb5af74428845c221012463366e61955702` |
+| USDG | **PASS** (retry) | `38c72195-b1c0-45e2-89c8-5c8e3b931b26` | `0x8e98657754b62ee4f85bca810b91abcf735877ea9761a36f012ac4a5316cfed4` |
+| TSLA | **PASS** | `6766ba25-99d3-4503-af7c-0292c286d1d9` | `0x97e3835ef358f84ca4040bb557c8fdc6192a3e6b6e2f87b781293f0789b9dfd3` |
+| AMZN | **PASS** (retry) | `6eeb816d-3b70-4cb3-a1b7-4ae742a9315d` | `0xaa4719e34779beff6e420b7ce18b989bde757c720429988d1f845776889b29ee` |
+| PLTR | **PASS** | `fb05e878-7a51-42f0-b6ae-84503a8c62ef` | `0x4c348f18e6b4108cd333cbf0986818d429f56eb1aaf8d5a441abc13ec71b0620` |
+| NFLX | **PASS** | `5c00fce8-a8c7-4083-bdd5-0fa8367214f1` | `0x204b9ef2395fef41fb84dda938606c2e2ab9af9fb9f57c1ee32cc25e5a09302b` |
+| AMD | **PASS** | `1848febc-3e81-4ca6-ba01-6cd9736bd282` | `0x9c264186296cc96e1772f3c4a8d9f8fada0ded08d4f847682d08d18da3d9b892` |
+
+Proof URLs (Vercel): `https://valenai.vercel.app/dashboard/executions/{id}/proof`
+
+**Final E2E:** **7/7 PASS** (USDC + USDG + all 5 stock tokens settle via `erc20_settled`)
+
+### Git commits ready to push (push blocked — no GitHub credentials in shell)
+
+| Commit | Summary |
+|--------|---------|
+| `186ea7f` | Stock tokens on-chain + migration 025 + asset resolution |
+| `cbbb2ae` | Frontend settlement-ready UX |
+| `0224570` | Budget/mandate fixes + batch prove script |
+| `5adc3c7` | Prove script ESM/SQL fixes + summary |
+
+**Action required:** `git push origin main` from your machine to deploy Render + Vercel.
 
 **Verdict:** Robinhood stock tokens are first-class executable assets on Robinhood Testnet. Metadata-only stock marketing removed from primary UX.
