@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-13
 **Phase:** Master plan IMPLEMENTATION BIBLE rewrite — USDC-first autonomous finance OS, Robinhood headline, mainnet future-only
-**Current status:** ✅ **Phases A–I complete (local verified)** · ⚠️ **Render/Vercel production redeploy pending** · 📋 **Phases J–M not started**
+**Current status:** ✅ **Phases A–I production-verified** · ⚠️ **Vercel redeploy pending for public proof CORS fix** · 📋 **Phases J–M not started**
 
 **Deployer EOA:** `0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3`
 
@@ -34,9 +34,64 @@
 | **F** Budget engine | ✅ Complete | DB budget + risk refusal; vault deployed + `commitSpend` wired; operator granted `SETTLEMENT_ROLE`; Stylus BudgetEngine on Sepolia; budget topup UI |
 | **G** x402 | ✅ Complete | EIP-3009 `transferWithAuthorization` settlement; org + operator execute; frontend initiate/execute UI; payment proof pill |
 | **H** ERC-8004 visibility | ✅ Complete | Public `/agents/valen`; identity on public proofs; badge on all `/proofs/*`; public profile link on agent detail |
-| **I** Proof API | ✅ Complete locally | Public proof pack + individual routes; `verify-proof-pack.ts`; dashboard links to `/proofs/pack`; Render 404 until redeploy after push |
+| **I** Proof API | ✅ Complete | Render public routes **200**; Vercel public pages fixed via `/api-proxy` in `a84dba7` (await redeploy) |
 
-### Environment audit (verified 2026-06-13)
+---
+
+## PRODUCTION AUDIT — 2026-06-13 (live Render + Vercel)
+
+**Scope:** Real production URLs only. No assumptions from prior audits.
+
+### Production URLs tested
+
+| Surface | URL | Result |
+|---------|-----|--------|
+| Render health | `https://valen-api-m3g4.onrender.com/health/live` | ✅ 200 |
+| Render ready | `/health/ready` | ✅ 200 (DB + Redis) |
+| Public proof pack | `/v1/public/proofs/pack` | ✅ 200 |
+| Public agent | `/v1/public/agents/valen` | ✅ 200 |
+| Public proofs (execution/refusal/payment) | individual routes | ✅ 200 |
+| Robinhood assets API | `/v1/robinhood/assets`, `/TSLA`, `/USDG` | ✅ 200 |
+| Operator health | `/v1/operator/health` | ✅ 200 |
+| Vercel dashboard | `https://valenai.vercel.app/dashboard` | ✅ loads (wallet session) |
+| Vercel public proofs | `/proofs/pack`, `/agents/valen` | ❌ **Failed to fetch** (CORS — fixed in `a84dba7`, redeploy pending) |
+| Vercel api-proxy | `/api-proxy/v1/public/proofs/pack` | ✅ 200 (rewrite works) |
+
+### Live E2E evidence (production)
+
+| Flow | ID / Tx | Result |
+|------|---------|--------|
+| USDC execution proof | `07736a69-…` / `0xf3f5526a…` | ✅ executed, public proof 200 |
+| Budget refusal | `b0e697f9-…` | ✅ risk_failed budget_exceeded, public proof 200 |
+| x402 budget refusal | `dad9b8b5-…` | ✅ refused, public proof 200 |
+| x402 EIP-3009 settlement | `824c7b21-…` / `0x96b903ea…` | ✅ settled 0.001 USDC, budget spent → 1000 |
+| Robinhood USDG settlement | `81aa0680-…` | ✅ executed on chain 46630 |
+| Robinhood TSLA refusal | `512553dd-…` | ✅ risk_failed on chain 46630 |
+| Identity resolver on-chain | `phase-e:verify-identity-resolver` | ✅ resolver bound; `registered: false` (pending ERC-8004 mint) |
+| Budget vault on-chain | `phase-f:verify-budget-vault` | ⚠️ vault `spent: 0` — prior settlements pre-dated vault wiring; new settlements should call `commitSpend` |
+
+### Supabase (live)
+
+- Migrations through **024** applied
+- Counts: assets **9**, mandates **4**, executions **42**, budgets **1**, x402 **2**, identity **1**, agents **9**
+- Contract addresses in `assets` table match deployment manifests (USDC, USDG)
+
+### Contract address cross-check
+
+- backend `.env` ↔ manifests ↔ frontend `.env.local`: **0 mismatches**
+
+### Bug found and fixed
+
+| Bug | Repro | Fix | Commit |
+|-----|-------|-----|--------|
+| Public proof/agent pages show "Failed to fetch" on Vercel | Open `/proofs/pack` — browser calls Render directly, CORS blocks | Route `public-proofs.ts` through `/api-proxy` like dashboard | `a84dba7` pushed |
+
+### Remaining blockers
+
+1. **Vercel redeploy** — confirm `/proofs/pack` loads proof cards after `a84dba7` deploys
+2. **On-chain budget vault spend** — run one post-fix USDC settlement and re-run `phase-f:verify-budget-vault` to confirm `spent > 0`
+3. **ERC-8004 on-chain registration** — resolver bound but token mint pending (honest Phase E state)
+4. **Operator queue** — 128 waiting / 7 failed jobs on Render (non-blocking for proof routes but worth monitoring)
 
 | File | Status |
 |------|--------|
