@@ -15,6 +15,10 @@ export const DEFAULT_SETTLEMENT_AMOUNT_WEI = 1_000_000_000_000_000n; // 0.001 ET
 export const ARBITRUM_SEPOLIA_E2E_MANDATE_ID =
   '0xa812c48711980554f5c484fb0029dda208ddaa68af7f66030ae3d25a77dad918' as const;
 
+/** Dynamically granted demo mandate with USDC scope binding (Arbitrum Sepolia) */
+export const ARBITRUM_SEPOLIA_USDC_MANDATE_ID =
+  '0x71f3641e5b6c22eccc2ada4891acd05165fa9e6b0ae4f8c203c3a21a04fe5c08' as const;
+
 /** Active mandate from contracts/reports/e2e-robinhood-testnet.json on Robinhood Testnet */
 export const ROBINHOOD_TESTNET_E2E_MANDATE_ID =
   '0x4e90e7fd37ede4ddd71004ce186a9efa1b068fb2126c6a506db8d5f02bb4cc5b' as const;

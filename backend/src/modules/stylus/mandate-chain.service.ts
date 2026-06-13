@@ -14,6 +14,7 @@ import { ChainService } from '../settlement/chain.service';
 import {
   ACTION_TYPE_TRANSFER,
   ARBITRUM_SEPOLIA_E2E_MANDATE_ID,
+  ARBITRUM_SEPOLIA_USDC_MANDATE_ID,
   DEFAULT_E2E_ASSET,
   DEFAULT_SETTLEMENT_AMOUNT_WEI,
   MANDATE_SCOPE_HASH,
@@ -32,7 +33,7 @@ const mandateRegistryAbi = parseAbi([
 ]);
 
 const KNOWN_MANDATE_IDS: Partial<Record<number, Hex[]>> = {
-  421614: [ARBITRUM_SEPOLIA_E2E_MANDATE_ID],
+  421614: [ARBITRUM_SEPOLIA_USDC_MANDATE_ID, ARBITRUM_SEPOLIA_E2E_MANDATE_ID],
   46630: [ROBINHOOD_TESTNET_E2E_MANDATE_ID],
 };
 
@@ -81,6 +82,24 @@ export class MandateChainService {
     const walletClient = this.chainService.getWalletClient(chainId);
     const account = walletClient.account;
     if (!account) throw new Error('Settlement wallet not configured');
+
+    // Idempotent: ensure scope + asset binding exist before mandate checks (USDC on Arbitrum, etc.).
+    await this.writeMandateTx(
+      chainId,
+      walletClient,
+      registryAddress,
+      account,
+      'allowScope',
+      [MANDATE_SCOPE_HASH],
+    );
+    await this.writeMandateTx(
+      chainId,
+      walletClient,
+      registryAddress,
+      account,
+      'allowScopeBinding',
+      [MANDATE_SCOPE_HASH, assetAddress, ACTION_TYPE_TRANSFER],
+    );
 
     for (const mandateId of KNOWN_MANDATE_IDS[chainId] ?? []) {
       if (

@@ -3,19 +3,54 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle, Circle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
 import { keccak256, toHex } from 'viem';
 import { PageHeader } from '@/components/app/page-header';
 import { BudgetMeter } from '@/components/app/budget-meter';
 import { ChainBadge } from '@/components/app/chain-badge';
+import { SelectedAssetBalance, compareAmountToBalance } from '@/components/app/selected-asset-balance';
+import { useWalletBalanceForChain } from '@/hooks/use-wallet-balances';
 import { WalletBalancesPanel } from '@/components/app/wallet-balances-panel';
 import { useAgents, useCreateExecution, useMandates } from '@/hooks/use-valen-api';
 import { executionAmountBaseUnits, executionAmountLabel } from '@/lib/amount';
 import { INTENT_TEMPLATES, intentTemplateById } from '@/lib/intent-templates';
 import { knownAssetForMandateValue, knownAssetsForChain, settlementLabelForAsset } from '@/lib/known-assets';
 import { mandateMatchesIntent } from '@/lib/mandate-match';
+import { assetSelectValue, resolveIntentAssetForSubmit } from '@/lib/resolve-intent-asset';
 import { formatApiErrorMessage } from '@/lib/utils';
+
+function robinhoodTickerFromTemplate(template: ReturnType<typeof intentTemplateById>): string | undefined {
+  const meta = template.metadata?.robinhood as { ticker?: string } | undefined;
+  return meta?.ticker;
+}
+
+function agentMatchesTemplate(
+  agentId: string,
+  template: ReturnType<typeof intentTemplateById>,
+  mandates: Array<{
+    status: string;
+    agentId: string;
+    allowedChains: number[];
+    allowedActions: string[];
+    allowedAssets: string[];
+    allowedTargets: string[];
+  }>,
+  targetAddress: string,
+  assetAddress: string,
+): boolean {
+  return mandates.some((mandate) =>
+    mandateMatchesIntent({
+      mandate,
+      agentId,
+      chainId: template.targetChainId,
+      actionType: template.actionType,
+      templateId: template.id,
+      targetAddress,
+      assetAddress,
+    }),
+  );
+}
 
 export default function SubmitIntentPage() {
   const router = useRouter();
@@ -33,6 +68,13 @@ export default function SubmitIntentPage() {
   const [targetAddress, setTargetAddress] = useState(initialTemplate.targetAddress);
   const [assetAddress, setAssetAddress] = useState(initialTemplate.assetAddress ?? '');
   const selectedTemplate = intentTemplateById(templateId);
+  const resolvedSubmitAsset = resolveIntentAssetForSubmit({
+    chainId: selectedTemplate.targetChainId,
+    rawAsset: assetAddress,
+    templateAsset: selectedTemplate.assetAddress,
+    templateActionType: selectedTemplate.actionType,
+    robinhoodTicker: robinhoodTickerFromTemplate(selectedTemplate),
+  });
   const selectedAgent = agents?.items.find((agent) => agent.id === agentId) ?? agents?.items[0];
   const activeMandates = useMemo(
     () =>
@@ -44,34 +86,81 @@ export default function SubmitIntentPage() {
           actionType: selectedTemplate.actionType,
           templateId: selectedTemplate.id,
           targetAddress,
-          assetAddress: assetAddress || selectedTemplate.assetAddress,
+          assetAddress: resolvedSubmitAsset,
         }),
       ),
-    [mandates, selectedAgent?.id, selectedTemplate, targetAddress, assetAddress],
+    [mandates, selectedAgent?.id, selectedTemplate, targetAddress, resolvedSubmitAsset],
   );
   const selectedMandate = activeMandates[0];
   const chainAssets = knownAssetsForChain(selectedTemplate.targetChainId);
-  const settlementNote = settlementLabelForAsset(
-    selectedTemplate.targetChainId,
-    assetAddress || selectedTemplate.assetAddress || 'native',
-  );
-  const selectedAsset = knownAssetForMandateValue(
-    selectedTemplate.targetChainId,
-    assetAddress || selectedTemplate.assetAddress || 'native',
-  );
+  const settlementNote = settlementLabelForAsset(selectedTemplate.targetChainId, resolvedSubmitAsset);
+  const selectedAsset = knownAssetForMandateValue(selectedTemplate.targetChainId, resolvedSubmitAsset);
   const amountDecimals = selectedAsset?.decimals ?? 18;
   const amountSymbol = selectedAsset?.symbol ?? 'ETH';
   const normalizedAmountPreview = executionAmountBaseUnits(amount, amountDecimals);
+  const showUsdcBudget =
+    selectedTemplate.targetChainId === 421614 &&
+    (selectedTemplate.id.startsWith('arbitrum-usdc') || selectedAsset?.symbol === 'USDC');
+  const matchingAgents = useMemo(
+    () =>
+      (agents?.items ?? []).filter((agent) =>
+        agentMatchesTemplate(agent.id, selectedTemplate, mandates ?? [], targetAddress, resolvedSubmitAsset),
+      ),
+    [agents?.items, selectedTemplate, mandates, targetAddress, resolvedSubmitAsset],
+  );
   const submitBlockedReason = !selectedAgent
     ? 'Select an active agent.'
     : !selectedAgent.defaultPolicyId
       ? 'Selected agent needs an assigned policy.'
       : !selectedMandate
-        ? 'No active mandate matches this agent, chain, action, and target.'
+        ? matchingAgents.length
+          ? `No mandate for this agent. Try agent "${matchingAgents[0]?.name}" — it has a matching ${selectedTemplate.targetChainId === 46630 ? 'Robinhood' : 'Arbitrum'} mandate.`
+          : 'No active mandate matches this agent, chain, action, and target.'
         : null;
+  const { data: chainBalance } = useWalletBalanceForChain(connectedWallet, selectedTemplate.targetChainId);
+  const walletAssetBalance = useMemo(() => {
+    if (!chainBalance || !selectedAsset) return undefined;
+    if (selectedAsset.address === 'native') return chainBalance.nativeFormatted;
+    const token = chainBalance.tokens.find(
+      (row) =>
+        row.address.toLowerCase() === selectedAsset.address.toLowerCase() ||
+        row.symbol.toUpperCase() === selectedAsset.symbol.toUpperCase(),
+    );
+    return token?.formatted;
+  }, [chainBalance, selectedAsset]);
+  const balanceWarning = compareAmountToBalance(amount, amountDecimals, walletAssetBalance);
   const approvalExplanation = selectedMandate?.approvalThreshold
     ? `This intent may require approval when ${selectedMandate.approvalThreshold}.`
     : 'This intent can proceed automatically when wallet authority, rules, risk, and settlement checks pass.';
+
+  useEffect(() => {
+    if (!mandates?.length || !agents?.items.length) return;
+    const preferred = searchParams.get('agentId');
+    if (
+      preferred &&
+      agents.items.some((a) => a.id === preferred) &&
+      agentMatchesTemplate(preferred, selectedTemplate, mandates, targetAddress, resolvedSubmitAsset)
+    ) {
+      if (agentId !== preferred) setAgentId(preferred);
+      return;
+    }
+    if (agentId && agentMatchesTemplate(agentId, selectedTemplate, mandates, targetAddress, resolvedSubmitAsset)) {
+      return;
+    }
+    if (matchingAgents[0] && matchingAgents[0].id !== agentId) {
+      setAgentId(matchingAgents[0].id);
+    }
+  }, [
+    templateId,
+    mandates,
+    agents?.items,
+    targetAddress,
+    resolvedSubmitAsset,
+    matchingAgents,
+    agentId,
+    searchParams,
+    selectedTemplate,
+  ]);
 
   const handleTemplateChange = (value: string) => {
     const nextTemplate = intentTemplateById(value);
@@ -88,8 +177,6 @@ export default function SubmitIntentPage() {
       setError(submitBlockedReason ?? 'Intent is not ready to submit.');
       return;
     }
-    const formData = new FormData(e.currentTarget);
-    const assetAddress = String(formData.get('assetAddress') || '') || undefined;
 
     const payload = JSON.stringify({
       templateId,
@@ -97,7 +184,7 @@ export default function SubmitIntentPage() {
       targetChainId: selectedTemplate.targetChainId,
       targetAddress,
       amount: amount || null,
-      assetAddress: assetAddress ?? null,
+      assetAddress: resolvedSubmitAsset,
       mandateId: selectedMandate.id,
       submittedAt: new Date().toISOString(),
     });
@@ -111,7 +198,7 @@ export default function SubmitIntentPage() {
         actionType: selectedTemplate.actionType,
         targetChainId: selectedTemplate.targetChainId,
         targetAddress,
-        assetAddress,
+        assetAddress: resolvedSubmitAsset,
         amount: amount || undefined,
         mandateId: selectedMandate.id,
         payloadHash,
@@ -166,6 +253,9 @@ export default function SubmitIntentPage() {
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
+            {matchingAgents.length === 1 && selectedAgent?.id !== matchingAgents[0].id && (
+              <p className="mt-1 text-xs text-amber-700">This template requires agent &quot;{matchingAgents[0].name}&quot;.</p>
+            )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="app-form-group">
@@ -175,12 +265,20 @@ export default function SubmitIntentPage() {
               </div>
             </div>
             <div className="app-form-group">
-              <label htmlFor="amount">Amount</label>
+              <label htmlFor="amount">Amount ({amountSymbol})</label>
               <input id="amount" name="amount" type="text" value={amount} onChange={(e) => setAmount(e.target.value)} className="app-input" />
               <p className="mt-1 text-xs text-[#64748b]">
                 Human-readable {amountSymbol} amount. Example: entering <strong>1</strong> transfers 1 {amountSymbol}
                 {normalizedAmountPreview ? ` (${normalizedAmountPreview} base units)` : ''}.
               </p>
+              <SelectedAssetBalance
+                walletAddress={connectedWallet}
+                chainId={selectedTemplate.targetChainId}
+                assetValue={resolvedSubmitAsset}
+              />
+              {!balanceWarning.ok && balanceWarning.message && (
+                <p className="mt-2 text-xs font-medium text-amber-700">{balanceWarning.message}</p>
+              )}
             </div>
           </div>
           <div className="app-form-group">
@@ -191,9 +289,8 @@ export default function SubmitIntentPage() {
             <label htmlFor="assetAddress">Asset</label>
             <select
               id="assetAddress"
-              name="assetAddress"
               className="app-input"
-              value={chainAssets.some((a) => a.mandateValue === assetAddress) ? assetAddress : 'custom'}
+              value={assetSelectValue(selectedTemplate.targetChainId, assetAddress)}
               onChange={(e) => {
                 if (e.target.value !== 'custom') setAssetAddress(e.target.value);
               }}
@@ -233,7 +330,7 @@ export default function SubmitIntentPage() {
                 ['Action', selectedTemplate.actionType],
                 ['Target', targetAddress],
                 ['Amount', amount ? executionAmountLabel(amount, amountDecimals, amountSymbol) : 'Not set'],
-                ['Asset', assetAddress || 'native'],
+                ['Asset', selectedAsset?.symbol ?? resolvedSubmitAsset],
                 ['Mandate', selectedMandate?.id ?? 'No matching mandate'],
               ].map(([label, value]) => (
                 <div key={label} className="wallet-row">
@@ -263,25 +360,43 @@ export default function SubmitIntentPage() {
             </p>
           </div>
 
-          <div className="app-card">
-            <h3 className="app-card-title">Budget Check</h3>
-            <div className="mt-4">
-              <BudgetMeter agentId={selectedAgent?.id} compact />
+          {showUsdcBudget ? (
+            <div className="app-card">
+              <h3 className="app-card-title">USDC Budget Check</h3>
+              <div className="mt-4">
+                <BudgetMeter agentId={selectedAgent?.id} compact chainId={421614} />
+              </div>
+              <p className="mt-3 text-xs leading-5 text-[#64748b]">
+                USDC budget applies to Arbitrum USDC payments only. Robinhood stock transfers use wallet token balance instead.
+              </p>
             </div>
-            <p className="mt-3 text-xs leading-5 text-[#64748b]">
-              If this action exceeds the live budget, the backend BudgetEngine records a refusal event and stops before settlement.
-            </p>
-          </div>
+          ) : (
+            <div className="app-card">
+              <h3 className="app-card-title">{amountSymbol} Settlement Check</h3>
+              <p className="mt-2 text-sm leading-6 text-[#64748b]">
+                This template settles {amountSymbol} on chain — not USDC budget. Your connected wallet must hold enough {amountSymbol} (and approval) for the amount entered.
+              </p>
+              <div className="mt-4">
+                <SelectedAssetBalance
+                  walletAddress={connectedWallet}
+                  chainId={selectedTemplate.targetChainId}
+                  assetValue={resolvedSubmitAsset}
+                />
+              </div>
+            </div>
+          )}
 
-          <div className="app-card">
-            <h3 className="app-card-title">x402 USDC Payments</h3>
-            <p className="mt-2 text-sm leading-6 text-[#64748b]">
-              HTTP-native governed payments with budget enforcement and public proof URLs.
-            </p>
-            <Link href="/dashboard/payments" className="app-btn app-btn-outline mt-4 inline-flex">
-              Open x402 Payments sandbox
-            </Link>
-          </div>
+          {showUsdcBudget && (
+            <div className="app-card">
+              <h3 className="app-card-title">x402 USDC Payments</h3>
+              <p className="mt-2 text-sm leading-6 text-[#64748b]">
+                HTTP-native governed payments with budget enforcement and public proof URLs.
+              </p>
+              <Link href="/dashboard/payments" className="app-btn app-btn-outline mt-4 inline-flex">
+                Open x402 Payments sandbox
+              </Link>
+            </div>
+          )}
 
           <div className="app-card">
             <h3 className="app-card-title">Wallet on this chain</h3>

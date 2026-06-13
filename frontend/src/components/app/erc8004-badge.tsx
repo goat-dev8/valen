@@ -33,7 +33,7 @@ const STATUS_COPY: Record<string, { title: string; body: string; tone: 'ok' | 'w
   },
   registration_pending: {
     title: 'Registration Pending',
-    body: 'VALEN prepared agent metadata and a metadata hash. On-chain ERC-8004 mint is pending — register identity to queue the mint and link resolver metadata.',
+    body: 'VALEN has prepared off-chain agent metadata (name, mandates, proof history). A full ERC-8004 identity NFT is not minted yet — the public ERC-8004 registry contract is optional in this demo. Click Register Identity to save metadata to ValenIdentityResolver; on-chain NFT mint requires deploying ERC8004_REGISTRY_ADDRESS.',
     tone: 'warn',
   },
   failed: {
@@ -108,7 +108,7 @@ export function Erc8004Badge({ identity, agentId, publicSlug }: Erc8004BadgeProp
                 <ExternalLink className="h-3 w-3" />
               </a>
             ) : (
-              'Pending ERC-8004 registry mint'
+              'ValenIdentityResolver only (no ERC-8004 registry deployed)'
             )}
           </dd>
         </div>

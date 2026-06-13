@@ -31,7 +31,7 @@ function robinhoodStockTemplate(
     targetChainId: 46630,
     targetAddress: ROBINHOOD_TARGET,
     assetAddress: isAllowed ? token.address : ticker,
-    amount: isAllowed ? '10' : '250',
+    amount: isAllowed ? '1' : '250',
     metadata: {
       robinhood: {
         ticker,

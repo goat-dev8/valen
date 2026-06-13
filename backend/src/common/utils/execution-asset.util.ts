@@ -12,6 +12,10 @@ export function resolveOnChainAssetAddress(assetAddress: string | null | undefin
     return DEFAULT_E2E_ASSET;
   }
 
+  if (trimmed.toLowerCase() === 'custom') {
+    throw new Error('Unknown asset identifier for settlement: custom');
+  }
+
   const tickerAddress = resolveRobinhoodTickerAddress(trimmed);
   if (tickerAddress) {
     return getAddress(tickerAddress);

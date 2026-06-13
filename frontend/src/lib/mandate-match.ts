@@ -1,3 +1,5 @@
+import { knownAssetForMandateValue } from './known-assets';
+
 export function mandateActionAllowed(
   allowedActions: string[],
   actionType: string,
@@ -34,13 +36,32 @@ export function mandateTargetAllowed(
 export function mandateAssetAllowed(
   allowedAssets: string[],
   assetAddress?: string | null,
+  chainId?: number,
 ): boolean {
   if (!allowedAssets.length || allowedAssets.includes('*')) return true;
   const asset = assetAddress?.trim();
   if (!asset || asset.toLowerCase() === 'native') {
     return allowedAssets.includes('native');
   }
-  return allowedAssets.includes(asset) || allowedAssets.includes('native');
+  const normalized = asset.toLowerCase();
+  if (allowedAssets.some((entry) => entry.trim().toLowerCase() === normalized || entry === asset)) {
+    return true;
+  }
+  if (allowedAssets.includes('native')) return true;
+
+  if (chainId != null) {
+    const known = knownAssetForMandateValue(chainId, asset);
+    if (known) {
+      return allowedAssets.some(
+        (entry) =>
+          entry === known.symbol ||
+          entry.toLowerCase() === known.mandateValue.toLowerCase() ||
+          entry.toLowerCase() === known.address.toLowerCase(),
+      );
+    }
+  }
+
+  return false;
 }
 
 export function mandateMatchesIntent(input: {
@@ -71,7 +92,7 @@ export function mandateMatchesIntent(input: {
   if (!mandateTargetAllowed(mandate.allowedTargets, input.targetAddress)) {
     return false;
   }
-  if (!mandateAssetAllowed(mandate.allowedAssets, input.assetAddress)) {
+  if (!mandateAssetAllowed(mandate.allowedAssets, input.assetAddress, input.chainId)) {
     return false;
   }
   return true;
