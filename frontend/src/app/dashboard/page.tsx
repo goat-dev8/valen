@@ -211,7 +211,7 @@ export default function DashboardPage() {
           </p>
         </Link>
 
-        <Link href={latestPayment?.href ?? '/dashboard/executions/new'} className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]">
+        <Link href={latestPayment?.href ?? '/dashboard/payments'} className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#007dfc]">x402 Payment Proof</p>
           <h3 className="mt-3 text-lg font-semibold text-[#012b54]">
             {latestPayment ? latestPayment.paymentId.slice(0, 8) : 'Run x402 payment'}

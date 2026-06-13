@@ -9,8 +9,10 @@ describe('amount util', () => {
     expect(normalizeExecutionAmount('1.25', 6)).toBe('1250000');
   });
 
-  it('keeps integer strings as already-normalized base units', () => {
-    expect(normalizeExecutionAmount('1000', 6)).toBe('1000');
+  it('normalizes integer human amounts to base units', () => {
+    expect(normalizeExecutionAmount('1', 6)).toBe('1000000');
+    expect(normalizeExecutionAmount('5', 6)).toBe('5000000');
+    expect(normalizeExecutionAmount('10', 18)).toBe('10000000000000000000');
   });
 
   it('preserves the legacy ETH wei parser', () => {

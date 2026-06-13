@@ -2,7 +2,7 @@ import { parseEther, parseUnits } from 'viem';
 
 /**
  * Parses dashboard/API execution amounts into base units.
- * Accepts integer base-unit strings ("1000000") or decimal user units ("1.25").
+ * All numeric strings are treated as human-readable token amounts ("1", "0.001", "1.25").
  */
 export function parseExecutionAmount(
   value: string | null | undefined,
@@ -13,10 +13,6 @@ export function parseExecutionAmount(
   }
 
   const trimmed = value.trim();
-  if (/^\d+$/.test(trimmed)) {
-    return BigInt(trimmed);
-  }
-
   if (/^\d+(\.\d+)?$/.test(trimmed)) {
     return decimals === 18 ? parseEther(trimmed) : parseUnits(trimmed, decimals);
   }

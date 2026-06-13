@@ -73,29 +73,43 @@ export default function AgentDetailPage() {
       label: 'Active agent',
       complete: agent?.status === 'active',
       detail: agent?.status === 'active' ? 'Agent can receive intents.' : 'Activate the agent first.',
+      href: `/dashboard/agents/${agentId}`,
+      optional: false,
     },
     {
       label: 'Assigned policy',
       complete: Boolean(agent?.defaultPolicyId),
       detail: agent?.defaultPolicyId ? policyName ?? agent.defaultPolicyId : 'Assign a default policy.',
+      href: '/dashboard/policies',
+      optional: false,
     },
     {
       label: 'Verified owner wallet',
       complete: walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false,
       detail: 'Verify wallet ownership from Wallet & Authority.',
+      href: '/dashboard/wallets',
+      optional: false,
     },
     {
       label: 'Signed mandate',
       complete: agentMandates.length > 0,
       detail: agentMandates.length ? `${agentMandates.length} active mandate(s).` : 'Sign a mandate for this agent.',
+      href: '/dashboard/wallets',
+      optional: false,
     },
     {
-      label: 'Mandate-bound API key',
+      label: 'API key (external agents only)',
       complete: mandateBoundApiKeys.length > 0,
-      detail: mandateBoundApiKeys.length ? `${mandateBoundApiKeys.length} active key(s).` : 'Create an API key bound to an active mandate.',
+      detail: mandateBoundApiKeys.length
+        ? `${mandateBoundApiKeys.length} active key(s) for programmatic access.`
+        : 'Optional — only needed for external AI agents calling the Render API.',
+      href: `#api-keys`,
+      optional: true,
     },
   ];
-  const readinessComplete = readinessSteps.every((step) => step.complete);
+  const requiredSteps = readinessSteps.filter((step) => !step.optional);
+  const readinessComplete = requiredSteps.every((step) => step.complete);
+  const nextStep = readinessSteps.find((step) => !step.complete && !step.optional) ?? readinessSteps.find((step) => !step.complete);
 
   const handleSuspend = async () => {
     const reason = window.prompt('Reason for suspending this agent:');
@@ -252,32 +266,49 @@ export default function AgentDetailPage() {
                 <div>
                   <h3 className="app-card-title">Agent Readiness</h3>
                   <p className="mt-1 text-sm text-[#64748b]">
-                    Submit Intent is gated until authority, policy, mandate, and API access are complete.
+                    Submit Intent is gated once the agent is active with policy, verified wallet, and signed mandate.
+                    API keys are only required for external programmatic agents — not for dashboard users.
                   </p>
                 </div>
                 <span className={`wallet-status wallet-status-${readinessComplete ? 'ok' : 'warn'}`}>
-                  {readinessSteps.filter((step) => step.complete).length}/{readinessSteps.length}
+                  {requiredSteps.filter((step) => step.complete).length}/{requiredSteps.length}
                 </span>
               </div>
+              {nextStep && !readinessComplete && (
+                <div className="mt-4 rounded-2xl border border-[#cfe6ff] bg-[#f8fbff] p-4">
+                  <p className="text-sm font-semibold text-[#012b54]">Next step: {nextStep.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-[#64748b]">{nextStep.detail}</p>
+                  <Link href={nextStep.href} className="app-btn app-btn-primary mt-3 inline-flex">
+                    Continue setup
+                  </Link>
+                </div>
+              )}
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 {readinessSteps.map((step) => (
-                  <div key={step.label} className="rounded-2xl border border-[#eef0f3] p-4">
+                  <Link
+                    key={step.label}
+                    href={step.href}
+                    className={`rounded-2xl border p-4 transition hover:border-[#cfe6ff] ${step.optional ? 'border-dashed' : 'border-[#eef0f3]'}`}
+                  >
                     {step.complete ? (
                       <CheckCircle className="h-5 w-5 text-emerald-500" />
                     ) : (
                       <Circle className="h-5 w-5 text-[#94a3b8]" />
                     )}
-                    <p className="mt-3 text-sm font-semibold text-[#012b54]">{step.label}</p>
+                    <p className="mt-3 text-sm font-semibold text-[#012b54]">
+                      {step.label}
+                      {step.optional && <span className="ml-1 text-xs font-normal text-[#94a3b8]">(optional)</span>}
+                    </p>
                     <p className="mt-1 text-xs leading-5 text-[#64748b]">{step.detail}</p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
 
-            <BudgetMeter agentId={agent.id} />
+            <BudgetMeter agentId={agent.id} showTopup chainId={421614} />
 
             <div className="grid gap-5 lg:grid-cols-2">
-              <Erc8004Badge identity={identity?.erc8004} />
+              <Erc8004Badge identity={identity?.erc8004} agentId={agent.id} publicSlug={agent.publicSlug} />
 
               <div className="app-card">
                 <h3 className="app-card-title mb-3">Agent Profile</h3>
@@ -403,9 +434,15 @@ export default function AgentDetailPage() {
               </div>
             </div>
 
-            <div className="app-card">
-              <h3 className="app-card-title mb-3">API Keys</h3>
-              <p className="mb-4 text-sm text-[#64748b]">Issue scoped keys for programmatic agent access via Render API.</p>
+            <details className="app-card" id="api-keys">
+              <summary className="cursor-pointer list-none">
+                <h3 className="app-card-title inline">API Keys — external AI agents only</h3>
+                <p className="mt-2 text-sm text-[#64748b]">
+                  Dashboard users submit intents through the UI and do not need API keys. Create keys only when an external
+                  service or AI agent will call the Render API programmatically.
+                </p>
+              </summary>
+              <div className="mt-4 border-t border-[#eef0f3] pt-4">
               <form onSubmit={handleCreateApiKey} className="flex flex-wrap items-end gap-3">
                 <div className="app-form-group min-w-[240px] flex-1">
                   <label htmlFor="keyName">Key Name</label>
@@ -432,7 +469,8 @@ export default function AgentDetailPage() {
                   <code className="mt-2 block break-all font-mono text-xs text-amber-900">{apiKeySecret}</code>
                 </div>
               )}
-            </div>
+              </div>
+            </details>
 
             <div className="app-card">
               <h3 className="app-card-title mb-4">Recent Executions</h3>

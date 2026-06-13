@@ -3433,3 +3433,50 @@ Proof URLs (Vercel): `https://valenai.vercel.app/dashboard/executions/{id}/proof
 **Action required:** `git push origin main` from your machine to deploy Render + Vercel.
 
 **Verdict:** Robinhood stock tokens are first-class executable assets on Robinhood Testnet. Metadata-only stock marketing removed from primary UX.
+
+---
+
+## Principal UX Audit — 2026-06-13
+
+### Critical bug: Execute page amount (USDC 1 → 0.000001 on-chain)
+
+| Item | Detail |
+|------|--------|
+| **Observed** | User entered `Amount = 1` USDC; Arbiscan showed transfer of `0.000001` USDC |
+| **Root cause** | `backend/src/common/utils/amount.util.ts` treated pure integer strings (`/^\d+$/`) as **base units** via `BigInt(trimmed)`, ignoring asset decimals. `"1"` → 1 micro-USDC instead of 1,000,000 base units |
+| **Fix** | All numeric strings (including integers) now parse as **human-readable** amounts via `parseUnits` / `parseEther` |
+| **Tests** | `amount.util.spec.ts` — `"1"` with 6 decimals → `"1000000"` ✓ |
+| **Frontend** | Execute page shows human amount hint + base-unit preview in Intent Preview (`frontend/src/lib/amount.ts`) |
+
+### UX fixes shipped
+
+| Issue | Fix |
+|-------|-----|
+| Budget top-up no feedback | `BudgetMeter`: success banner with before/after cap, evidence hash, recent budget events with execution proof links |
+| x402 invisible | Sidebar **x402 Payments** + Mission Control card → `/dashboard/payments` dedicated sandbox |
+| ERC-8004 confusing | `Erc8004Badge`: status explanations, Register Identity button, explorer links, “What is ERC-8004?” |
+| Onboarding too complex | Agent readiness: API key optional; next-step CTA with links; 4/4 required steps (not 5/5) |
+| API key confusion | API keys collapsed under `<details>` — labeled “external AI agents only” |
+| Explorer discoverability | New `/dashboard/resources` — explorers, faucets, USDC/USDG/stock contracts (copy + open) |
+| Proof-first | Execute redirects to execution detail (existing proof + tx links); budget events link to execution proofs |
+
+### New routes
+
+- `/dashboard/payments` — x402 initiate + settle + public proof + Arbiscan link
+- `/dashboard/resources` — explorers, faucets, contract addresses
+
+### Production URLs
+
+- Frontend: `https://valenai.vercel.app`
+- API: `https://valen-api-m3g4.onrender.com`
+
+### Post-deploy verification checklist
+
+- [ ] Amount `1` USDC settles as 1.000000 USDC on Arbiscan
+- [ ] Amounts 0.001, 0.01, 0.1, 1, 5, 10 match on-chain
+- [ ] Budget top-up shows success + history
+- [ ] x402 Payments visible in sidebar
+- [ ] ERC-8004 Register Identity works
+- [ ] Resources page links open correct explorers
+
+**Verdict:** Critical decimal bug fixed at source. First-time user paths for budget, x402, ERC-8004, resources, and onboarding materially improved. Re-test production after deploy.

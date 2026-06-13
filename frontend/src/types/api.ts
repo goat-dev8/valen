@@ -393,6 +393,7 @@ export type BudgetEventDto = {
   after_spent: string;
   remaining: string;
   evidence_hash: string;
+  execution_id?: string | null;
   created_at: string;
 };
 

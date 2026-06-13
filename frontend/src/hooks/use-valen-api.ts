@@ -69,6 +69,7 @@ export function useBudgetTopup(agentId?: string | null) {
       api.budget.topup(token!, orgId!, agentId!, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budget', orgId, agentId] });
+      queryClient.invalidateQueries({ queryKey: ['budget-events', orgId, agentId] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary', orgId] });
     },
   });
@@ -118,6 +119,18 @@ export function useAgentIdentity(agentId: string) {
     queryKey: ['agent-identity', orgId, agentId],
     queryFn: () => api.agents.identity(token!, orgId!, agentId),
     enabled: enabled && Boolean(agentId),
+  });
+}
+
+export function useRegisterErc8004(agentId?: string | null) {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { resolverAddress?: string; ownerAddress?: string; tokenUri?: string }) =>
+      api.agents.prepareErc8004(token!, orgId!, agentId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-identity', orgId, agentId] });
+    },
   });
 }
 

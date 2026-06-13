@@ -21,6 +21,8 @@ import {
   Blocks,
   FileCheck,
   KeyRound,
+  CreditCard,
+  BookOpen,
 } from 'lucide-react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { cn } from '@/lib/utils';
@@ -33,8 +35,10 @@ const PRIMARY_ITEMS = [
   { href: '/dashboard/policies', label: 'Set Rules', icon: FileText },
   { href: '/dashboard/wallets', label: 'Fund & Authority', icon: Wallet },
   { href: '/dashboard/executions/new', label: 'Execute', icon: Zap },
+  { href: '/dashboard/payments', label: 'x402 Payments', icon: CreditCard },
   { href: '/dashboard/executions', label: 'See Proof', icon: FileCheck },
   { href: '/dashboard/demo/robinhood', label: 'Robinhood Assets', icon: KeyRound },
+  { href: '/dashboard/resources', label: 'Resources', icon: BookOpen },
 ];
 
 const ADMIN_ITEMS = [
