@@ -36,6 +36,7 @@ export class SettlementsRepository extends BaseRepository {
        ORDER BY
          CASE status
            WHEN 'confirmed' THEN 0
+           WHEN 'erc20_settled' THEN 0
            WHEN 'prepared' THEN 1
            WHEN 'pending' THEN 2
            ELSE 3

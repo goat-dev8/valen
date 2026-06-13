@@ -9,7 +9,7 @@ import { AgentsRepository } from '../../database/repositories/agents.repository'
 import { OrganizationsRepository } from '../../database/repositories/organizations.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
-import { normalizeExecutionAmountWei } from '../../common/utils/amount.util';
+import { normalizeExecutionAmount } from '../../common/utils/amount.util';
 import { hashPayload } from '../../common/utils/hash.util';
 import {
   CancelExecutionDto,
@@ -19,6 +19,7 @@ import {
 } from './dto/settlement.dto';
 import { IntentProducer } from '../../queues/producers/index';
 import { MandatesService } from '../mandates/mandates.service';
+import { AssetsService } from '../assets/assets.service';
 
 const TERMINAL_STATUSES = [
   'executed',
@@ -38,6 +39,7 @@ export class ExecutionsService {
     private readonly auditLogsRepository: AuditLogsRepository,
     private readonly intentProducer: IntentProducer,
     private readonly mandatesService: MandatesService,
+    private readonly assetsService: AssetsService,
   ) {}
 
   async create(
@@ -76,19 +78,26 @@ export class ExecutionsService {
       });
     }
 
+    const assetLookup = dto.assetSymbol ?? dto.assetAddress;
+    const resolvedAsset = assetLookup
+      ? await this.assetsService.resolve(dto.targetChainId, assetLookup)
+      : null;
+    const requestedAsset = resolvedAsset?.address ?? dto.assetAddress;
+    const amountDecimals = resolvedAsset?.decimals ?? 18;
+
     await this.mandatesService.assertActiveForExecution(organizationId, dto.mandateId, {
       agentId: dto.agentId,
       targetChainId: dto.targetChainId,
       actionType: dto.actionType,
       targetAddress: dto.targetAddress,
-      assetAddress: dto.assetAddress,
+      assetAddress: requestedAsset,
       amount: dto.amount,
     });
 
     const assetAddress =
-      !dto.assetAddress || dto.assetAddress.trim().toLowerCase() === 'native'
+      !requestedAsset || requestedAsset.trim().toLowerCase() === 'native'
         ? undefined
-        : dto.assetAddress;
+        : requestedAsset;
 
     const execution = await this.executionsRepository.create({
       organizationId,
@@ -98,12 +107,24 @@ export class ExecutionsService {
       targetChainId: dto.targetChainId,
       targetAddress: dto.targetAddress,
       assetAddress,
-      valueAmount: dto.amount ? normalizeExecutionAmountWei(dto.amount) : undefined,
+      valueAmount: dto.amount ? normalizeExecutionAmount(dto.amount, amountDecimals) : undefined,
       mandateId: dto.mandateId,
       policyId: agent.default_policy_id ?? undefined,
       payloadHash: dto.payloadHash,
       payloadRef: dto.payloadRef,
-      metadata: dto.metadata,
+      metadata: {
+        ...(dto.metadata ?? {}),
+        asset: resolvedAsset
+          ? {
+              symbol: resolvedAsset.symbol,
+              address: resolvedAsset.address,
+              decimals: resolvedAsset.decimals,
+              category: resolvedAsset.category,
+              supportLevel: resolvedAsset.supportLevel,
+              settlementModes: resolvedAsset.settlementModes,
+            }
+          : undefined,
+      },
     });
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -257,7 +278,10 @@ export class ExecutionsService {
     status: string;
     target_chain_id: number;
     target_address: string | null;
+    asset_address?: string | null;
+    value_amount?: string | null;
     request_payload_hash: string;
+    metadata?: Record<string, unknown>;
     created_at: Date;
     updated_at: Date;
   }): ExecutionResponseDto {
@@ -272,7 +296,10 @@ export class ExecutionsService {
       status: execution.status,
       targetChainId: execution.target_chain_id,
       targetAddress: execution.target_address,
+      assetAddress: execution.asset_address ?? null,
+      valueAmount: execution.value_amount ?? null,
       requestPayloadHash: execution.request_payload_hash,
+      metadata: execution.metadata ?? {},
       createdAt: execution.created_at.toISOString(),
       updatedAt: execution.updated_at.toISOString(),
     };

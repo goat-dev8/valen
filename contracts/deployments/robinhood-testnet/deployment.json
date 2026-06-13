@@ -21,7 +21,7 @@
     },
     "ValenSettlement": {
       "address": "0x91CdD9a481C732bEB09Ce039da23DC11e83547a4",
-      "implementation": "0xD15770A24447677D42dF6cfD09bd2fb96b34E712"
+      "implementation": "0x95a16e1898B09CcE5e03765Baa55C8C112cb80C2"
     },
     "ValenTreasury": {
       "address": "0xd9aDaab0E9660777B979D4C44294bE07E10470c8",
@@ -40,6 +40,37 @@
     },
     "ValenEmergencyGuardian": {
       "address": "0xb6a36B53E46A0D9ee3c1D589e936b0214aFA9303"
+    },
+    "ValenTokenSettlementAdapter": {
+      "address": "0x97F8d7AdD32Db13d6FEe23F7ea09296B532da336",
+      "txHash": "0x996cabdbd5f4b6a264711e203844450c1c3a74922f3d0f1518d7b9b1397292f5"
+    },
+    "RobinhoodAssetRegistry": {
+      "address": "0x4797e664b719504710c77ed1E8F8A33d09b42A5D",
+      "txHash": "0xbce6d147963ff963e8469e3a481bb4fdf246653627f5a0eef331d7206a20595c"
     }
+  },
+  "phaseC": {
+    "tokenSettlementConfiguredAt": "2026-06-13T15:28:34.860Z",
+    "tokenAsset": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+    "tokenSymbol": "USDG",
+    "allowanceTxHash": "0x863e6fe02eee01fb91af78f324e0e1c2f006b56a8462848f7815eb0d19957331",
+    "upgradeTxHash": "0x077032e525d7ada3d869ef2410cf6b8ee9ff789494bd28a34f188d8c411fe14e",
+    "adapterTxHash": "0x996cabdbd5f4b6a264711e203844450c1c3a74922f3d0f1518d7b9b1397292f5",
+    "configureTxHashes": [
+      "0x364696830dd8a6f633df7e15073f5a700a7d6f0e61e6bb5e1473f22facb92899",
+      "0xf319699356e7bef362e6f0efe286347f30203cdc7e2c11b404605dea09c6538b"
+    ]
+  },
+  "phaseD": {
+    "robinhoodAssetRegistryConfiguredAt": "2026-06-13T15:59:37.329Z",
+    "registerTxHashes": [
+      "0x13be86e8143a4620d6d3b32969a8a394c89c69df077c4d9ef86129a3cace66d6",
+      "0x60af8e8dcb504ac7d4a89624b4bd00c69a1c92779a27d12edb0ac919c62257e6",
+      "0xa8174fc2a04228e9e9a01a7dad9f1a00b13e15c445ea07551f3ef3f685c150a9",
+      "0x64f8258e5bed7a52b94ba75fdcb9eb9bb79d34f08eafde740399780c31cdf479",
+      "0x612c13888b6769a5e99f89d956d926558120918949dc4758fcfd90f1eae0c2d0",
+      "0xc309d6b31a60058c5660db4cc70d83e8ea8259bf79426e87d9d0efb219151014"
+    ]
   }
 }

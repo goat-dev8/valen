@@ -12,6 +12,7 @@ import {IValenMandateRegistry} from "../interfaces/IValenMandateRegistry.sol";
 import {IValenAuditLog} from "../interfaces/IValenAuditLog.sol";
 import {IValenTreasury} from "../interfaces/IValenTreasury.sol";
 import {IValenEscrow} from "../interfaces/IValenEscrow.sol";
+import {IValenTokenSettlementAdapter} from "../interfaces/IValenTokenSettlementAdapter.sol";
 import {IComplianceEngine} from "../interfaces/IComplianceEngine.sol";
 import {IRiskEngine} from "../interfaces/IRiskEngine.sol";
 import {IEligibilityEngine} from "../interfaces/IEligibilityEngine.sol";
@@ -39,8 +40,10 @@ contract ValenSettlement is
     mapping(bytes32 => ValenTypes.SettlementRecord) private _settlements;
     mapping(bytes32 => bool) private _executionUsed;
     mapping(ValenTypes.PauseScope => mapping(bytes32 => bool)) private _scopePaused;
+    IValenTokenSettlementAdapter public tokenSettlementAdapter;
+    mapping(address => bool) public tokenSettlementAssetEnabled;
 
-    uint256[50] private __gap;
+    uint256[48] private __gap;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -82,6 +85,18 @@ contract ValenSettlement is
     function setEscrow(address escrow_) external onlyRole(ValenConstants.DEFAULT_ADMIN_ROLE) {
         if (escrow_ == address(0)) revert ValenErrors.ZeroAddress();
         escrow = IValenEscrow(escrow_);
+    }
+
+    function setTokenSettlementAdapter(address adapter_) external onlyRole(ValenConstants.DEFAULT_ADMIN_ROLE) {
+        if (adapter_ == address(0)) revert ValenErrors.ZeroAddress();
+        tokenSettlementAdapter = IValenTokenSettlementAdapter(adapter_);
+        emit TokenSettlementAdapterSet(adapter_);
+    }
+
+    function setTokenSettlementAsset(address asset, bool enabled) external onlyRole(ValenConstants.DEFAULT_ADMIN_ROLE) {
+        if (asset == address(0)) revert ValenErrors.ZeroAddress();
+        tokenSettlementAssetEnabled[asset] = enabled;
+        emit TokenSettlementAssetSet(asset, enabled);
     }
 
     function submitSettlement(
@@ -196,6 +211,16 @@ contract ValenSettlement is
         if (address(auditLog) != address(0)) {
             bytes32 commitment = keccak256(abi.encodePacked(record.executionHash, record.complianceHash, record.riskHash));
             auditLog.recordAuditCommitment(commitment, record.executionHash);
+        }
+
+        if (tokenSettlementAssetEnabled[record.asset]) {
+            if (address(tokenSettlementAdapter) == address(0)) revert ValenErrors.ZeroAddress();
+            if (msg.value != 0) revert ValenErrors.InvalidInput();
+            tokenSettlementAdapter.settleToken(record.executionHash, record.asset, record.agent, record.target, record.value);
+
+            record.status = ValenTypes.SettlementStatus.Executed;
+            emit SettlementTokenExecuted(settlementId, record.asset, record.target, record.value);
+            return;
         }
 
         uint256 fee = _settlementFee(record);

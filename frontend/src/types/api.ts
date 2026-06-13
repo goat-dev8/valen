@@ -71,6 +71,49 @@ export type AgentWalletDto = {
   status: string;
 };
 
+export type AgentIdentityDto = {
+  agentId: string;
+  erc8004: {
+    status: string;
+    registryAddress: string | null;
+    resolverAddress: string | null;
+    tokenId: string | null;
+    chainId: number;
+    ownerAddress: string | null;
+    tokenUri: string | null;
+    metadata: Record<string, unknown>;
+    metadataHash: string | null;
+    lastSyncedAt: string | null;
+  };
+  walletBindings: Array<{
+    id: string;
+    chainId: number;
+    walletAddress: string;
+    walletType: string;
+    isPrimary: boolean;
+    status: string;
+  }>;
+  verifiedWallets: Array<{
+    id: string;
+    chainId: number;
+    walletAddress: string;
+    status: string;
+    verifiedAt: string | null;
+  }>;
+  mandates: Array<{
+    id: string;
+    chainId: number;
+    signerAddress: string | null;
+    status: string;
+    allowedChains: number[];
+    allowedActions: string[];
+    allowedAssets: string[];
+    allowedTargets: string[];
+    typedDataHash: string | null;
+    validUntil: string;
+  }>;
+};
+
 export type WalletChallengeDto = {
   chainId: number;
   walletAddress: string;
@@ -198,9 +241,124 @@ export type ExecutionDto = {
   status: string;
   targetChainId: number;
   targetAddress: string | null;
+  assetAddress: string | null;
+  valueAmount: string | null;
   requestPayloadHash: string;
+  metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+};
+
+export type DashboardSummaryDto = {
+  organization: {
+    id: string;
+    name: string;
+    defaultChainId: number | null;
+  };
+  agent: {
+    id: string;
+    name: string | null;
+    status: string | null;
+    defaultPolicyId: string | null;
+    walletAddress: string | null;
+    walletChainId: number | null;
+  } | null;
+  readiness: {
+    walletConnected: boolean;
+    agentActive: boolean;
+    rulesActive: boolean;
+    walletVerified: boolean;
+    mandateSigned: boolean;
+    usdcBudgetFunded: boolean;
+    firstExecutionComplete: boolean;
+    proofAvailable: boolean;
+    completed: number;
+    total: number;
+    percent: number;
+  };
+  budget: {
+    assetSymbol: string;
+    status: string;
+    remaining?: string | null;
+    cap?: string | null;
+    spent?: string | null;
+    evidenceHash?: string | null;
+    resetsAt?: string | null;
+    note?: string;
+  };
+  counts: {
+    policies: number;
+    activeMandates: number;
+    totalExecutions: number;
+    executedExecutions: number;
+    pendingApprovals: number;
+    failedOrRefusedExecutions: number;
+  };
+  latest: {
+    execution: {
+      id: string;
+      status: string | null;
+      actionType: string | null;
+      chainId: number | null;
+      asset: string | null;
+      createdAt: string | null;
+      href: string;
+    } | null;
+    proof: {
+      executionId: string;
+      actionType: string | null;
+      chainId: number | null;
+      asset: string | null;
+      txHash: string | null;
+      blockNumber: string | null;
+      createdAt: string | null;
+      href: string | null;
+    } | null;
+    refusal: {
+      executionId: string;
+      status: string | null;
+      actionType: string | null;
+      chainId: number | null;
+      asset: string | null;
+      createdAt: string | null;
+      href: string;
+    } | null;
+    robinhood: {
+      executionId: string;
+      status: string | null;
+      actionType: string | null;
+      asset: string | null;
+      txHash: string | null;
+      createdAt: string | null;
+      href: string | null;
+    } | null;
+  };
+};
+
+export type BudgetDto = {
+  id: string;
+  organization_id?: string;
+  agent_id?: string;
+  chain_id?: number;
+  asset_address?: string;
+  asset_symbol?: string;
+  cap?: string;
+  spent?: string;
+  remaining?: string;
+  status?: string;
+  evidence_hash?: string;
+  resets_at?: string;
+};
+
+export type BudgetEventDto = {
+  id: string;
+  kind: string;
+  amount: string;
+  before_spent: string;
+  after_spent: string;
+  remaining: string;
+  evidence_hash: string;
+  created_at: string;
 };
 
 export type ComplianceCheckDto = {
@@ -253,6 +411,34 @@ export type SettlementDto = {
   createdAt: string;
 };
 
+export type RobinhoodAssetScenarioDto = {
+  id: string;
+  kind: 'allowed' | 'refused';
+  label: string;
+  amount: string;
+  supportLevel: string;
+  settlementMode: string;
+  note: string;
+};
+
+export type RobinhoodAssetDto = {
+  id: string;
+  chainId: number;
+  symbol: string;
+  name: string;
+  address: string | null;
+  decimals: number;
+  category: string;
+  supportLevel: string;
+  settlementModes: string[];
+  metadata: Record<string, unknown>;
+  source: string;
+  sourceUrl: string | null;
+  verifiedAt: string | null;
+  settlementRail: string;
+  scenarios: RobinhoodAssetScenarioDto[];
+};
+
 export type AuditLogDto = {
   id: string;
   actorType: string;
@@ -298,6 +484,7 @@ export type CreateExecutionInput = {
   targetChainId: number;
   targetAddress: string;
   assetAddress?: string;
+  assetSymbol?: string;
   amount?: string;
   mandateId?: string;
   payloadHash: string;

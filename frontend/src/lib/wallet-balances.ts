@@ -1,6 +1,6 @@
 import { Address, createPublicClient, formatEther, formatUnits, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
-import { ARBITRUM_SEPOLIA_USDC } from './known-assets';
+import { ARBITRUM_SEPOLIA_USDC, ROBINHOOD_TESTNET_USDG } from './known-assets';
 
 const erc20Abi = [
   {
@@ -89,6 +89,12 @@ export async function fetchWalletBalancesForChain(
     const usdc = await readErc20Balance(client, ARBITRUM_SEPOLIA_USDC, address);
     if (usdc) {
       tokens.push({ ...usdc, address: ARBITRUM_SEPOLIA_USDC });
+    }
+  }
+  if (chainId === 46630) {
+    const usdg = await readErc20Balance(client, ROBINHOOD_TESTNET_USDG, address);
+    if (usdg) {
+      tokens.push({ ...usdg, address: ROBINHOOD_TESTNET_USDG });
     }
   }
 

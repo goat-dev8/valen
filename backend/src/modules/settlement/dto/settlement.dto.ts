@@ -40,6 +40,11 @@ export class CreateExecutionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  assetSymbol?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   amount?: string;
 
   @ApiProperty()
@@ -98,8 +103,17 @@ export class ExecutionResponseDto {
   @ApiProperty({ nullable: true })
   targetAddress!: string | null;
 
+  @ApiProperty({ nullable: true })
+  assetAddress!: string | null;
+
+  @ApiProperty({ nullable: true })
+  valueAmount!: string | null;
+
   @ApiProperty()
   requestPayloadHash!: string;
+
+  @ApiProperty()
+  metadata!: Record<string, unknown>;
 
   @ApiProperty()
   createdAt!: string;

@@ -22,6 +22,17 @@ const ENGINES = [
   "PolicyEngine",
 ] as const;
 
+const PHASE_C_TOKEN_BY_CHAIN: Record<number, { symbol: string; address: string }> = {
+  421614: {
+    symbol: "USDC",
+    address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+  },
+  46630: {
+    symbol: "USDG",
+    address: "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+  },
+};
+
 async function requireCode(address: string, label: string): Promise<void> {
   const code = await ethers.provider.getCode(address);
   if (code === "0x") {
@@ -69,6 +80,24 @@ async function main(): Promise<void> {
       throw new Error(`Settlement ${label} is zero`);
     }
     await requireCode(address, `Settlement.${label}`);
+  }
+
+  if (deployment.contracts.ValenTokenSettlementAdapter?.address) {
+    const adapterAddress = deployment.contracts.ValenTokenSettlementAdapter.address;
+    await requireCode(adapterAddress, "ValenTokenSettlementAdapter");
+    const configuredAdapter = await settlement.tokenSettlementAdapter();
+    if (configuredAdapter.toLowerCase() !== adapterAddress.toLowerCase()) {
+      throw new Error(`Token adapter mismatch: ${configuredAdapter} != ${adapterAddress}`);
+    }
+    const token = PHASE_C_TOKEN_BY_CHAIN[chainId];
+    if (!token) {
+      throw new Error(`No Phase C token expected for chain ${chainId}`);
+    }
+    const enabled = await settlement.tokenSettlementAssetEnabled(token.address);
+    if (!enabled) {
+      throw new Error(`${token.symbol} is not enabled for token settlement`);
+    }
+    console.log(`${token.symbol} token settlement enabled via ${adapterAddress}`);
   }
 
   for (const name of ENGINES) {

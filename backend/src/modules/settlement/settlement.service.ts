@@ -21,6 +21,7 @@ import { SettlementProducer } from '../../queues/producers/index';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import { ChainService, SettlementChainService } from './chain.service';
 import { MandatesService } from '../mandates/mandates.service';
+import { BudgetService } from '../budget/budget.service';
 
 @Injectable()
 export class SettlementService {
@@ -311,6 +312,7 @@ export class SettlementWorkerService {
     private readonly auditLogsRepository: AuditLogsRepository,
     private readonly settlementChainService: SettlementChainService,
     private readonly mandatesService: MandatesService,
+    private readonly budgetService: BudgetService,
   ) {}
 
   async processSettlement(settlementId: string): Promise<void> {
@@ -359,7 +361,9 @@ export class SettlementWorkerService {
     try {
       const result = await this.settlementChainService.executeSettlement(execution);
       const omitZeroTxHash = (hash: string) => (/^0x0+$/i.test(hash) ? undefined : hash);
-      await this.settlementsRepository.updateStatus(settlementId, 'confirmed', {
+      const confirmedStatus =
+        result.settlementMode === 'erc20' ? 'erc20_settled' : 'confirmed';
+      await this.settlementsRepository.updateStatus(settlementId, confirmedStatus, {
         txHash: omitZeroTxHash(result.executeTxHash),
         submitTxHash: omitZeroTxHash(result.submitTxHash),
         approveTxHash: omitZeroTxHash(result.approveTxHash),
@@ -373,6 +377,8 @@ export class SettlementWorkerService {
         settlement.execution_id,
         'executed',
       );
+
+      await this.budgetService.commitSpend(settlement.execution_id);
 
       await this.auditLogsRepository.append({
         organizationId: settlement.organization_id,

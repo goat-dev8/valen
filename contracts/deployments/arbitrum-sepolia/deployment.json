@@ -21,7 +21,7 @@
     },
     "ValenSettlement": {
       "address": "0x993622D55Ea095aB71165Caf191B21E6e3A71D4A",
-      "implementation": "0x4E53C16BA458Dc527448B002AfFCb5D2325317EF"
+      "implementation": "0x0cAC1eC64b938830Dd9d17a3e8CEEb503986ae42"
     },
     "ValenTreasury": {
       "address": "0x094B10D817f4603e9a4734B52c4c7A1Bf389658D",
@@ -40,6 +40,45 @@
     },
     "ValenEmergencyGuardian": {
       "address": "0x3424a2ea234Ba819FceF1Beea32Ab39C42e235d9"
+    },
+    "ValenTokenSettlementAdapter": {
+      "address": "0x2120A24E060f9f2a16e1e96d5609b810b041aDF4",
+      "txHash": "0xf6d8079e63e1487b5b256876d19c103e23cca9799c5e58bbf306c1692cadde85"
+    },
+    "ValenIdentityResolver": {
+      "address": "0x2CF57Bf0a734Ea98e899b3557d7e0A144B434b77",
+      "txHash": "0x55f1c8fc845c3beeb05694c8093e5373f0b2212fb1e2abfe478720c5ca83fbbf"
+    },
+    "ValenBudgetVault": {
+      "address": "0x87876e15455F492F06612383f15F82F1fc42E2F2",
+      "txHash": "0xbcb79b49fd31a89e77cc29af57f361f5fef31ef43943a926ab55df25e418ab29"
     }
+  },
+  "phaseC": {
+    "tokenSettlementConfiguredAt": "2026-06-13T15:24:53.986Z",
+    "tokenAsset": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+    "tokenSymbol": "USDC",
+    "allowanceTxHash": "0x673cdb5dd269851e8f422462da68e1c688ee76ab871a447802921b9ceab8cca2",
+    "upgradeTxHash": "0x9a787c2e991b8d0c4042a8f2fcc49e2b43913e0e6699a0879d33aa39c429b092",
+    "adapterTxHash": "0xf6d8079e63e1487b5b256876d19c103e23cca9799c5e58bbf306c1692cadde85",
+    "configureTxHashes": [
+      "0x38a0af4495e7027381e76bb21de6f72abd0ba4fd037872ed8ccaea1314abc1ab",
+      "0xd1b023c20a6fc749c12abd9a5a6e2b457d9be388fba5296da8b1192d02ebffb9"
+    ]
+  },
+  "phaseE": {
+    "identityResolverConfiguredAt": "2026-06-13T16:29:21.689Z",
+    "demoAgentId": "64f56184-eacf-4eef-bc84-f3b863d3894f",
+    "demoAgentKey": "0x483e006c252ec494695aaad6c7a209005ab20266a189818a836173675b280489",
+    "metadataHash": "0x29e56b0ef981e5633de62b720d63e776c351fe41f0e346d6f9d20a650fc1e341",
+    "bindTxHash": "0xed0a3c2a59a5edd81fe3212d0472b2940f65979e3f34c84d7d020cdc3698bba9"
+  },
+  "phaseF": {
+    "budgetVaultConfiguredAt": "2026-06-13T16:51:49.882Z",
+    "budgetVault": "0x87876e15455F492F06612383f15F82F1fc42E2F2",
+    "asset": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+    "agentKey": "0x483e006c252ec494695aaad6c7a209005ab20266a189818a836173675b280489",
+    "cap": "1000000",
+    "topUpTxHash": "0x6221a44958cd162d8a2467cd00734fc2436478bf6338a2cfe6fa9a9fcec0484e"
   }
 }

@@ -15,11 +15,14 @@ interface IValenSettlement {
     );
     event SettlementApproved(bytes32 indexed settlementId);
     event SettlementExecuted(bytes32 indexed settlementId, address target, uint256 value);
+    event SettlementTokenExecuted(bytes32 indexed settlementId, address indexed token, address target, uint256 amount);
     event SettlementFailed(bytes32 indexed settlementId, uint16 reasonCode);
     event SettlementCancelled(bytes32 indexed settlementId, uint16 reasonCode);
     event SettlementPaused(ValenTypes.PauseScope scope, bytes32 scopeRef);
     event SettlementUnpaused(ValenTypes.PauseScope scope, bytes32 scopeRef);
     event SettlementEngineValidated(bytes32 indexed settlementId, bytes32 complianceHash, bytes32 riskHash, bytes32 policyHash);
+    event TokenSettlementAdapterSet(address indexed adapter);
+    event TokenSettlementAssetSet(address indexed asset, bool enabled);
 
     function initialize(address registry, address admin, address timelock) external;
 
@@ -42,6 +45,10 @@ interface IValenSettlement {
     function approveSettlement(bytes32 settlementId) external;
 
     function executeSettlement(bytes32 settlementId, bytes calldata callData) external payable;
+
+    function setTokenSettlementAdapter(address adapter) external;
+
+    function setTokenSettlementAsset(address asset, bool enabled) external;
 
     function cancelSettlement(bytes32 settlementId, uint16 reasonCode) external;
 

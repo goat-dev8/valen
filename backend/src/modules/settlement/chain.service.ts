@@ -98,6 +98,13 @@ const settlementAbi = parseAbi([
   'function approveSettlement(bytes32 settlementId)',
   'function executeSettlement(bytes32 settlementId, bytes callData) payable',
   'function getSettlement(bytes32 settlementId) view returns ((bytes32 settlementId, bytes32 executionHash, bytes32 organizationHash, bytes32 mandateId, bytes32 policyHash, bytes32 complianceHash, bytes32 riskHash, address agent, address target, address asset, uint256 value, bytes32 callDataHash, bytes32 actionHash, uint8 status, uint16 reasonCode))',
+  'function tokenSettlementAdapter() view returns (address)',
+  'function tokenSettlementAssetEnabled(address asset) view returns (bool)',
+]);
+
+const erc20Abi = parseAbi([
+  'function balanceOf(address account) view returns (uint256)',
+  'function allowance(address owner, address spender) view returns (uint256)',
 ]);
 
 const SETTLEMENT_STATUS = {
@@ -156,6 +163,7 @@ export interface OnChainSettlementResult {
   approveTxHash: Hex;
   executeTxHash: Hex;
   executeBlockNumber: bigint;
+  settlementMode: 'native' | 'erc20';
 }
 
 function requireRecord(value: Record<string, unknown> | undefined): Record<string, unknown> {
@@ -286,6 +294,68 @@ export class SettlementChainService {
     }
   }
 
+  private async isTokenSettlementAsset(
+    publicClient: PublicClient,
+    settlementAddress: Address,
+    asset: Address,
+  ): Promise<boolean> {
+    try {
+      return await publicClient.readContract({
+        address: settlementAddress,
+        abi: settlementAbi,
+        functionName: 'tokenSettlementAssetEnabled',
+        args: [asset],
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  private async getTokenSettlementAdapter(
+    publicClient: PublicClient,
+    settlementAddress: Address,
+  ): Promise<Address> {
+    const adapter = await publicClient.readContract({
+      address: settlementAddress,
+      abi: settlementAbi,
+      functionName: 'tokenSettlementAdapter',
+    });
+    if (!/^0x[0-9a-fA-F]{40}$/.test(adapter) || /^0x0{40}$/i.test(adapter)) {
+      throw new Error(`Token settlement adapter is not configured for ${settlementAddress}`);
+    }
+    return adapter as Address;
+  }
+
+  private async assertTokenSettlementFunding(
+    publicClient: PublicClient,
+    token: Address,
+    owner: Address,
+    spender: Address,
+    amount: bigint,
+  ): Promise<void> {
+    const [balance, allowance] = await Promise.all([
+      publicClient.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [owner],
+      }),
+      publicClient.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [owner, spender],
+      }),
+    ]);
+
+    if (balance < amount) {
+      throw new Error(`Insufficient token balance for ${owner}: have ${balance}, need ${amount}`);
+    }
+    if (allowance < amount) {
+      throw new Error(`Insufficient token allowance for ${owner} -> ${spender}: have ${allowance}, need ${amount}`);
+    }
+  }
+
   async executeSettlement(execution: ExecutionRow): Promise<OnChainSettlementResult> {
     const metadata = parseMetadata(execution);
     const chainId = execution.target_chain_id;
@@ -302,6 +372,11 @@ export class SettlementChainService {
     const asset = resolveOnChainAssetAddress(execution.asset_address);
     const amount = getNativeValue(execution);
     const agent = metadata.agentAddress ?? account.address;
+    const tokenSettlement = await this.isTokenSettlementAsset(
+      publicClient,
+      settlementAddress,
+      asset,
+    );
 
     const intent = {
       executionHash,
@@ -361,6 +436,7 @@ export class SettlementChainService {
         approveTxHash: EMPTY_TX_HASH,
         executeTxHash: EMPTY_TX_HASH,
         executeBlockNumber: 0n,
+        settlementMode: tokenSettlement ? 'erc20' : 'native',
       };
     }
 
@@ -419,11 +495,19 @@ export class SettlementChainService {
       throw new Error(`Settlement ${settlementId} is not approved on chain (status=${onChainStatus})`);
     }
 
-    const relayerBalance = await publicClient.getBalance({ address: account.address });
-    if (relayerBalance < amount) {
-      throw new Error(
-        `Insufficient relayer balance on chain ${chainId}: have ${relayerBalance} wei, need ${amount} wei for settlement execution`,
-      );
+    const tokenAdapter = tokenSettlement
+      ? await this.getTokenSettlementAdapter(publicClient, settlementAddress)
+      : null;
+
+    if (tokenSettlement) {
+      await this.assertTokenSettlementFunding(publicClient, asset, agent, tokenAdapter!, amount);
+    } else {
+      const relayerBalance = await publicClient.getBalance({ address: account.address });
+      if (relayerBalance < amount) {
+        throw new Error(
+          `Insufficient relayer balance on chain ${chainId}: have ${relayerBalance} wei, need ${amount} wei for settlement execution`,
+        );
+      }
     }
 
     const executeTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
@@ -431,7 +515,7 @@ export class SettlementChainService {
       abi: settlementAbi,
       functionName: 'executeSettlement',
       args: [settlementId, metadata.callData],
-      value: amount,
+      value: tokenSettlement ? 0n : amount,
       account,
       chain: null,
     });
@@ -449,6 +533,7 @@ export class SettlementChainService {
       approveTxHash,
       executeTxHash,
       executeBlockNumber: receipt.blockNumber,
+      settlementMode: tokenSettlement ? 'erc20' : 'native',
     };
   }
 }
