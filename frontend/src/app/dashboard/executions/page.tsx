@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
+import { explainExecutionFailure } from '@/lib/execution-failure';
 import { useAgents, useExecutions, useMandates, useWalletVerifications } from '@/hooks/use-valen-api';
 import { chainName } from '@/lib/constants';
 
@@ -80,7 +81,15 @@ export default function ExecutionsPage() {
                     </td>
                     <td className="font-medium text-[#012b54]">{agentMap.get(ex.agentId) ?? ex.agentId.slice(0, 8)}</td>
                     <td className="capitalize">{ex.actionType.replace(/_/g, ' ')}</td>
-                    <td><StatusBadge status={ex.status} /></td>
+                    <td>
+                      <StatusBadge status={ex.status} />
+                      {(() => {
+                        const failure = explainExecutionFailure({ execution: ex });
+                        return failure ? (
+                          <p className="mt-1 max-w-xs text-xs leading-5 text-red-700">{failure.headline}</p>
+                        ) : null;
+                      })()}
+                    </td>
                     <td className="text-[#64748b]">{chainName(ex.targetChainId)}</td>
                     <td className="text-sm text-[#64748b]">{new Date(ex.createdAt).toLocaleString()}</td>
                   </tr>

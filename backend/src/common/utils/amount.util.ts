@@ -1,4 +1,4 @@
-import { parseEther, parseUnits } from 'viem';
+import { formatUnits, parseEther, parseUnits } from 'viem';
 
 /**
  * Parses dashboard/API execution amounts into base units.
@@ -40,4 +40,24 @@ export function executionAmountWeiOrDefault(
     return fallback;
   }
   return parseExecutionAmountWei(value);
+}
+
+const USDC_SEPOLIA = '0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d';
+
+export function formatBaseUnitsForDisplay(
+  baseUnits: string | null | undefined,
+  assetAddress?: string | null,
+): string | null {
+  if (!baseUnits) return null;
+  try {
+    const decimals =
+      assetAddress && assetAddress.toLowerCase() !== 'native'
+        ? assetAddress.toLowerCase() === USDC_SEPOLIA
+          ? 6
+          : 18
+        : 18;
+    return formatUnits(BigInt(baseUnits), decimals);
+  } catch {
+    return baseUnits;
+  }
 }

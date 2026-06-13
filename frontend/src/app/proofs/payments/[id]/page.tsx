@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/app/status-badge';
 import { PublicProofIdentityPanel } from '@/components/app/public-proof-identity-panel';
 import { fetchPublicProof } from '@/lib/public-proofs';
 import { explorerTxUrl } from '@/lib/explorer';
+import { formatProofAmount } from '@/lib/token-amount';
 
 export default function PublicPaymentProofPage() {
   const params = useParams();
@@ -35,7 +36,7 @@ export default function PublicPaymentProofPage() {
             </div>
             <dl className="grid gap-3 text-sm md:grid-cols-2">
               <div><dt className="text-[#64748b]">Payment</dt><dd className="font-mono text-xs break-all">{data.id}</dd></div>
-              <div><dt className="text-[#64748b]">Amount</dt><dd>{data.amount ?? 'Unavailable'} USDC</dd></div>
+              <div><dt className="text-[#64748b]">Amount</dt><dd>{formatProofAmount(data.amount, data.chainId, data.asset, 'USDC')}</dd></div>
               <div><dt className="text-[#64748b]">Evidence hash</dt><dd className="font-mono text-xs break-all">{data.evidenceHash ?? 'Unavailable'}</dd></div>
             </dl>
             {data.settlementTx && (

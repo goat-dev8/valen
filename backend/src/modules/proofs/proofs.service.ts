@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { QueryResultRow } from 'pg';
 import { DatabaseService } from '../../database/database.service';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
+import { formatBaseUnitsForDisplay } from '../../common/utils/amount.util';
 
 export type PublicProofIdentity = {
   status: string;
@@ -147,7 +148,7 @@ export class ProofsService {
       publishedAt: new Date(row.published_at).toISOString(),
       action: row.action_type,
       asset: row.asset_address,
-      amount: row.value_amount?.toString?.() ?? row.value_amount,
+      amount: formatBaseUnitsForDisplay(row.value_amount?.toString?.() ?? row.value_amount, row.asset_address),
       status: row.status,
       mandateSigner: row.mandate_signer,
       mandateHash: row.mandate_hash,
@@ -166,7 +167,7 @@ export class ProofsService {
       publishedAt: new Date(row.published_at).toISOString(),
       action: row.action_type,
       asset: row.asset_address,
-      amount: row.value_amount?.toString?.() ?? row.value_amount,
+      amount: formatBaseUnitsForDisplay(row.value_amount?.toString?.() ?? row.value_amount, row.asset_address),
       status: row.status,
       mandateSigner: row.mandate_signer,
       mandateHash: row.mandate_hash,
@@ -185,7 +186,7 @@ export class ProofsService {
       publishedAt: new Date(row.published_at).toISOString(),
       action: 'x402_payment',
       asset: row.asset_address,
-      amount: row.amount?.toString?.() ?? row.amount,
+      amount: formatBaseUnitsForDisplay(row.amount?.toString?.() ?? row.amount, row.asset_address),
       status: row.status,
       settlementTx: row.settlement_tx,
       evidenceHash: row.evidence_hash,

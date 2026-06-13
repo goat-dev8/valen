@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/app/status-badge';
 import { PublicProofIdentityPanel } from '@/components/app/public-proof-identity-panel';
 import { fetchPublicProof } from '@/lib/public-proofs';
 import { explorerTxUrl } from '@/lib/explorer';
+import { formatProofAmount } from '@/lib/token-amount';
 
 export default function PublicExecutionProofPage() {
   const params = useParams();
@@ -38,7 +39,7 @@ export default function PublicExecutionProofPage() {
               <div><dt className="text-[#64748b]">Execution</dt><dd className="font-mono text-xs break-all">{data.id}</dd></div>
               <div><dt className="text-[#64748b]">Action</dt><dd>{data.action}</dd></div>
               <div><dt className="text-[#64748b]">Asset</dt><dd className="font-mono text-xs break-all">{data.asset ?? 'native'}</dd></div>
-              <div><dt className="text-[#64748b]">Amount</dt><dd>{data.amount ?? 'Unavailable'}</dd></div>
+              <div><dt className="text-[#64748b]">Amount</dt><dd>{formatProofAmount(data.amount, data.chainId, data.asset)}</dd></div>
               <div><dt className="text-[#64748b]">Mandate signer</dt><dd className="font-mono text-xs break-all">{data.mandateSigner ?? 'Unavailable'}</dd></div>
               <div><dt className="text-[#64748b]">Evidence hash</dt><dd className="font-mono text-xs break-all">{data.evidenceHash ?? 'Unavailable'}</dd></div>
             </dl>

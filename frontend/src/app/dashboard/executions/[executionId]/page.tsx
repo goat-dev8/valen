@@ -22,7 +22,9 @@ import {
   useRetrySettlement,
 } from '@/hooks/use-valen-api';
 import { signApprovalProof } from '@/lib/approval-signature';
+import { explainExecutionFailure } from '@/lib/execution-failure';
 import { explorerAddressUrl, explorerTxUrl } from '@/lib/explorer';
+import { formatProofAmount } from '@/lib/token-amount';
 
 function riskStatusMessage(status: string, hasRiskScore: boolean): string {
   if (status === 'failed' && hasRiskScore) {
@@ -52,7 +54,15 @@ export default function ExecutionDetailPage() {
   const { data: compliance } = useExecutionCompliance(executionId, Boolean(ex));
   const settlementFetchEnabled = Boolean(
     ex &&
-      (['settlement_submitted', 'executed', 'approved'].includes(ex.status) ||
+      ([
+        'settlement_submitted',
+        'executed',
+        'approved',
+        'failed',
+        'compliance_failed',
+        'risk_failed',
+        'policy_rejected',
+      ].includes(ex.status) ||
         (ex.status === 'failed' && Array.isArray(compliance) && compliance.length > 0)),
   );
   const { data: risk } = useExecutionRisk(executionId);
@@ -113,6 +123,14 @@ export default function ExecutionDetailPage() {
   };
 
   const canCancel = ex && !['executed', 'failed', 'cancelled'].includes(ex.status);
+  const failureExplanation =
+    ex &&
+    explainExecutionFailure({
+      execution: ex,
+      compliance,
+      risk,
+      settlement,
+    });
 
   return (
     <div className="space-y-6">
@@ -158,6 +176,23 @@ export default function ExecutionDetailPage() {
 
             {actionError && <p className="text-sm text-red-600">{actionError}</p>}
 
+            {failureExplanation && (
+              <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
+                <p className="text-sm font-semibold text-red-900">{failureExplanation.headline}</p>
+                <p className="mt-2 text-sm leading-6 text-red-800">{failureExplanation.humanReason}</p>
+                <dl className="mt-4 grid gap-2 text-xs md:grid-cols-2">
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wide text-red-700">Technical</dt>
+                    <dd className="mt-1 font-mono text-red-900">{failureExplanation.technicalReason}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wide text-red-700">Suggested fix</dt>
+                    <dd className="mt-1 text-red-900">{failureExplanation.suggestedFix}</dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+
             <div className="grid gap-5 lg:grid-cols-3">
               <div className="app-card lg:col-span-2">
                 <h3 className="app-card-title mb-4">Pipeline Timeline</h3>
@@ -173,6 +208,10 @@ export default function ExecutionDetailPage() {
                     <div><dt>Policy</dt><dd className="font-mono text-xs break-all">{ex.policyId ?? 'agent default'}</dd></div>
                     <div><dt>Chain</dt><dd><ChainBadge chainId={ex.targetChainId} /></dd></div>
                     <div><dt>Target</dt><dd className="font-mono text-xs break-all">{ex.targetAddress ?? '—'}</dd></div>
+                    <div>
+                      <dt>Amount</dt>
+                      <dd>{formatProofAmount(ex.valueAmount, ex.targetChainId, ex.assetAddress ?? undefined)}</dd>
+                    </div>
                     <div><dt>Payload Hash</dt><dd className="font-mono text-xs break-all">{ex.requestPayloadHash}</dd></div>
                     <div><dt>Idempotency</dt><dd className="font-mono text-xs break-all">{ex.idempotencyKey}</dd></div>
                   </dl>
