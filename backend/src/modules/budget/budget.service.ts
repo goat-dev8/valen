@@ -215,6 +215,54 @@ export class BudgetService {
     };
   }
 
+  async commitSpendForPayment(agentId: string, amount: string, paymentId: string): Promise<void> {
+    const result = await this.db.query<BudgetRow>(
+      `SELECT *, GREATEST(cap - spent, 0)::text AS remaining
+       FROM agent_budgets
+       WHERE agent_id = $1
+         AND status IN ('active', 'paused', 'exhausted')
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [agentId],
+    );
+    const budget = result.rows[0];
+    if (!budget) return;
+
+    const spendAmount = BigInt(amount);
+    const beforeSpent = BigInt(budget.spent);
+    const afterSpent = beforeSpent + spendAmount;
+    const cap = BigInt(budget.cap);
+    const remaining = cap > afterSpent ? cap - afterSpent : 0n;
+    const evidenceHash = hashPayload({
+      paymentId,
+      budgetId: budget.id,
+      kind: 'spend_commit',
+      afterSpent: afterSpent.toString(),
+      source: 'x402.settled',
+    });
+
+    await this.db.query(
+      `UPDATE agent_budgets
+       SET spent = $1,
+           status = CASE WHEN $1::numeric >= cap THEN 'exhausted' ELSE status END,
+           evidence_hash = $2,
+           updated_at = now()
+       WHERE id = $3`,
+      [afterSpent.toString(), evidenceHash, budget.id],
+    );
+    await this.recordEvent({
+      budget,
+      executionId: null,
+      kind: 'spend_commit',
+      amount: spendAmount,
+      beforeSpent,
+      afterSpent,
+      remaining,
+      evidenceHash,
+      metadata: { source: 'x402.settled', paymentId },
+    });
+  }
+
   async commitSpend(executionId: string): Promise<void> {
     const execution = await this.executionsRepository.findById(executionId);
     if (!execution) return;

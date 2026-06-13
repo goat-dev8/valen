@@ -3,6 +3,17 @@ import { QueryResultRow } from 'pg';
 import { DatabaseService } from '../../database/database.service';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
 
+export type PublicProofIdentity = {
+  status: string;
+  registryAddress: string | null;
+  resolverAddress: string | null;
+  tokenId: string | null;
+  chainId: number;
+  ownerAddress: string | null;
+  metadataHash: string | null;
+  publicSlug: string | null;
+};
+
 export type PublicProof = {
   proofVersion: '1.0';
   id: string;
@@ -19,6 +30,7 @@ export type PublicProof = {
   evidenceHash?: string | null;
   refusalFactors?: Record<string, unknown> | null;
   agentId?: string;
+  identity?: PublicProofIdentity | null;
 };
 
 @Injectable()
@@ -31,16 +43,28 @@ export class ProofsService {
       id,
       'Execution proof not found',
     );
-    return this.toExecutionProof(row);
+    return this.enrich(await this.toExecutionProof(row));
   }
 
   async getRefusalProof(id: string): Promise<PublicProof> {
-    const row = await this.fetchOne(
-      `SELECT * FROM public_refusals_v WHERE id = $1`,
-      id,
-      'Refusal proof not found',
-    );
-    return this.toRefusalProof(row);
+    try {
+      const row = await this.fetchOne(
+        `SELECT * FROM public_refusals_v WHERE id = $1`,
+        id,
+        'Refusal proof not found',
+      );
+      return this.enrich(await this.toRefusalProof(row));
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) throw error;
+      const payment = await this.db.query(
+        `SELECT * FROM public_payments_v WHERE id = $1 AND status = 'refused'`,
+        [id],
+      );
+      if (!payment.rows[0]) {
+        throw new NotFoundException({ code: ErrorCodes.NOT_FOUND, message: 'Refusal proof not found' });
+      }
+      return this.enrich(this.toPaymentProof(payment.rows[0]));
+    }
   }
 
   async getPaymentProof(id: string): Promise<PublicProof> {
@@ -49,7 +73,7 @@ export class ProofsService {
       id,
       'Payment proof not found',
     );
-    return this.toPaymentProof(row);
+    return this.enrich(this.toPaymentProof(row));
   }
 
   async getProofPack(): Promise<{ proofVersion: '1.0'; executions: PublicProof[]; refusals: PublicProof[]; payments: PublicProof[] }> {
@@ -60,9 +84,9 @@ export class ProofsService {
     ]);
     return {
       proofVersion: '1.0',
-      executions: executions.rows.map((row) => this.toExecutionProof(row)),
-      refusals: refusals.rows.map((row) => this.toRefusalProof(row)),
-      payments: payments.rows.map((row) => this.toPaymentProof(row)),
+      executions: await Promise.all(executions.rows.map((row) => this.enrich(this.toExecutionProof(row)))),
+      refusals: await Promise.all(refusals.rows.map((row) => this.enrich(this.toRefusalProof(row)))),
+      payments: await Promise.all(payments.rows.map((row) => this.enrich(this.toPaymentProof(row)))),
     };
   }
 
@@ -72,6 +96,46 @@ export class ProofsService {
       throw new NotFoundException({ code: ErrorCodes.NOT_FOUND, message });
     }
     return result.rows[0];
+  }
+
+  private async enrich(proof: PublicProof): Promise<PublicProof> {
+    if (!proof.agentId) return { ...proof, identity: null };
+    const identity = await this.loadIdentity(proof.agentId);
+    return { ...proof, identity };
+  }
+
+  private async loadIdentity(agentId: string): Promise<PublicProofIdentity | null> {
+    const result = await this.db.query<
+      QueryResultRow & {
+        status: string;
+        registry_address: string | null;
+        resolver_address: string | null;
+        token_id: string | null;
+        chain_id: number;
+        owner_address: string | null;
+        metadata_hash: string | null;
+        public_slug: string | null;
+      }
+    >(
+      `SELECT ai.*, a.public_slug
+       FROM agent_identity ai
+       JOIN agents a ON a.id = ai.agent_id
+       WHERE ai.agent_id = $1
+       LIMIT 1`,
+      [agentId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      status: row.status,
+      registryAddress: row.registry_address,
+      resolverAddress: row.resolver_address,
+      tokenId: row.token_id,
+      chainId: row.chain_id,
+      ownerAddress: row.owner_address,
+      metadataHash: row.metadata_hash,
+      publicSlug: row.public_slug,
+    };
   }
 
   private toExecutionProof(row: QueryResultRow): PublicProof {
@@ -125,6 +189,13 @@ export class ProofsService {
       status: row.status,
       settlementTx: row.settlement_tx,
       evidenceHash: row.evidence_hash,
+      refusalFactors:
+        row.status === 'refused'
+          ? {
+              source: 'x402',
+              refusalReason: row.refusal_reason,
+            }
+          : null,
       agentId: row.agent_id,
     };
   }

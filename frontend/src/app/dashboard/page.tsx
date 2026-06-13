@@ -82,6 +82,7 @@ export default function DashboardPage() {
   const nextStep = setupSteps.find((step) => !step.complete);
   const latestProof = dashboardSummary?.latest.proof;
   const latestRobinhood = dashboardSummary?.latest.robinhood;
+  const latestPayment = dashboardSummary?.latest.payment;
   const budgetStatus = dashboardSummary?.budget.status ?? 'Checking';
   const setupLoading =
     totalAgentsLoading || allExecLoading || policiesLoading || walletVerificationsLoading || mandatesLoading;
@@ -138,8 +139,11 @@ export default function DashboardPage() {
                 Run governed action
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href={latestProof?.href ?? '/dashboard/executions'} className="app-btn app-btn-outline">
+              <Link href={latestProof?.href ?? '/proofs/pack'} className="app-btn app-btn-outline">
                 See latest proof
+              </Link>
+              <Link href="/proofs/pack" className="app-btn app-btn-outline">
+                Public proof pack
               </Link>
             </div>
           </div>
@@ -174,8 +178,8 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-3">
-        <Link href={latestProof?.href ?? '/dashboard/executions'} className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]">
+      <section className="grid gap-5 lg:grid-cols-4">
+        <Link href={latestProof?.href ?? '/proofs/pack'} className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#007dfc]">Latest Proof</p>
           <h3 className="mt-3 text-lg font-semibold text-[#012b54]">
             {latestProof ? latestProof.executionId.slice(0, 8) : 'No executed proof yet'}
@@ -206,11 +210,23 @@ export default function DashboardPage() {
             Verify wallet authority and sign mandates now. Phase C makes USDC the default asset and Phase F funds real budget vaults.
           </p>
         </Link>
+
+        <Link href={latestPayment?.href ?? '/dashboard/executions/new'} className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#007dfc]">x402 Payment Proof</p>
+          <h3 className="mt-3 text-lg font-semibold text-[#012b54]">
+            {latestPayment ? latestPayment.paymentId.slice(0, 8) : 'Run x402 payment'}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[#64748b]">
+            {latestPayment
+              ? `${latestPayment.status} · ${latestPayment.amount ?? '0'} USDC`
+              : 'Initiate and settle a governed x402 USDC payment with budget enforcement.'}
+          </p>
+        </Link>
       </section>
 
       <section className="app-card">
         <h3 className="app-card-title mb-4">Live USDC Budget</h3>
-        <BudgetMeter agentId={dashboardSummary?.agent?.id} />
+        <BudgetMeter agentId={dashboardSummary?.agent?.id} showTopup chainId={chainId} />
       </section>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">

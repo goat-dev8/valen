@@ -208,6 +208,11 @@ export default function AgentDetailPage() {
           <>
             <PageHeader title={agent.name} description={`${agent.agentType} agent`}>
               <AgentStatusBadge status={agent.status} />
+              {agent.publicSlug && (
+                <Link href={`/agents/${agent.publicSlug}`} className="app-btn app-btn-outline">
+                  Public profile
+                </Link>
+              )}
               {readinessComplete ? (
                 <Link href={`/dashboard/executions/new?agentId=${agent.id}`} className="app-btn app-btn-primary">
                   Submit Intent

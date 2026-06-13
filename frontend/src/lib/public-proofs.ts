@@ -14,6 +14,16 @@ export type PublicProofDto = {
   evidenceHash?: string | null;
   refusalFactors?: Record<string, unknown> | null;
   agentId?: string;
+  identity?: {
+    status: string;
+    registryAddress: string | null;
+    resolverAddress: string | null;
+    tokenId: string | null;
+    chainId: number;
+    ownerAddress: string | null;
+    metadataHash: string | null;
+    publicSlug: string | null;
+  } | null;
 };
 
 export type ProofPackDto = {

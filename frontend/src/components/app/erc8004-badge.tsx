@@ -1,9 +1,18 @@
 import { AgentIdentityDto } from '@/types/api';
 
-type Erc8004BadgeProps = {
-  identity?: AgentIdentityDto['erc8004'] | null;
+type Erc8004Identity = AgentIdentityDto['erc8004'] | {
+  status: string;
+  registryAddress?: string | null;
+  resolverAddress?: string | null;
+  tokenId?: string | null;
+  chainId?: number;
+  ownerAddress?: string | null;
+  metadataHash?: string | null;
 };
 
+type Erc8004BadgeProps = {
+  identity?: Erc8004Identity | null;
+};
 export function Erc8004Badge({ identity }: Erc8004BadgeProps) {
   const status = identity?.status ?? 'registration_pending';
   const registered = status === 'registered';

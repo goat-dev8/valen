@@ -46,6 +46,11 @@ type SummaryRow = QueryResultRow & {
   last_robinhood_asset_address: string | null;
   last_robinhood_created_at: Date | null;
   last_robinhood_tx_hash: string | null;
+  last_payment_id: string | null;
+  last_payment_status: string | null;
+  last_payment_amount: string | null;
+  last_payment_created_at: Date | null;
+  last_payment_settlement_tx: string | null;
 };
 
 function toIso(value: Date | string | null | undefined): string | null {
@@ -73,7 +78,8 @@ export class DashboardService {
 
     const row = await this.loadSummaryRow(organizationId);
     const budgetRow = row.agent_id ? await this.loadBudgetRow(row.agent_id) : null;
-    const payload = this.toPayload(row, budgetRow);
+    const paymentRow = await this.loadLatestPayment(organizationId);
+    const payload = this.toPayload(row, budgetRow, paymentRow);
     await this.redis.set(cacheKey, JSON.stringify(payload), 5).catch(() => undefined);
     return payload;
   }
@@ -208,7 +214,23 @@ export class DashboardService {
     }
   }
 
-  private toPayload(row: SummaryRow, budgetRow: QueryResultRow | null) {
+  private async loadLatestPayment(organizationId: string) {
+    try {
+      const result = await this.db.query<QueryResultRow>(
+        `SELECT id, status, amount, settlement_tx, created_at
+         FROM x402_payments
+         WHERE organization_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [organizationId],
+      );
+      return result.rows[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private toPayload(row: SummaryRow, budgetRow: QueryResultRow | null, paymentRow: QueryResultRow | null) {
     const readiness = {
       walletConnected: row.verified_wallet_count > 0,
       agentActive: row.agent_status === 'active',
@@ -288,7 +310,8 @@ export class DashboardService {
               txHash: row.last_executed_tx_hash,
               blockNumber: row.last_executed_block_number,
               createdAt: toIso(row.last_executed_created_at),
-              href: proofUrl(row.last_executed_execution_id),
+              href: `/proofs/executions/${row.last_executed_execution_id}`,
+              dashboardHref: proofUrl(row.last_executed_execution_id),
             }
           : null,
         refusal: row.last_refusal_execution_id
@@ -299,7 +322,8 @@ export class DashboardService {
               chainId: row.last_refusal_chain_id,
               asset: row.last_refusal_asset_address,
               createdAt: toIso(row.last_refusal_created_at),
-              href: `/dashboard/executions/${row.last_refusal_execution_id}`,
+              href: `/proofs/refusals/${row.last_refusal_execution_id}`,
+              dashboardHref: `/dashboard/executions/${row.last_refusal_execution_id}`,
             }
           : null,
         robinhood: row.last_robinhood_execution_id
@@ -311,6 +335,17 @@ export class DashboardService {
               txHash: row.last_robinhood_tx_hash,
               createdAt: toIso(row.last_robinhood_created_at),
               href: proofUrl(row.last_robinhood_execution_id),
+              dashboardHref: proofUrl(row.last_robinhood_execution_id),
+            }
+          : null,
+        payment: paymentRow
+          ? {
+              paymentId: paymentRow.id,
+              status: paymentRow.status,
+              amount: paymentRow.amount?.toString?.() ?? paymentRow.amount,
+              settlementTx: paymentRow.settlement_tx,
+              createdAt: toIso(paymentRow.created_at),
+              href: `/proofs/payments/${paymentRow.id}`,
             }
           : null,
       },

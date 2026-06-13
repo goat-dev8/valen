@@ -57,6 +57,7 @@ export type AgentDto = {
   status: string;
   agentType: string;
   defaultPolicyId: string | null;
+  publicSlug?: string | null;
   metadata?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
@@ -313,6 +314,7 @@ export type DashboardSummaryDto = {
       blockNumber: string | null;
       createdAt: string | null;
       href: string | null;
+      dashboardHref?: string | null;
     } | null;
     refusal: {
       executionId: string;
@@ -322,6 +324,7 @@ export type DashboardSummaryDto = {
       asset: string | null;
       createdAt: string | null;
       href: string;
+      dashboardHref?: string;
     } | null;
     robinhood: {
       executionId: string;
@@ -331,8 +334,40 @@ export type DashboardSummaryDto = {
       txHash: string | null;
       createdAt: string | null;
       href: string | null;
+      dashboardHref?: string | null;
+    } | null;
+    payment: {
+      paymentId: string;
+      status: string;
+      amount: string | null;
+      settlementTx: string | null;
+      createdAt: string | null;
+      href: string;
     } | null;
   };
+};
+
+export type X402PaymentResponseDto = {
+  paymentId: string;
+  agentId?: string;
+  chainId?: number;
+  merchantUrl?: string | null;
+  recipient?: string;
+  assetSymbol?: string;
+  amount?: string;
+  status: string;
+  refusalReason?: string | null;
+  evidenceHash?: string | null;
+  settlementTx?: string | null;
+  nonce?: string | null;
+  proofUrl?: string;
+  refusalProofUrl?: string | null;
+  budget?: {
+    cap?: string;
+    spent?: string;
+    remaining?: string;
+    allow?: boolean;
+  } | null;
 };
 
 export type BudgetDto = {

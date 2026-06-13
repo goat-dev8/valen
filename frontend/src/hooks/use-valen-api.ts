@@ -61,6 +61,48 @@ export function useBudgetEvents(agentId?: string | null) {
   });
 }
 
+export function useBudgetTopup(agentId?: string | null) {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { chainId: number; assetAddress: string; assetSymbol: string; cap: string }) =>
+      api.budget.topup(token!, orgId!, agentId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budget', orgId, agentId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary', orgId] });
+    },
+  });
+}
+
+export function useX402Initiate() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      agentId: string;
+      mandateId: string;
+      merchantUrl?: string;
+      recipient: string;
+      amount: string;
+      chainId?: number;
+    }) => api.x402.initiate(token!, orgId!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary', orgId] });
+    },
+  });
+}
+
+export function useX402Execute() {
+  const { token, orgId } = useAuthOrg();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (paymentIntentId: string) => api.x402.execute(token!, orgId!, paymentIntentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary', orgId] });
+    },
+  });
+}
+
 export function useAgent(agentId: string) {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({

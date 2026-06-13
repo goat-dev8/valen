@@ -129,6 +129,9 @@ export class AgentResponseDto {
   @ApiProperty({ nullable: true })
   defaultPolicyId!: string | null;
 
+  @ApiProperty({ nullable: true })
+  publicSlug!: string | null;
+
   @ApiProperty()
   metadata!: Record<string, unknown>;
 

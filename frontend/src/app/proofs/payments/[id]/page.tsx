@@ -8,6 +8,7 @@ import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
+import { PublicProofIdentityPanel } from '@/components/app/public-proof-identity-panel';
 import { fetchPublicProof } from '@/lib/public-proofs';
 import { explorerTxUrl } from '@/lib/explorer';
 
@@ -43,6 +44,7 @@ export default function PublicPaymentProofPage() {
                 <ExternalLink className="h-3 w-3" />
               </a>
             )}
+            <PublicProofIdentityPanel proof={data} />
             <Link href="/proofs/pack" className="app-link text-sm">View proof pack</Link>
           </div>
         )}

@@ -260,6 +260,7 @@ export class AgentsService {
     status: string;
     agent_type: string;
     default_policy_id: string | null;
+    public_slug?: string | null;
     metadata: Record<string, unknown>;
     created_at: Date;
     updated_at: Date;
@@ -272,6 +273,7 @@ export class AgentsService {
       status: agent.status,
       agentType: agent.agent_type,
       defaultPolicyId: agent.default_policy_id,
+      publicSlug: agent.public_slug ?? null,
       metadata: agent.metadata,
       createdAt: agent.created_at.toISOString(),
       updatedAt: agent.updated_at.toISOString(),

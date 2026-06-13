@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/app/page-header';
 import { BudgetMeter } from '@/components/app/budget-meter';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { WalletBalancesPanel } from '@/components/app/wallet-balances-panel';
-import { useAgents, useCreateExecution, useMandates } from '@/hooks/use-valen-api';
+import { useAgents, useCreateExecution, useMandates, useX402Execute, useX402Initiate } from '@/hooks/use-valen-api';
 import { INTENT_TEMPLATES, intentTemplateById } from '@/lib/intent-templates';
 import { knownAssetsForChain, settlementLabelForAsset } from '@/lib/known-assets';
 import { mandateMatchesIntent } from '@/lib/mandate-match';
@@ -24,6 +24,12 @@ export default function SubmitIntentPage() {
   const { data: agents, isLoading: agentsLoading } = useAgents({ limit: 100, status: 'active' });
   const { data: mandates } = useMandates();
   const createMutation = useCreateExecution();
+  const x402Initiate = useX402Initiate();
+  const x402Execute = useX402Execute();
+  const [x402Recipient, setX402Recipient] = useState('');
+  const [x402Amount, setX402Amount] = useState('0.01');
+  const [x402PaymentId, setX402PaymentId] = useState<string | null>(null);
+  const [x402Message, setX402Message] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const initialTemplate = intentTemplateById(searchParams.get('template') ?? INTENT_TEMPLATES[0].id);
   const [templateId, setTemplateId] = useState(initialTemplate.id);
@@ -259,6 +265,80 @@ export default function SubmitIntentPage() {
             <p className="mt-3 text-xs leading-5 text-[#64748b]">
               If this action exceeds the live budget, the backend BudgetEngine records a refusal event and stops before settlement.
             </p>
+          </div>
+
+          <div className="app-card">
+            <h3 className="app-card-title">x402 USDC Payment</h3>
+            <p className="mt-2 text-sm leading-6 text-[#64748b]">
+              Initiate a governed x402 payment with budget enforcement, then execute EIP-3009 settlement on Arbitrum Sepolia.
+            </p>
+            <div className="mt-4 space-y-3">
+              <label className="block text-sm">
+                Recipient
+                <input
+                  value={x402Recipient}
+                  onChange={(event) => setX402Recipient(event.target.value)}
+                  placeholder="0x..."
+                  className="app-input mt-2 font-mono text-sm"
+                />
+              </label>
+              <label className="block text-sm">
+                Amount (USDC)
+                <input
+                  value={x402Amount}
+                  onChange={(event) => setX402Amount(event.target.value)}
+                  className="app-input mt-2"
+                />
+              </label>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="app-btn app-btn-outline"
+                  disabled={!selectedAgent || !selectedMandate || x402Initiate.isPending}
+                  onClick={async () => {
+                    setX402Message(null);
+                    try {
+                      const result = await x402Initiate.mutateAsync({
+                        agentId: selectedAgent!.id,
+                        mandateId: selectedMandate!.id,
+                        recipient: x402Recipient,
+                        amount: x402Amount,
+                        chainId: 421614,
+                        merchantUrl: 'https://valen.local/x402-demo',
+                      });
+                      setX402PaymentId(result.paymentId);
+                      setX402Message(`${result.status} · proof ${result.proofUrl ?? ''}`);
+                    } catch (initiateError) {
+                      setX402Message(formatApiErrorMessage(initiateError));
+                    }
+                  }}
+                >
+                  {x402Initiate.isPending ? 'Initiating...' : 'Initiate x402'}
+                </button>
+                <button
+                  type="button"
+                  className="app-btn app-btn-primary"
+                  disabled={!x402PaymentId || x402Execute.isPending}
+                  onClick={async () => {
+                    setX402Message(null);
+                    try {
+                      const result = await x402Execute.mutateAsync(x402PaymentId!);
+                      setX402Message(`${result.status} · ${result.settlementTx ?? 'no tx yet'}`);
+                    } catch (executeError) {
+                      setX402Message(formatApiErrorMessage(executeError));
+                    }
+                  }}
+                >
+                  {x402Execute.isPending ? 'Settling...' : 'Execute settlement'}
+                </button>
+              </div>
+              {x402PaymentId && (
+                <Link href={`/proofs/payments/${x402PaymentId}`} className="app-link text-sm">
+                  Open public payment proof
+                </Link>
+              )}
+              {x402Message && <p className="text-sm text-[#64748b]">{x402Message}</p>}
+            </div>
           </div>
 
           <div className="app-card">

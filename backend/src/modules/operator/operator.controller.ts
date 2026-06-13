@@ -137,6 +137,15 @@ export class OperatorController {
     return this.operatorService.runFullValidation();
   }
 
+  @Post('organizations/:organizationId/x402/execute')
+  @ApiOperation({ summary: 'Execute x402 payment for operator lab / proof scripts' })
+  executeX402(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Body() body: { paymentIntentId: string },
+  ) {
+    return this.x402Service.execute(organizationId, body.paymentIntentId);
+  }
+
   @Post('organizations/:organizationId/x402/initiate')
   @ApiOperation({ summary: 'Initiate x402 payment for operator lab / proof scripts' })
   initiateX402(

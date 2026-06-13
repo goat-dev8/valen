@@ -2,11 +2,13 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { QueryResultRow } from 'pg';
 import { randomBytes } from 'crypto';
+import { getAddress, Hex } from 'viem';
 import { DatabaseService } from '../../database/database.service';
 import { BudgetService } from '../budget/budget.service';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
 import { hashPayload } from '../../common/utils/hash.util';
 import { parseExecutionAmount } from '../../common/utils/amount.util';
+import { X402ChainService } from './x402-chain.service';
 
 const USDC_SEPOLIA = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
 
@@ -33,6 +35,7 @@ export class X402Service {
     private readonly db: DatabaseService,
     private readonly budgetService: BudgetService,
     private readonly configService: ConfigService,
+    private readonly x402ChainService: X402ChainService,
   ) {}
 
   async initiate(input: {
@@ -124,7 +127,8 @@ export class X402Service {
       refusalReason: payment.refusal_reason,
       evidenceHash: payment.evidence_hash,
       proofUrl: `/proofs/payments/${payment.id}`,
-      refusalProofUrl: payment.status === 'refused' ? `/proofs/refusals/${payment.id}` : null,
+      refusalProofUrl:
+        payment.status === 'refused' ? `/proofs/payments/${payment.id}` : null,
       budget: budget
         ? {
             cap: budget.cap,
@@ -148,33 +152,56 @@ export class X402Service {
       return this.toPaymentResponse(payment);
     }
 
-    const facilitatorUrl = this.configService.get<string>('x402FacilitatorUrl');
-    if (!facilitatorUrl) {
-      const evidenceHash = hashPayload({ paymentId, status: 'approved', note: 'facilitator_not_configured' });
-      await this.db.query(
-        `UPDATE x402_payments SET status = 'approved', evidence_hash = $2, updated_at = now() WHERE id = $1`,
-        [paymentId, evidenceHash],
-      );
-      return {
-        paymentId,
-        status: 'approved',
-        evidenceHash,
-        proofUrl: `/proofs/payments/${paymentId}`,
-        note: 'X402_FACILITATOR_URL not configured; payment approved in VALEN ledger pending facilitator settlement',
-      };
+    const duplicate = await this.db.query(
+      `SELECT id FROM x402_payments WHERE id <> $1 AND nonce = $2 AND status = 'settled' LIMIT 1`,
+      [paymentId, payment.nonce],
+    );
+    if (duplicate.rows[0]) {
+      throw new BadRequestException({
+        code: ErrorCodes.VALIDATION_ERROR,
+        message: 'Duplicate x402 nonce already settled',
+      });
     }
 
-    const evidenceHash = hashPayload({ paymentId, facilitatorUrl, status: 'settled' });
+    const amount = BigInt(payment.amount);
+    const recipient = getAddress(payment.recipient);
+    const nonce = payment.nonce as Hex;
+    const settled = await this.x402ChainService.settleWithAuthorization({
+      recipient,
+      amount,
+      nonce,
+    });
+
+    const evidenceHash = hashPayload({
+      paymentId,
+      status: 'settled',
+      settlementTx: settled.txHash,
+      payer: settled.from,
+      nonce: settled.nonce,
+      amount: amount.toString(),
+      recipient,
+    });
+
     await this.db.query(
       `UPDATE x402_payments
        SET status = 'settled',
            evidence_hash = $2,
            settlement_tx = $3,
            facilitator_response_hash = $4,
+           metadata = metadata || $5::jsonb,
            updated_at = now()
        WHERE id = $1`,
-      [paymentId, evidenceHash, null, hashPayload({ facilitatorUrl, paymentId })],
+      [
+        paymentId,
+        evidenceHash,
+        settled.txHash,
+        hashPayload({ method: 'eip3009', txHash: settled.txHash }),
+        JSON.stringify({ settlement: { payer: settled.from, method: 'transferWithAuthorization' } }),
+      ],
     );
+
+    await this.budgetService.commitSpendForPayment(payment.agent_id, amount.toString(), paymentId);
+
     return this.toPaymentResponse(await this.findPayment(organizationId, paymentId));
   }
 

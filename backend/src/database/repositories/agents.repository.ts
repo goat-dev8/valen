@@ -12,6 +12,7 @@ export interface AgentRow {
   external_ref: string | null;
   default_policy_id: string | null;
   metadata: Record<string, unknown>;
+  public_slug?: string | null;
   created_by_user_id: string | null;
   created_at: Date;
   updated_at: Date;

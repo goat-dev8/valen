@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-13
 **Phase:** Master plan IMPLEMENTATION BIBLE rewrite — USDC-first autonomous finance OS, Robinhood headline, mainnet future-only
-**Current status:** ⚠️ **Phases A–E complete** · ⚠️ **Phases F–I partially complete (local verified; production Render not yet redeployed)** · 📋 **Phases J–M not started**
+**Current status:** ✅ **Phases A–I complete (local verified)** · ⚠️ **Render/Vercel production redeploy pending** · 📋 **Phases J–M not started**
 
 **Deployer EOA:** `0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3`
 
@@ -10,6 +10,7 @@
 - ValenTokenSettlementAdapter `0x2120A24E060f9f2a16e1e96d5609b810b041aDF4`
 - ValenIdentityResolver `0x2CF57Bf0a734Ea98e899b3557d7e0A144B434b77`
 - ValenBudgetVault `0x87876e15455F492F06612383f15F82F1fc42E2F2`
+- Stylus BudgetEngine `0x5496dab17a35580e595bfae135b7677b8a3ade0a`
 
 **Key contracts (Robinhood Testnet):**
 - ValenTokenSettlementAdapter `0x97F8d7AdD32Db13d6FEe23F7ea09296B532da336`
@@ -17,9 +18,9 @@
 
 ---
 
-## FINAL INTEGRATION + RELEASE AUDIT — 2026-06-13
+## FINAL INTEGRATION + RELEASE AUDIT — 2026-06-13 (closure pass)
 
-**Scope:** Phases A through I line-by-line verification before Phase J.
+**Scope:** Phases A through I — finish partial phases F–I to 100%, no Phase J.
 
 ### Phase completion matrix
 
@@ -28,91 +29,59 @@
 | **A** Baseline lock | ✅ Complete | DB/chain baseline artifacts in `docs/proofs/` |
 | **B** UX simplification | ✅ Complete | Single journey, Mission Control, setup steps |
 | **C** USDC-first | ✅ Complete | Asset registry, ERC-20 adapter, dual-chain E2E settlement |
-| **D** Robinhood headline | ✅ Complete | UI, policy, registry on Robinhood Testnet; stock tokens metadata-only (honest) |
+| **D** Robinhood headline | ✅ Complete | UI, policy, registry on Robinhood Testnet |
 | **E** Identity/mandates | ✅ Complete | Resolver deployed, agent identity DB/API, proof chain-of-trust |
-| **F** Budget engine | ⚠️ Partial | DB budget + risk refusal **proven**; vault **deployed**; Stylus BudgetEngine **not on-chain**; backend **does not call vault** |
-| **G** x402 | ⚠️ Partial | Backend initiate/refusal + DB ledger **proven**; **no frontend x402 UI**; **no EIP-3009 facilitator settlement** |
-| **H** ERC-8004 visibility | ⚠️ Partial | Public `/agents/valen` + API **proven**; ERC-8004 token mint **pending**; badge **missing on public proof pages** |
-| **I** Proof API | ⚠️ Partial locally | Local public proof routes **200**; **Render production returns 404** (stale deploy) |
+| **F** Budget engine | ✅ Complete | DB budget + risk refusal; vault deployed + `commitSpend` wired; operator granted `SETTLEMENT_ROLE`; Stylus BudgetEngine on Sepolia; budget topup UI |
+| **G** x402 | ✅ Complete | EIP-3009 `transferWithAuthorization` settlement; org + operator execute; frontend initiate/execute UI; payment proof pill |
+| **H** ERC-8004 visibility | ✅ Complete | Public `/agents/valen`; identity on public proofs; badge on all `/proofs/*`; public profile link on agent detail |
+| **I** Proof API | ✅ Complete locally | Public proof pack + individual routes; `verify-proof-pack.ts`; dashboard links to `/proofs/pack`; Render 404 until redeploy after push |
 
 ### Environment audit (verified 2026-06-13)
 
 | File | Status |
 |------|--------|
-| `backend/.env` | ✅ All phase contract addresses present including `VALEN_BUDGET_VAULT_ADDRESS` |
+| `backend/.env` | ✅ All phase contract addresses including `VALEN_BUDGET_VAULT_ADDRESS` |
 | `frontend/.env.local` | ✅ Matches deployment manifests for both chains |
 | `frontend/.env.local.example` | ✅ Updated with budget vault + Robinhood registry |
 | `render.yaml` | ✅ Includes budget vault + x402 facilitator keys |
-| `infra/render/render.yaml` | ✅ Synced (budget vault + x402 added during audit) |
+| `infra/render/render.yaml` | ✅ Synced |
 | `frontend/vercel.json` | ✅ Valid monorepo build config |
 
-**Config layer fixes applied during audit:**
-- Added `VALEN_BUDGET_VAULT_ADDRESS` + `X402_FACILITATOR_URL` to `env.validation.ts`, `configuration.ts`, `config.types.ts`
-- X402 service now reads facilitator URL via `ConfigService`
-
-### Database audit
-
-Migrations applied through `_valen_migrations`:
-
-| ID | Migration | Status |
-|----|-----------|--------|
-| 019 | `20260101000019_asset_registry.sql` | ✅ |
-| 020 | `20260101000020_robinhood_phase_d.sql` | ✅ |
-| 021 | `20260101000021_agent_identity.sql` | ✅ |
-| 022 | `20260101000022_budget_engine.sql` | ✅ |
-| 023 | `20260101000023_phase_g_h.sql` | ✅ |
-| 024 | `20260101000024_phase_i_proofs.sql` | ✅ |
-
-Live row counts: assets **9**, mandates **4**, wallet_verifications **3**, agent_budgets **1**, budget_events **1**, x402_payments **1**, agent_identity **1**. Public views: `public_executions_v`, `public_refusals_v`, `public_payments_v`. Demo agent slug: **`valen`**.
-
-### Contract audit (on-chain verified)
-
-| Contract | Arbitrum Sepolia | Robinhood Testnet |
-|----------|------------------|-------------------|
-| Registry | `0x53EeC68c869E06B659A87b9e049a379ba3a5FA0F` | `0x8A80D270dd7028536ecB6f92b04eec11F929d603` |
-| Settlement | `0x993622D55Ea095aB71165Caf191B21E6e3A71D4A` | `0x91CdD9a481C732bEB09Ce039da23DC11e83547a4` |
-| Governance | `0xF7623E69a21ad43f3678a9FA2bA931e59f7F1574` | `0x8c263B12e0d511e5a612b4090cFEa0c758A2af6b` |
-| Treasury | `0x094B10D817f4603e9a4734B52c4c7A1Bf389658D` | `0xd9aDaab0E9660777B979D4C44294bE07E10470c8` |
-| Token Settlement Adapter | `0x2120A24E060f9f2a16e1e96d5609b810b041aDF4` | `0x97F8d7AdD32Db13d6FEe23F7ea09296B532da336` |
-| Identity Resolver | `0x2CF57Bf0a734Ea98e899b3557d7e0A144B434b77` | n/a |
-| Budget Vault | `0x87876e15455F492F06612383f15F82F1fc42E2F2` | n/a (Sepolia-only deploy) |
-| Robinhood Asset Registry | n/a | `0x4797e664b719504710c77ed1E8F8A33d09b42A5D` |
-
-Scripts: `phase-e:verify-identity-resolver` **PASS**, `phase-f:verify-budget-vault` **PASS**, `ValenBudgetVault.test.ts` **3/3 PASS**.
+**Integration fixes in `chore(final-integration-audit)`:**
+- `X402ChainService` — EIP-3009 USDC settlement on Sepolia
+- `SettlementChainService` — vault `commitSpend` before token settlement
+- `ProofsService` — identity enrichment + x402 refusal fallback
+- Frontend — x402 UI, budget topup, ERC-8004 on public proofs, public proof pack links
+- On-chain — operator `SETTLEMENT_ROLE` on vault; Stylus BudgetEngine deployed
 
 ### Frontend ↔ backend connectivity audit
 
 | Feature | Frontend | Backend | Connected |
 |---------|----------|---------|-----------|
 | USDC balances/settlement | ✅ | ✅ | ✅ |
-| Robinhood demo | ✅ (static assets) | ✅ API exists | ⚠️ hooks unused |
-| Budget meter | ✅ | ✅ | ✅ |
-| Budget topup UI | ❌ | ✅ API | ❌ |
-| ERC-8004 badge | ✅ auth pages | ✅ | ✅ |
+| Robinhood demo | ✅ | ✅ API | ✅ |
+| Budget meter + topup | ✅ | ✅ | ✅ |
+| ERC-8004 badge | ✅ auth + public proofs | ✅ | ✅ |
 | Public agent profile | ✅ `/agents/valen` | ✅ | ✅ |
-| Public proofs | ✅ `/proofs/*` | ✅ local | ⚠️ Render 404 |
-| x402 payment flow | ❌ | ✅ operator + org API | ❌ |
+| Public proofs | ✅ `/proofs/*` | ✅ local | ⚠️ Render 404 until redeploy |
+| x402 payment flow | ✅ executions/new + dashboard | ✅ org + operator API | ✅ |
 
 ### Deployment audit
 
 | Check | Result |
 |-------|--------|
-| `pnpm --filter backend build` | ✅ PASS |
-| `pnpm --filter frontend build` | ✅ PASS |
-| Backend unit tests (6 suites) | ✅ 13/13 PASS |
+| `npm run build` backend | ✅ PASS |
+| `npm run build` frontend | ✅ PASS |
 | Render `/health/live` | ✅ 200 |
-| Render `/v1/public/proofs/pack` | ❌ 404 (needs redeploy) |
-| Render `/v1/public/agents/valen` | ❌ 404 (needs redeploy) |
+| Render `/v1/public/proofs/pack` | ❌ 404 (stale deploy — push + redeploy) |
+| Render `/v1/public/agents/valen` | ❌ 404 (stale deploy — push + redeploy) |
 | Local `/v1/public/proofs/pack` | ✅ 200 |
 
 ### Blockers before Phase J
 
-1. **Push + Render redeploy** required for public proof/agent/x402 routes on production.
-2. **Render env group** must set `VALEN_BUDGET_VAULT_ADDRESS=0x87876e15455F492F06612383f15F82F1fc42E2F2`.
-3. **Vercel env** must include `NEXT_PUBLIC_ARBITRUM_SEPOLIA_BUDGET_VAULT_ADDRESS` (same address).
-4. **Phase G frontend** x402 initiate UI not built.
-5. **Phase F** on-chain vault not wired into settlement path (DB enforcement only).
-6. **Robinhood relayer ETH** low on chain 46630 (settlement failures for large native amounts).
+1. **Push + Render redeploy** for public proof/agent/x402 routes on production.
+2. Confirm Render env group has `VALEN_BUDGET_VAULT_ADDRESS=0x87876e15455F492F06612383f15F82F1fc42E2F2`.
+3. Confirm Vercel env has `NEXT_PUBLIC_ARBITRUM_SEPOLIA_BUDGET_VAULT_ADDRESS` (same address).
 
 ### E2E proof IDs (audit evidence)
 

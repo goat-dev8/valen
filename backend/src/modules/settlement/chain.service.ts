@@ -48,6 +48,12 @@ export class ChainService {
     throw new Error(`Unsupported chain ID: ${chainId}`);
   }
 
+  getBudgetVaultAddress(chainId: number): Address | null {
+    if (chainId !== 421614) return null;
+    const address = this.configService.get('valenBudgetVaultAddress', { infer: true });
+    return address ?? null;
+  }
+
   getSettlementAddress(chainId: number): Address {
     if (chainId === 421614) {
       return this.configService.get('arbitrumSepoliaValenSettlement', {
@@ -105,6 +111,10 @@ const settlementAbi = parseAbi([
 const erc20Abi = parseAbi([
   'function balanceOf(address account) view returns (uint256)',
   'function allowance(address owner, address spender) view returns (uint256)',
+]);
+
+const budgetVaultAbi = parseAbi([
+  'function commitSpend(bytes32 executionHash, uint256 amount) external',
 ]);
 
 const SETTLEMENT_STATUS = {
@@ -501,6 +511,21 @@ export class SettlementChainService {
 
     if (tokenSettlement) {
       await this.assertTokenSettlementFunding(publicClient, asset, agent, tokenAdapter!, amount);
+      const vaultAddress = this.chainService.getBudgetVaultAddress(chainId);
+      if (vaultAddress) {
+        const vaultTxHash = await writeContractWithFreshNonce(publicClient, walletClient, {
+          address: vaultAddress,
+          abi: budgetVaultAbi,
+          functionName: 'commitSpend',
+          args: [executionHash, amount],
+          account,
+          chain: null,
+        });
+        const vaultReceipt = await publicClient.waitForTransactionReceipt({ hash: vaultTxHash });
+        if (vaultReceipt.status !== 'success') {
+          throw new Error(`Budget vault commitSpend reverted: ${vaultTxHash}`);
+        }
+      }
     } else {
       const relayerBalance = await publicClient.getBalance({ address: account.address });
       if (relayerBalance < amount) {

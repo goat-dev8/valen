@@ -1,6 +1,37 @@
 {
-  "ComplianceEngine": { "address": "0xf6d515f09b1e14adb891c72605e1df12c7f5db6b", "version": "1.0.0", "activated": true, "deploymentTx": "0xb2d80412e669510b9a65826e71a211021a72f359616bcb1561bf74b933067204", "package": "compliance-engine" },
-  "RiskEngine": { "address": "0x8eb252ff6f05b1ee767bb816e5786ad72e5b4073", "version": "1.0.0", "activated": true, "deploymentTx": "0xfcc33315b39c80407718fa12235d86daaf47edbbde98c58cfc86424e6842cab4", "package": "risk-engine" },
-  "EligibilityEngine": { "address": "0x03e00644c2bbb45ab4566e34c30929dd017ee5bd", "version": "1.0.0", "activated": true, "deploymentTx": "0xdecbe4bf2c2a8b56d2d35de12f72f03e94895f25cc7538d80f8482b589d038dd", "package": "eligibility-engine" },
-  "PolicyEngine": { "address": "0x3eb88dde893288faea417b413a55a5b4d3256108", "version": "1.0.0", "activated": true, "deploymentTx": "0x664d19e6b9491167f582610d9b3773af91707c197d98a083f63bf8932b05a1bf", "package": "policy-engine" }
+  "ComplianceEngine": {
+    "address": "0xf6d515f09b1e14adb891c72605e1df12c7f5db6b",
+    "version": "1.0.0",
+    "activated": true,
+    "deploymentTx": "0xb2d80412e669510b9a65826e71a211021a72f359616bcb1561bf74b933067204",
+    "package": "compliance-engine"
+  },
+  "RiskEngine": {
+    "address": "0x8eb252ff6f05b1ee767bb816e5786ad72e5b4073",
+    "version": "1.0.0",
+    "activated": true,
+    "deploymentTx": "0xfcc33315b39c80407718fa12235d86daaf47edbbde98c58cfc86424e6842cab4",
+    "package": "risk-engine"
+  },
+  "EligibilityEngine": {
+    "address": "0x03e00644c2bbb45ab4566e34c30929dd017ee5bd",
+    "version": "1.0.0",
+    "activated": true,
+    "deploymentTx": "0xdecbe4bf2c2a8b56d2d35de12f72f03e94895f25cc7538d80f8482b589d038dd",
+    "package": "eligibility-engine"
+  },
+  "PolicyEngine": {
+    "address": "0x3eb88dde893288faea417b413a55a5b4d3256108",
+    "version": "1.0.0",
+    "activated": true,
+    "deploymentTx": "0x664d19e6b9491167f582610d9b3773af91707c197d98a083f63bf8932b05a1bf",
+    "package": "policy-engine"
+  },
+  "BudgetEngine": {
+    "address": "0x5496dab17a35580e595bfae135b7677b8a3ade0a",
+    "version": "1.0.0",
+    "activated": true,
+    "deploymentTx": "0x7fdcf97417ebdf35ab1fe3ad7f2007254798a2209da976002201308a477c9a38",
+    "package": "budget-engine"
+  }
 }

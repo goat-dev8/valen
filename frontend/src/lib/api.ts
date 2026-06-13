@@ -34,6 +34,7 @@ import type {
   WalletChallengeResponseDto,
   WalletVerificationDto,
   WalletVerifyDto,
+  X402PaymentResponseDto,
 } from '@/types/api';
 
 export class OperatorFetchError extends Error {
@@ -107,6 +108,29 @@ export const api = {
       agentId: string,
       body: { chainId: number; assetAddress: string; assetSymbol: string; cap: string },
     ) => apiRequest<BudgetDto>(orgPath(orgId, `/budget/${agentId}/topup`), { method: 'POST', body, token }),
+  },
+
+  x402: {
+    initiate: (
+      token: string,
+      orgId: string,
+      body: {
+        agentId: string;
+        mandateId: string;
+        merchantUrl?: string;
+        recipient: string;
+        amount: string;
+        chainId?: number;
+      },
+    ) => apiRequest<X402PaymentResponseDto>(orgPath(orgId, '/x402/initiate'), { method: 'POST', body, token }),
+    execute: (token: string, orgId: string, paymentIntentId: string) =>
+      apiRequest<X402PaymentResponseDto>(orgPath(orgId, '/x402/execute'), {
+        method: 'POST',
+        body: { paymentIntentId },
+        token,
+      }),
+    get: (token: string, orgId: string, paymentId: string) =>
+      apiRequest<X402PaymentResponseDto>(orgPath(orgId, `/x402/payments/${paymentId}`), { token }),
   },
 
   wallets: {
