@@ -23,12 +23,15 @@ export default function SubmitIntentPage() {
   const { data: agents, isLoading: agentsLoading } = useAgents({ limit: 100, status: 'active' });
   const { data: mandates } = useMandates();
   const createMutation = useCreateExecution();
+  const templateFromQuery = searchParams.get('template');
+  const initialTemplate =
+    INTENT_TEMPLATES.find((t) => t.id === templateFromQuery)?.id ?? INTENT_TEMPLATES[0].id;
   const [error, setError] = useState<string | null>(null);
-  const [templateId, setTemplateId] = useState(INTENT_TEMPLATES[0].id);
+  const [templateId, setTemplateId] = useState(initialTemplate);
   const [agentId, setAgentId] = useState(searchParams.get('agentId') ?? '');
-  const [amount, setAmount] = useState(intentTemplateById(templateId).amount);
-  const [targetAddress, setTargetAddress] = useState(intentTemplateById(templateId).targetAddress);
-  const [assetAddress, setAssetAddress] = useState(intentTemplateById(templateId).assetAddress ?? '');
+  const [amount, setAmount] = useState(intentTemplateById(initialTemplate).amount);
+  const [targetAddress, setTargetAddress] = useState(intentTemplateById(initialTemplate).targetAddress);
+  const [assetAddress, setAssetAddress] = useState(intentTemplateById(initialTemplate).assetAddress ?? '');
   const selectedTemplate = intentTemplateById(templateId);
   const selectedAgent = agents?.items.find((agent) => agent.id === agentId) ?? agents?.items[0];
   const activeMandates = useMemo(
@@ -111,6 +114,20 @@ export default function SubmitIntentPage() {
           mandateId: selectedMandate.id,
           payloadPreview: payload,
           approvalExplanation,
+          ...(selectedTemplate.id === 'robinhood-demo'
+            ? {
+                demoTrack: 'robinhood-assets',
+                assetNarrative: 'TSLA',
+                proofRole: 'allowed',
+              }
+            : {}),
+          ...(selectedTemplate.id === 'arbitrum-usdc'
+            ? {
+                demoTrack: 'usdc-first',
+                assetNarrative: 'USDC',
+                proofRole: 'allowed',
+              }
+            : {}),
         },
       });
       router.push(`/dashboard/executions/${result.id}`);
@@ -123,10 +140,13 @@ export default function SubmitIntentPage() {
     <div className="space-y-6">
       <Link href="/dashboard/executions" className="app-back-link">
         <ArrowLeft className="h-4 w-4" />
-        Back to Executions
+        Back to Activity
       </Link>
 
-      <PageHeader title="Intent Builder" description="Build a mandate-aware intent before it enters compliance, risk, policy, and settlement." />
+      <PageHeader
+        title="Intent Builder"
+        description="Default to USDC agent payments on Arbitrum. Settlement relayer delivers native ETH today; asset scope is enforced in mandate and rules."
+      />
 
       <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="app-card">

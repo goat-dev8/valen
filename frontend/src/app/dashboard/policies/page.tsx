@@ -11,10 +11,10 @@ export default function PoliciesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Policies" description="Compliance and risk rules bound to agent intents at evaluation time">
+      <PageHeader title="Rules" description="Compliance and risk rules that govern what autonomous agents can do">
         <Link href="/dashboard/policies/new" className="app-btn app-btn-primary">
           <Plus className="h-4 w-4" />
-          Create Policy
+          Create Rule
         </Link>
       </PageHeader>
 

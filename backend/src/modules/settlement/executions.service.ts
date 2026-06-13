@@ -10,6 +10,7 @@ import { OrganizationsRepository } from '../../database/repositories/organizatio
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
 import { normalizeExecutionAmountWei } from '../../common/utils/amount.util';
+import { resolveAssetDisplayMetadata } from '../../common/utils/execution-asset.util';
 import { hashPayload } from '../../common/utils/hash.util';
 import {
   CancelExecutionDto,
@@ -90,6 +91,29 @@ export class ExecutionsService {
         ? undefined
         : dto.assetAddress;
 
+    const assetMeta = resolveAssetDisplayMetadata(dto.targetChainId, dto.assetAddress);
+    const metadata = {
+      ...dto.metadata,
+      assetSymbol: assetMeta.assetSymbol,
+      assetDecimals: assetMeta.assetDecimals,
+      settlementMode: assetMeta.settlementMode,
+      settlementExplanation: assetMeta.settlementExplanation,
+      ...(dto.metadata?.templateId === 'robinhood-demo'
+        ? {
+            demoTrack: 'robinhood-assets',
+            assetNarrative: 'TSLA',
+            proofRole: 'allowed',
+          }
+        : {}),
+      ...(dto.metadata?.templateId === 'arbitrum-usdc'
+        ? {
+            demoTrack: 'usdc-first',
+            assetNarrative: 'USDC',
+            proofRole: 'allowed',
+          }
+        : {}),
+    };
+
     const execution = await this.executionsRepository.create({
       organizationId,
       agentId: dto.agentId,
@@ -103,7 +127,7 @@ export class ExecutionsService {
       policyId: agent.default_policy_id ?? undefined,
       payloadHash: dto.payloadHash,
       payloadRef: dto.payloadRef,
-      metadata: dto.metadata,
+      metadata,
     });
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -257,10 +281,15 @@ export class ExecutionsService {
     status: string;
     target_chain_id: number;
     target_address: string | null;
+    asset_address?: string | null;
     request_payload_hash: string;
     created_at: Date;
     updated_at: Date;
   }): ExecutionResponseDto {
+    const assetMeta = resolveAssetDisplayMetadata(
+      execution.target_chain_id,
+      execution.asset_address,
+    );
     return {
       id: execution.id,
       organizationId: execution.organization_id,
@@ -273,6 +302,11 @@ export class ExecutionsService {
       targetChainId: execution.target_chain_id,
       targetAddress: execution.target_address,
       requestPayloadHash: execution.request_payload_hash,
+      assetAddress: assetMeta.assetAddress,
+      assetSymbol: assetMeta.assetSymbol,
+      assetDecimals: assetMeta.assetDecimals,
+      settlementMode: assetMeta.settlementMode,
+      settlementExplanation: assetMeta.settlementExplanation,
       createdAt: execution.created_at.toISOString(),
       updatedAt: execution.updated_at.toISOString(),
     };

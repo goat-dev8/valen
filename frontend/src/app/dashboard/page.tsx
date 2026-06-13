@@ -3,12 +3,15 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { useWallets } from '@privy-io/react-auth';
 import { ArrowRight, Bot, CheckCircle, Circle, FileText, Landmark, ScrollText, Shield, TrendingUp, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
+import { BuildathonProofBaseline } from '@/components/app/buildathon-proof-baseline';
 import { PageHeader } from '@/components/app/page-header';
 import { StatCard } from '@/components/app/stat-card';
 import { QueryState } from '@/components/app/query-state';
 import { StatusBadge } from '@/components/app/status-badge';
+import { UserJourneyRail } from '@/components/app/user-journey-rail';
 import { useOrganization } from '@/contexts/org-context';
 import {
   useAgents,
@@ -18,9 +21,12 @@ import {
   usePolicies,
   useWalletVerifications,
 } from '@/hooks/use-valen-api';
+import { useWalletBalances } from '@/hooks/use-wallet-balances';
 import { operatorFetch } from '@/lib/api';
+import { baselineExecutionForChain } from '@/lib/buildathon-baseline';
 import { chainName } from '@/lib/constants';
 import { buildSetupSteps, setupProgress } from '@/lib/setup-state';
+import { buildUserJourneySteps, userJourneyProgress } from '@/lib/user-journey';
 
 type TreasuryData = {
   nativeBalanceEth?: string;
@@ -32,6 +38,8 @@ type GovernanceStatus = {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { wallets } = useWallets();
+  const connectedWallet = wallets[0]?.address;
   const { organization } = useOrganization();
   const chainId = organization?.defaultChainId ?? 421614;
   const { data: totalAgents, isLoading: totalAgentsLoading } = useAgents({ limit: 100 });
@@ -43,6 +51,7 @@ export default function DashboardPage() {
   const { data: policies, isLoading: policiesLoading } = usePolicies();
   const { data: walletVerifications, isLoading: walletVerificationsLoading } = useWalletVerifications();
   const { data: mandates, isLoading: mandatesLoading } = useMandates();
+  const { data: walletBalances } = useWalletBalances(connectedWallet);
   const treasuryQuery = useQuery({
     queryKey: ['operator-treasury-overview', chainId],
     queryFn: () => operatorFetch<TreasuryData>(`treasury?chainId=${chainId}`),
@@ -77,6 +86,19 @@ export default function DashboardPage() {
   });
   const progress = setupProgress(setupSteps);
   const nextStep = setupSteps.find((step) => !step.complete);
+  const usdcBalance = walletBalances
+    ?.find((row) => row.chainId === 421614)
+    ?.tokens.find((token) => token.symbol === 'USDC')?.formatted;
+  const journeySteps = buildUserJourneySteps({
+    walletConnected: Boolean(connectedWallet),
+    ownerWalletVerified: (walletVerifications ?? []).some((wallet) => wallet.status === 'verified'),
+    agents: totalAgents?.items,
+    policies,
+    executions: allExec?.items,
+    usdcBalanceFormatted: usdcBalance,
+  });
+  const journey = userJourneyProgress(journeySteps);
+  const robinhoodBaseline = baselineExecutionForChain(46630);
   const setupLoading =
     totalAgentsLoading || allExecLoading || policiesLoading || walletVerificationsLoading || mandatesLoading;
 
@@ -94,21 +116,46 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Mission Control"
-        description="Set up a governed agent, authorize what it can do, then watch every intent become a proof."
+        description="The operating system for autonomous finance — USDC budgets, rules, execution, and proof for every agent action."
       />
+
+      <UserJourneyRail steps={journeySteps} />
+
+      {robinhoodBaseline && (
+        <section className="app-card flex flex-wrap items-center justify-between gap-4 border-[#cfe6ff] bg-[#f0f7ff]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#007dfc]">Headline demo</p>
+            <h3 className="mt-1 text-lg font-semibold text-[#012b54]">Robinhood tokenized assets</h3>
+            <p className="mt-1 text-sm text-[#64748b]">
+              Safe TSLA-style actions with full mandate, Stylus, and settlement proof — one click from Mission Control.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/demo/robinhood-tsla" className="app-btn app-btn-primary">
+              Robinhood Assets
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href={robinhoodBaseline.proofHref} className="app-btn app-btn-outline">
+              Latest proof
+            </Link>
+          </div>
+        </section>
+      )}
+
+      <BuildathonProofBaseline executions={allExec?.items} />
 
       <section className="app-card overflow-hidden">
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <div className="inline-flex rounded-full bg-[#e8f4ff] px-3 py-1 text-xs font-semibold text-[#007dfc]">
-              {progress.complete}/{progress.total} setup steps complete
+              {journey.complete}/{journey.total} flow steps · {progress.complete}/{progress.total} authority setup
             </div>
             <h2 className="mt-4 text-2xl font-semibold text-[#012b54]">
-              {nextStep ? 'Finish authority setup before the next governed intent' : 'Your governed agent flow is ready'}
+              {nextStep ? 'Finish setup before the next governed intent' : 'Your autonomous finance OS is ready'}
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#64748b]">
-              VALEN uses your Privy identity, a verified owner wallet, signed mandates, live Stylus checks, and the
-              Render settlement relayer to prove what an agent is allowed to do.
+              Create an agent, give it a USDC budget and rules, fund it, let it act, and see immutable proof for every
+              approval or refusal.
             </p>
             <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#eef6ff]">
               <div className="h-full rounded-full bg-[#007dfc]" style={{ width: `${progress.percent}%` }} />
@@ -233,9 +280,9 @@ export default function DashboardPage() {
           icon={ScrollText}
         />
         <StatCard
-          title="Policies"
+          title="Rules"
           value={policies?.length ?? 0}
-          change="Live policies endpoint"
+          change="Live rules endpoint"
           changeType="neutral"
           icon={FileText}
         />
@@ -260,7 +307,7 @@ export default function DashboardPage() {
         <div className="app-card lg:col-span-2">
           <div className="app-card-header">
             <h3 className="app-card-title">Recent Executions</h3>
-            <Link href="/dashboard/executions" className="app-link">View all</Link>
+            <Link href="/dashboard/executions" className="app-link">View all activity</Link>
           </div>
           <QueryState isLoading={execLoading || agentsLoading} error={error} isEmpty={!executions?.items.length} emptyMessage="No executions yet">
             <div className="app-table-wrap">

@@ -1,8 +1,8 @@
 # VALEN Implementation Summary
 
-**Last updated:** 2026-06-13  
-**Phase:** Buildathon domination replan — USDC-first autonomous finance OS  
-**Current status:** ✅ **RENDER READY** (backend) · ✅ **Dual-chain E2E proven** (Arbitrum Sepolia + Robinhood Testnet) · 📋 **MASTER_EXECUTION_PLAN.md rewritten** around judge-winning roadmap  
+**Last updated:** 2026-06-13 (Phases A–D batch complete)  
+**Phase:** Buildathon execution — Phases A–D done; E–L queued  
+**Current status:** ✅ **RENDER READY** · ✅ **Phases A–D verified** · ✅ **Dual-chain E2E baseline frozen**  
 
 **Live URLs:**
 - **Render API:** https://valen-api-m3g4.onrender.com
@@ -88,6 +88,107 @@ Do not chase breadth, generic AI, or rushed mainnet. The strongest submission is
 **A USDC-first operating system for autonomous finance where agents have identity, rules, budgets, funding, execution, and proof, with Robinhood tokenized assets as the headline secondary demo.**
 
 Updated file: `MASTER_EXECUTION_PLAN.md`.
+
+---
+
+## Master Execution Plan — Phases A–D Batch (2026-06-13)
+
+**Engineer:** Lead Execution Engineer session  
+**Scope:** Phase A (audit) · Phase B (UX) · Phase C (USDC-first) · Phase D (Robinhood headline)  
+**Verdict:** ✅ **ALL FOUR PHASES COMPLETE** — builds pass, backend tests pass, Render `/health/ready` OK
+
+### Phase A — Current State Audit & Baseline Lock
+
+| Item | Result |
+|------|--------|
+| Proven Arbitrum execution | `d872b0a7-e7de-4a86-887b-b6ac682c7173` (421614, executed) |
+| Proven Robinhood execution | `7cfa54c3-7cea-4cf3-bb6d-b207b3045b4c` (46630, executed) |
+| Route matrix | Primary flow vs Evidence & Admin documented in `frontend/src/lib/buildathon-baseline.ts` |
+| Mission Control baseline panel | `BuildathonProofBaseline` on `/dashboard` with one-click proof links |
+| Production health | `GET https://valen-api-m3g4.onrender.com/health/ready` → database ok, redis ok |
+| Backend build | `pnpm build` PASS |
+| Backend tests | 7 suites / 13 tests PASS |
+| Frontend build | `pnpm build` PASS (27 routes) |
+| Migrations | None required (audit-only) |
+| Contracts / Stylus | No changes — existing dual-chain deployments preserved |
+
+### Phase B — UX Simplification & Single User Journey
+
+| Change | Files |
+|--------|-------|
+| Sidebar reordered: **PRIMARY FLOW** + **EVIDENCE & ADMIN** | `frontend/src/components/app/sidebar.tsx` |
+| User-facing copy: Rules, Fund & Authority, Activity, Robinhood Assets | sidebar, policies page, executions page, wallets page |
+| 6-step journey rail on Mission Control | `frontend/src/lib/user-journey.ts`, `frontend/src/components/app/user-journey-rail.tsx`, `dashboard/page.tsx` |
+| Landing hero → OS narrative + 6-step pipeline | `frontend/src/components/marketing/hero-section.tsx` |
+| Onboarding copy aligned to single flow | `frontend/src/app/onboarding/page.tsx` |
+| Setup-state copy uses “rules” not “policies” | `frontend/src/lib/setup-state.ts` |
+| Routes unchanged | All existing paths preserved (no breaking links) |
+
+**Acceptance:** New user can explain VALEN as “rules + USDC budget + execution proof for autonomous agents.” Admin pages demoted under Evidence & Admin.
+
+### Phase C — USDC-First Experience
+
+| Change | Files |
+|--------|-------|
+| USDC Agent Payment is default intent template | `frontend/src/lib/intent-templates.ts`, `executions/new/page.tsx` |
+| Asset metadata on execution API responses | `backend/src/common/utils/execution-asset.util.ts`, `executions.service.ts`, `settlement.dto.ts` |
+| Canonical Arbitrum Sepolia USDC `0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d` | backend util + existing `known-assets.ts` |
+| Proof page shows governed asset + settlement mode + honest ETH explanation | `executions/[executionId]/proof/page.tsx` |
+| Wallet balances panel (ETH + USDC) already live on Fund & Authority | unchanged — verified in build |
+| ERC-20 settlement | **Deferred** per plan — UI/proof-only; `settlementMode: policy_label_only` for USDC/TSLA |
+| Unit tests | `execution-asset.util.spec.ts` — 4/4 PASS |
+| Migrations | None (metadata in execution `metadata` jsonb + computed DTO fields) |
+
+**Acceptance:** Judges see USDC first in Intent Builder. UI never implies USDC/TSLA was transferred when relayer sends native ETH.
+
+### Phase D — Robinhood Token Experience
+
+| Change | Files |
+|--------|-------|
+| Page renamed **Robinhood Assets** (route unchanged) | `demo/robinhood-tsla/page.tsx`, sidebar |
+| Headline card on Mission Control with latest proof CTA | `dashboard/page.tsx` |
+| Baseline proof link `7cfa54c3…` one click from demo page | `buildathon-baseline.ts`, demo page |
+| Safe / refused scenario cards with Mandate comparison copy | demo page |
+| Demo metadata on create: `demoTrack`, `assetNarrative`, `proofRole` | `executions.service.ts`, intent builder metadata |
+| Mandate matching for Robinhood | existing `mandate-match.ts` — preserved |
+| Migrations | None |
+| Operator demo endpoint | Not added — existing execution API + templates used |
+
+**Acceptance:** Robinhood appears in pitch, Mission Control, and sidebar as core feature. Latest proof one click away.
+
+### Files Changed (this batch)
+
+**New:** `buildathon-baseline.ts`, `user-journey.ts`, `buildathon-proof-baseline.tsx`, `user-journey-rail.tsx`, `execution-asset.util.spec.ts`  
+**Backend:** `execution-asset.util.ts`, `executions.service.ts`, `settlement.dto.ts`  
+**Frontend:** `sidebar.tsx`, `dashboard/page.tsx`, `hero-section.tsx`, `intent-templates.ts`, `setup-state.ts`, `policies/page.tsx`, `executions/page.tsx`, `executions/new/page.tsx`, `executions/.../proof/page.tsx`, `wallets/page.tsx`, `demo/robinhood-tsla/page.tsx`, `onboarding/page.tsx`, `types/api.ts`
+
+### Env / Deploy / Contract Changes
+
+| Area | Change |
+|------|--------|
+| Env | None |
+| Migrations executed | None |
+| Contracts deployed | None |
+| Stylus redeployed | None |
+| Render / Vercel | Code ready — redeploy required for UI changes to reach production |
+
+### Remaining Work (next batches per MASTER_EXECUTION_PLAN)
+
+| Phase | Status |
+|-------|--------|
+| E — ERC-8004 identity | Not started |
+| F — Policy + Budget engine | Not started |
+| G — x402 paid actions | Not started |
+| H — MCP + SDK | Not started |
+| I — Proof API + Proof Pack | Not started |
+| J — Mission Control (full OS cockpit) | Partially advanced in B/C/D |
+| K — Judge demo story | Not started |
+| L — Submission package | Not started |
+| Arbitrum One mainnet | Future phase (deferred) |
+
+### Blockers
+
+None for Phases A–D. Production UI requires Vercel redeploy; backend asset DTOs require Render redeploy.
 
 ---
 

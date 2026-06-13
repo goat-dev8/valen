@@ -19,29 +19,32 @@ import {
   Shield,
   Wallet,
   Blocks,
+  PlusCircle,
+  TrendingUp,
 } from 'lucide-react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/contexts/org-context';
 import { useExecutions } from '@/hooks/use-valen-api';
 
-const MENU_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/executions', label: 'Executions', icon: Zap },
-  { href: '/dashboard/approvals', label: 'Approvals', icon: CheckCircle, badgeKey: 'approvals' as const },
-  { href: '/dashboard/settlements', label: 'Settlements', icon: ArrowLeftRight },
-  { href: '/dashboard/wallets', label: 'Wallets', icon: Wallet },
+const PRIMARY_FLOW_ITEMS = [
+  { href: '/dashboard', label: 'Mission Control', icon: LayoutDashboard },
+  { href: '/dashboard/wallets', label: 'Fund & Authority', icon: Wallet },
+  { href: '/dashboard/agents', label: 'Agents', icon: Bot },
+  { href: '/dashboard/policies', label: 'Rules', icon: FileText },
+  { href: '/dashboard/executions', label: 'Activity', icon: Zap },
+  { href: '/dashboard/executions/new', label: 'Intent Builder', icon: PlusCircle },
+  { href: '/dashboard/demo/robinhood-tsla', label: 'Robinhood Assets', icon: TrendingUp },
 ];
 
-const PAGE_ITEMS = [
-  { href: '/dashboard/agents', label: 'Agents', icon: Bot },
-  { href: '/dashboard/policies', label: 'Policies', icon: FileText },
+const EVIDENCE_ADMIN_ITEMS = [
+  { href: '/dashboard/approvals', label: 'Approvals', icon: CheckCircle, badgeKey: 'approvals' as const },
+  { href: '/dashboard/settlements', label: 'Settlements', icon: ArrowLeftRight },
   { href: '/dashboard/compliance', label: 'Compliance', icon: Scale },
   { href: '/dashboard/audit', label: 'Audit Logs', icon: ScrollText },
   { href: '/dashboard/governance', label: 'Governance', icon: Shield },
   { href: '/dashboard/treasury', label: 'Treasury', icon: Landmark },
   { href: '/dashboard/contracts', label: 'Contracts', icon: Blocks },
-  { href: '/dashboard/demo/robinhood-tsla', label: 'Robinhood Demo', icon: Zap },
   { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
   { href: '/dashboard/team', label: 'Team', icon: Users },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
@@ -89,8 +92,15 @@ export function Sidebar() {
 
       <nav className="app-sidebar-nav">
         <div className="app-nav-section">
-          <span className="app-nav-label">MENU</span>
-          {MENU_ITEMS.map((item) => (
+          <span className="app-nav-label">PRIMARY FLOW</span>
+          {PRIMARY_FLOW_ITEMS.map((item) => (
+            <NavItem key={item.href} {...item} />
+          ))}
+        </div>
+
+        <div className="app-nav-section">
+          <span className="app-nav-label">EVIDENCE & ADMIN</span>
+          {EVIDENCE_ADMIN_ITEMS.map((item) => (
             <NavItem
               key={item.href}
               href={item.href}
@@ -98,13 +108,6 @@ export function Sidebar() {
               icon={item.icon}
               badge={'badgeKey' in item && item.badgeKey === 'approvals' ? approvalCount : undefined}
             />
-          ))}
-        </div>
-
-        <div className="app-nav-section">
-          <span className="app-nav-label">PAGES</span>
-          {PAGE_ITEMS.map((item) => (
-            <NavItem key={item.href} {...item} />
           ))}
         </div>
       </nav>
