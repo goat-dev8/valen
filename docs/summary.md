@@ -1,14 +1,93 @@
 # VALEN Implementation Summary
 
-**Last updated:** 2026-06-12  
-**Phase:** 8 — Vercel frontend deploy + buildathon execution planning  
-**Current status:** ✅ **RENDER READY** (backend) · 🟡 **VERCEL frontend deploy** (config pushed `ebd2ede`, awaiting successful build) · 📋 **MASTER_EXECUTION_PLAN.md** ready for S-tier feature rollout  
+**Last updated:** 2026-06-13  
+**Phase:** Buildathon domination replan — USDC-first autonomous finance OS  
+**Current status:** ✅ **RENDER READY** (backend) · ✅ **Dual-chain E2E proven** (Arbitrum Sepolia + Robinhood Testnet) · 📋 **MASTER_EXECUTION_PLAN.md rewritten** around judge-winning roadmap  
 
 **Live URLs:**
 - **Render API:** https://valen-api-m3g4.onrender.com
 - **Vercel frontend:** https://valenai-git-main-goats-projects-3f023cc9.vercel.app (pending stable deploy)
 
 **Deployer EOA:** `0xf76e6B0920e9332fF4410f6dD53F01722AbC71a3`
+
+---
+
+## Buildathon Domination Replan — 2026-06-13
+
+**Mission:** Reposition VALEN from complex compliance infrastructure into **The Operating System for Autonomous Finance** and redesign active execution to maximize judge score, memorability, demo quality, product clarity, competitive advantage, and differentiation.
+
+### Source Material Read
+
+| Source | Result |
+|--------|--------|
+| `MASTER_EXECUTION_PLAN.md` | Read and fully replaced. Previous plan over-weighted mainnet and broad infra. |
+| `docs/summary.md` | Read in chunks; current proof baseline and production E2E status incorporated. |
+| `valenplan.md` | Read; useful competitive strategy retained, but mainnet priority changed. |
+| Repository structure | Audited frontend routes, backend modules, contracts, Stylus engines, migrations, deployment manifests, Render blueprint. |
+| `ARBITRUM_LONDON_ALL_PROJECTS_CENSUS_AND_RERANK_V2...md` | Read across all ranking sections and dossiers; created independent VALEN ranking conclusions. |
+| External research | Arbitrum judging signals, Robinhood tokenization/Chain, x402, ERC-8004, MCP, Privy, and fintech onboarding UX reviewed. |
+
+### Strategic Decisions
+
+| Decision | Why |
+|----------|-----|
+| **USDC First** | USDC is stable, understandable, central to x402/agentic payments, and makes budgets obvious. |
+| **Robinhood is headline, not side demo** | Robinhood Chain has reserved prize relevance and tokenized-stock actions are memorable. |
+| **Arbitrum One mainnet moved to Future Phases** | Rushed mainnet work increases demo risk; active buildathon plan optimizes proof, clarity, USDC, and reliability. |
+| **Single user flow wins** | Connect Wallet → Create Agent → Set Rules → Fund Agent → Execute → See Proof. |
+| **Admin screens demoted** | Governance, Treasury, Contracts, Audit, Team, Webhooks support credibility but should not lead the demo. |
+| **Proof is the product** | Judges need one click that verifies contracts, engines, txs, verdicts, and proof hashes. |
+
+### Competitive Ranking Conclusions
+
+Likely strongest projects / finalists:
+
+1. AgentAudit AI — strongest overall standards/evidence package.
+2. CronStream — clean x402 + milestone payment demo.
+3. Mandate — clearest Robinhood allow/block demo.
+4. Osmium — cleanest Robinhood SpendOps positioning.
+5. OBSCURA — biggest technical/privacy surface.
+6. Monaris — strongest real Arbitrum One volume signal.
+7. Collateral Passport — strongest Robinhood evidence discipline.
+8. Aegis / VetoVault / FortiLayer cluster — Stylus/security benchmark strength.
+9. MiTanda — best consumer UX and live mainnet story.
+10. RefusalRail — strong narrow refusal-receipt primitive.
+
+VALEN wins by defining the larger category: competitors build wallets, policy engines, receipts, x402 endpoints, tokenized-asset apps, or compliance logs; **VALEN coordinates identity, rules, budgets, execution, settlement, refusal, audit, and proof before an autonomous agent moves money.**
+
+### Active Execution Phases Rewritten
+
+| Phase | Name | Active Goal |
+|-------|------|-------------|
+| A | Current State Audit | Freeze proven baseline and judge-readable evidence. |
+| B | UX Simplification | Reorder product around one 6-step flow. |
+| C | USDC First Experience | Make USDC the primary asset in UI, policy, budgets, proof, and x402 path. |
+| D | Robinhood Asset Experience | Promote Robinhood TSLA/tokenized-assets path as headline feature. |
+| E | Agent Identity (ERC-8004) | Add ecosystem-readable agent identity and proof badge. |
+| F | Policy + Budget Engine | Add USDC budget controls and deterministic budget evidence. |
+| G | Paid Actions (x402) | Position VALEN as the permission layer before agent payments. |
+| H | MCP + SDK | Let agents/developers call VALEN directly. |
+| I | Proof API + Proof Pack | One public proof link for the whole build. |
+| J | Mission Control | Dashboard becomes autonomous finance OS cockpit. |
+| K | Judge Demo Story | Reliable 30s, 2m, and 5m demo path. |
+| L | Submission Package | Final copy, screenshots, proof links, and verifier. |
+
+### Moved to Future Phases
+
+| Scope | Reason |
+|-------|--------|
+| Arbitrum One Mainnet rollout | High credibility but high demo risk; requires audit, role migration, dedicated relayer, source verification, and production funding controls. |
+| Full ERC-20 token settlement | Important after USDC-first story; active plan can be honest if current proof path remains native ETH. |
+| Advanced governance execution UI | Not core to winning demo; 86400s timelock remains by design. |
+| Subgraph/indexer | Useful proof/search layer, lower priority than Proof Pack API. |
+
+### Final Recommendation
+
+Do not chase breadth, generic AI, or rushed mainnet. The strongest submission is:
+
+**A USDC-first operating system for autonomous finance where agents have identity, rules, budgets, funding, execution, and proof, with Robinhood tokenized assets as the headline secondary demo.**
+
+Updated file: `MASTER_EXECUTION_PLAN.md`.
 
 ---
 
