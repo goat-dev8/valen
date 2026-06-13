@@ -19,5 +19,13 @@ export interface AppConfig {
   arbitrumSepoliaValenSettlement: `0x${string}`;
   robinhoodTestnetValenRegistry: `0x${string}`;
   robinhoodTestnetValenSettlement: `0x${string}`;
+  arbitrumSepoliaTokenSettlementAdapter?: `0x${string}`;
+  robinhoodTestnetTokenSettlementAdapter?: `0x${string}`;
+  robinhoodAssetRegistryAddress?: `0x${string}`;
+  erc8004RegistryAddress?: `0x${string}`;
+  erc8004RegistryChainId?: number;
+  valenIdentityResolverAddress?: `0x${string}`;
+  valenBudgetVaultAddress?: `0x${string}`;
+  x402FacilitatorUrl?: string;
   operatorDashboardSecret?: string;
 }

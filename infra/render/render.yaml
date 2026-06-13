@@ -85,6 +85,22 @@ envVarGroups:
         sync: false
       - key: ROBINHOOD_TESTNET_VALEN_SETTLEMENT
         sync: false
+      - key: ARBITRUM_SEPOLIA_TOKEN_SETTLEMENT_ADAPTER
+        sync: false
+      - key: ROBINHOOD_TESTNET_TOKEN_SETTLEMENT_ADAPTER
+        sync: false
+      - key: ROBINHOOD_ASSET_REGISTRY_ADDRESS
+        sync: false
+      - key: VALEN_IDENTITY_RESOLVER_ADDRESS
+        sync: false
+      - key: VALEN_BUDGET_VAULT_ADDRESS
+        sync: false
+      - key: X402_FACILITATOR_URL
+        sync: false
+      - key: ERC8004_REGISTRY_ADDRESS
+        sync: false
+      - key: ERC8004_REGISTRY_CHAIN_ID
+        sync: false
       - key: SENTRY_DSN
         sync: false
       - key: POSTHOG_API_KEY

@@ -35,6 +35,17 @@ export function configuration(env: EnvSchema): AppConfig {
       env.ROBINHOOD_TESTNET_VALEN_REGISTRY as `0x${string}`,
     robinhoodTestnetValenSettlement:
       env.ROBINHOOD_TESTNET_VALEN_SETTLEMENT as `0x${string}`,
+    arbitrumSepoliaTokenSettlementAdapter:
+      env.ARBITRUM_SEPOLIA_TOKEN_SETTLEMENT_ADAPTER as `0x${string}` | undefined,
+    robinhoodTestnetTokenSettlementAdapter:
+      env.ROBINHOOD_TESTNET_TOKEN_SETTLEMENT_ADAPTER as `0x${string}` | undefined,
+    robinhoodAssetRegistryAddress:
+      env.ROBINHOOD_ASSET_REGISTRY_ADDRESS as `0x${string}` | undefined,
+    erc8004RegistryAddress: env.ERC8004_REGISTRY_ADDRESS as `0x${string}` | undefined,
+    erc8004RegistryChainId: env.ERC8004_REGISTRY_CHAIN_ID,
+    valenIdentityResolverAddress: env.VALEN_IDENTITY_RESOLVER_ADDRESS as `0x${string}` | undefined,
+    valenBudgetVaultAddress: env.VALEN_BUDGET_VAULT_ADDRESS as `0x${string}` | undefined,
+    x402FacilitatorUrl: env.X402_FACILITATOR_URL,
     operatorDashboardSecret: env.OPERATOR_DASHBOARD_SECRET,
   };
 }

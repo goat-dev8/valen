@@ -33,6 +33,26 @@ export const envSchema = z.object({
     .regex(/^0x[0-9a-fA-F]{40}$/, 'ROBINHOOD_TESTNET_VALEN_REGISTRY must be an EVM address'),
   ROBINHOOD_TESTNET_VALEN_SETTLEMENT: trimmedString()
     .regex(/^0x[0-9a-fA-F]{40}$/, 'ROBINHOOD_TESTNET_VALEN_SETTLEMENT must be an EVM address'),
+  ARBITRUM_SEPOLIA_TOKEN_SETTLEMENT_ADAPTER: trimmedString()
+    .regex(/^0x[0-9a-fA-F]{40}$/, 'ARBITRUM_SEPOLIA_TOKEN_SETTLEMENT_ADAPTER must be an EVM address')
+    .optional(),
+  ROBINHOOD_TESTNET_TOKEN_SETTLEMENT_ADAPTER: trimmedString()
+    .regex(/^0x[0-9a-fA-F]{40}$/, 'ROBINHOOD_TESTNET_TOKEN_SETTLEMENT_ADAPTER must be an EVM address')
+    .optional(),
+  ROBINHOOD_ASSET_REGISTRY_ADDRESS: trimmedString()
+    .regex(/^0x[0-9a-fA-F]{40}$/, 'ROBINHOOD_ASSET_REGISTRY_ADDRESS must be an EVM address')
+    .optional(),
+  ERC8004_REGISTRY_ADDRESS: trimmedString()
+    .regex(/^0x[0-9a-fA-F]{40}$/, 'ERC8004_REGISTRY_ADDRESS must be an EVM address')
+    .optional(),
+  ERC8004_REGISTRY_CHAIN_ID: z.coerce.number().int().positive().optional(),
+  VALEN_IDENTITY_RESOLVER_ADDRESS: trimmedString()
+    .regex(/^0x[0-9a-fA-F]{40}$/, 'VALEN_IDENTITY_RESOLVER_ADDRESS must be an EVM address')
+    .optional(),
+  VALEN_BUDGET_VAULT_ADDRESS: trimmedString()
+    .regex(/^0x[0-9a-fA-F]{40}$/, 'VALEN_BUDGET_VAULT_ADDRESS must be an EVM address')
+    .optional(),
+  X402_FACILITATOR_URL: trimmedString().url().optional(),
   OPERATOR_DASHBOARD_SECRET: trimmedString().min(16).optional(),
 });
 

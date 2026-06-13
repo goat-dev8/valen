@@ -98,6 +98,8 @@ export enum ActionType {
   Rebalance = 'rebalance',
   Swap = 'swap',
   Custom = 'custom',
+  RobinhoodTokenTransfer = 'robinhood_token_transfer',
+  X402Payment = 'x402_payment',
 }
 
 export enum ComplianceStatus {

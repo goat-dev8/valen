@@ -19,29 +19,32 @@ import {
   Shield,
   Wallet,
   Blocks,
+  FileCheck,
+  KeyRound,
 } from 'lucide-react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/contexts/org-context';
 import { useExecutions } from '@/hooks/use-valen-api';
 
-const MENU_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/executions', label: 'Executions', icon: Zap },
-  { href: '/dashboard/approvals', label: 'Approvals', icon: CheckCircle, badgeKey: 'approvals' as const },
-  { href: '/dashboard/settlements', label: 'Settlements', icon: ArrowLeftRight },
-  { href: '/dashboard/wallets', label: 'Wallets', icon: Wallet },
+const PRIMARY_ITEMS = [
+  { href: '/dashboard', label: 'Mission Control', icon: LayoutDashboard },
+  { href: '/dashboard/register-agent', label: 'Create Agent', icon: Bot },
+  { href: '/dashboard/policies', label: 'Set Rules', icon: FileText },
+  { href: '/dashboard/wallets', label: 'Fund & Authority', icon: Wallet },
+  { href: '/dashboard/executions/new', label: 'Execute', icon: Zap },
+  { href: '/dashboard/executions', label: 'See Proof', icon: FileCheck },
+  { href: '/dashboard/demo/robinhood', label: 'Robinhood Assets', icon: KeyRound },
 ];
 
-const PAGE_ITEMS = [
-  { href: '/dashboard/agents', label: 'Agents', icon: Bot },
-  { href: '/dashboard/policies', label: 'Policies', icon: FileText },
-  { href: '/dashboard/compliance', label: 'Compliance', icon: Scale },
+const ADMIN_ITEMS = [
+  { href: '/dashboard/approvals', label: 'Approvals', icon: CheckCircle, badgeKey: 'approvals' as const },
+  { href: '/dashboard/settlements', label: 'Settlements', icon: ArrowLeftRight },
+  { href: '/dashboard/compliance', label: 'Compliance Evidence', icon: Scale },
   { href: '/dashboard/audit', label: 'Audit Logs', icon: ScrollText },
   { href: '/dashboard/governance', label: 'Governance', icon: Shield },
   { href: '/dashboard/treasury', label: 'Treasury', icon: Landmark },
   { href: '/dashboard/contracts', label: 'Contracts', icon: Blocks },
-  { href: '/dashboard/demo/robinhood-tsla', label: 'Robinhood Demo', icon: Zap },
   { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
   { href: '/dashboard/team', label: 'Team', icon: Users },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
@@ -76,10 +79,12 @@ function NavItem({
 }
 
 export function Sidebar() {
+  const pathname = usePathname();
   const { organization } = useOrganization();
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
   const approvalCount = approvals?.total ?? 0;
   const orgInitials = organization?.name?.slice(0, 2).toUpperCase() ?? 'OR';
+  const adminOpen = ADMIN_ITEMS.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   return (
     <aside className="app-sidebar">
@@ -89,24 +94,29 @@ export function Sidebar() {
 
       <nav className="app-sidebar-nav">
         <div className="app-nav-section">
-          <span className="app-nav-label">MENU</span>
-          {MENU_ITEMS.map((item) => (
-            <NavItem
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-              badge={'badgeKey' in item && item.badgeKey === 'approvals' ? approvalCount : undefined}
-            />
+          <span className="app-nav-label">PRIMARY JOURNEY</span>
+          {PRIMARY_ITEMS.map((item) => (
+            <NavItem key={item.href} href={item.href} label={item.label} icon={item.icon} />
           ))}
         </div>
 
-        <div className="app-nav-section">
-          <span className="app-nav-label">PAGES</span>
-          {PAGE_ITEMS.map((item) => (
-            <NavItem key={item.href} {...item} />
-          ))}
-        </div>
+        <details className="app-nav-section" open={adminOpen}>
+          <summary className="app-nav-label flex cursor-pointer list-none items-center justify-between">
+            Evidence & Admin
+            <ChevronDown className="h-3.5 w-3.5" />
+          </summary>
+          <div className="mt-2 space-y-1">
+            {ADMIN_ITEMS.map((item) => (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                badge={'badgeKey' in item && item.badgeKey === 'approvals' ? approvalCount : undefined}
+              />
+            ))}
+          </div>
+        </details>
       </nav>
 
       <div className="app-sidebar-footer">

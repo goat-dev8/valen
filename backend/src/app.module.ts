@@ -20,6 +20,13 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { OperatorModule } from './modules/operator/operator.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AssetsModule } from './modules/assets/assets.module';
+import { RobinhoodModule } from './modules/robinhood/robinhood.module';
+import { Erc8004Module } from './modules/erc8004/erc8004.module';
+import { BudgetModule } from './modules/budget/budget.module';
+import { X402Module } from './modules/x402/x402.module';
+import { ProofsModule } from './modules/proofs/proofs.module';
 
 @Module({
   imports: [
@@ -44,6 +51,13 @@ import { OperatorModule } from './modules/operator/operator.module';
     WebhooksModule,
     AdminModule,
     OperatorModule,
+    DashboardModule,
+    AssetsModule,
+    RobinhoodModule,
+    Erc8004Module,
+    BudgetModule,
+    X402Module,
+    ProofsModule,
   ],
 })
 export class AppModule {}

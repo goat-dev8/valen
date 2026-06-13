@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useWallets } from '@privy-io/react-auth';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle, Copy, ExternalLink, ShieldCheck, Wallet } from 'lucide-react';
@@ -443,8 +444,11 @@ export default function WalletsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Wallet & Authority"
-        description="Verify owner wallet authority, then review the relayer, treasury, and settlement contract state."
+        description="Verify owner wallet authority, sign mandates, then run a governed action that ends in proof."
       >
+        <Link href="/dashboard/executions/new" className="app-btn app-btn-primary">
+          Execute Next
+        </Link>
         <select value={chainId} onChange={(e) => setChainId(Number(e.target.value))} className="app-input w-auto">
           <option value={421614}>Arbitrum Sepolia</option>
           <option value={46630}>Robinhood Testnet</option>

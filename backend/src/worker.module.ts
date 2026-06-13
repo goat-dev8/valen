@@ -10,6 +10,7 @@ import { ComplianceModule } from './modules/compliance/compliance.module';
 import { RiskModule } from './modules/risk/risk.module';
 import { SettlementModule } from './modules/settlement/settlement.module';
 import { StylusModule } from './modules/stylus/stylus.module';
+import { BudgetModule } from './modules/budget/budget.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { IntentProcessor } from './queues/processors/intent.processor';
@@ -66,6 +67,7 @@ const processors =
     RiskModule,
     SettlementModule,
     StylusModule,
+    BudgetModule,
     AuditModule,
     NotificationsModule,
   ],
