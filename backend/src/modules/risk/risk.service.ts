@@ -214,7 +214,7 @@ export class RiskWorkerService {
 
       if (execution.asset_address && execution.asset_address !== 'native') {
         const budget = await this.budgetService.evaluateExecution(execution);
-        if (!budget.allow) {
+        if (budget.budget && !budget.allow) {
           await this.riskScoresRepository.create({
             organizationId: execution.organization_id,
             executionId,

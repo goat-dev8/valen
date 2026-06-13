@@ -17,9 +17,13 @@ describe('RiskWorkerService', () => {
       enqueue: jest.fn(),
     };
 
+    const budgetService = {
+      evaluateExecution: jest.fn().mockResolvedValue({ allow: true, budget: null }),
+    };
     const worker = new RiskWorkerService(
       riskScoresRepository as never,
       executionsRepository as never,
+      budgetService as never,
       policyProducer as never,
     );
 

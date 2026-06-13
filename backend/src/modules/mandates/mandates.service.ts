@@ -8,6 +8,11 @@ import { OrganizationsRepository } from '../../database/repositories/organizatio
 import { PoliciesRepository } from '../../database/repositories/policies.repository';
 import { WalletVerificationsRepository } from '../../database/repositories/wallet-verifications.repository';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
+import {
+  ROBINHOOD_STOCK_TOKENS,
+  ROBINHOOD_TESTNET_USDG,
+  resolveRobinhoodTickerAddress,
+} from '../../common/constants/robinhood.constants';
 import { hashPayload } from '../../common/utils/hash.util';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 import {
@@ -105,7 +110,43 @@ function assetAllowed(allowedAssets: string[], assetAddress?: string | null): bo
   if (!allowedAssets.length || allowedAssets.includes('*')) return true;
   const asset = assetAddress?.trim();
   if (!asset) return allowedAssets.includes('native');
-  return allowedAssets.includes(asset) || allowedAssets.includes('native');
+
+  const normalizedAsset = asset.toLowerCase();
+  const normalizedAllowed = allowedAssets.map((entry) => entry.trim());
+  if (
+    normalizedAllowed.some(
+      (entry) => entry.toLowerCase() === normalizedAsset || entry === asset,
+    )
+  ) {
+    return true;
+  }
+  if (normalizedAllowed.includes('native')) return true;
+
+  const tickerAddress = resolveRobinhoodTickerAddress(asset);
+  if (tickerAddress && normalizedAllowed.includes(asset.toUpperCase())) {
+    return true;
+  }
+
+  for (const [symbol, token] of Object.entries(ROBINHOOD_STOCK_TOKENS)) {
+    if (
+      token.address.toLowerCase() === normalizedAsset &&
+      normalizedAllowed.includes(symbol)
+    ) {
+      return true;
+    }
+  }
+
+  if (
+    normalizedAsset === ROBINHOOD_TESTNET_USDG.toLowerCase() &&
+    normalizedAllowed.includes('USDG')
+  ) {
+    return true;
+  }
+  if (asset.toUpperCase() === 'USDG' && normalizedAllowed.includes(ROBINHOOD_TESTNET_USDG)) {
+    return true;
+  }
+
+  return false;
 }
 
 @Injectable()
