@@ -1,4 +1,5 @@
 import type { ExecutionDto } from '@/types/api';
+import { formatExecutionAmount, resolveExecutionAsset } from './execution-display';
 
 export type OutcomeKind = 'executed' | 'refused' | 'pending';
 
@@ -22,8 +23,8 @@ export function publicProofHref(execution: ExecutionDto): string {
 }
 
 export function assetSymbol(execution: ExecutionDto): string {
-  const robinhood = execution.metadata?.robinhood as { ticker?: string } | undefined;
-  if (robinhood?.ticker) return robinhood.ticker;
+  const resolved = resolveExecutionAsset(execution);
+  if (resolved) return resolved.symbol;
   if (execution.targetChainId === 421614) return 'USDC';
   if (execution.assetAddress && execution.assetAddress !== 'native') return 'TOKEN';
   return 'ETH';
@@ -33,7 +34,7 @@ export function outcomeHeadline(execution: ExecutionDto): string {
   const asset = assetSymbol(execution);
   const action = execution.actionType.replace(/_/g, ' ');
   const kind = outcomeKind(execution.status);
-  const amount = execution.valueAmount ? ` · ${execution.valueAmount}` : '';
+  const amount = execution.valueAmount ? ` · ${formatExecutionAmount(execution)}` : '';
   if (kind === 'executed') return `${asset} ${action} settled${amount}`;
   if (kind === 'refused') return `${asset} ${action} refused${amount}`;
   return `${asset} ${action} in progress${amount}`;
