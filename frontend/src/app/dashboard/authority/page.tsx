@@ -74,7 +74,7 @@ export default function AuthorityPage() {
       />
 
       <AuthorityExplainer
-        verifyComplete={Boolean(setup.verifiedForAuthorityChain)}
+        verifyComplete={Boolean(setup.verifiedForAuthorityChain(setup.chainId))}
         mandateComplete={mandateComplete}
         activePanel={activePanel}
         onOpenVerify={() => openPanel('verify')}
@@ -87,7 +87,7 @@ export default function AuthorityPage() {
       </div>
 
       <AuthorityWizardSteps
-        verifyComplete={Boolean(setup.verifiedForAuthorityChain)}
+        verifyComplete={Boolean(setup.verifiedForAuthorityChain(setup.chainId))}
         mandateComplete={mandateComplete}
         activePanel={activePanel}
         onStepClick={openPanel}
@@ -101,7 +101,7 @@ export default function AuthorityPage() {
             type="button"
             className="app-btn app-btn-primary mt-3"
             disabled={!setup.connectedWallet || setup.isSwitchingChain}
-            onClick={setup.handleSwitchWalletNetwork}
+            onClick={() => void setup.handleSwitchWalletNetwork(setup.chainId)}
           >
             {setup.isSwitchingChain ? 'Switching…' : `Switch to ${chainName(setup.chainId)}`}
           </button>
@@ -129,7 +129,7 @@ export default function AuthorityPage() {
                 connectedAddress={setup.connectedWallet?.address}
                 effectiveWalletChainId={setup.effectiveWalletChainId}
                 authorityChainId={setup.chainId}
-                verifiedForChain={setup.verifiedForAuthorityChain}
+                verifiedForChain={setup.verifiedForAuthorityChain(setup.chainId)}
                 isVerifying={setup.isVerifying}
                 canVerify={Boolean(setup.connectedWallet)}
                 onVerify={() => void setup.handleVerifyConnectedWallet()}
@@ -154,7 +154,7 @@ export default function AuthorityPage() {
                   agents={agents}
                   policies={setup.policies}
                   authorityChainId={setup.chainId}
-                  verified={Boolean(setup.verifiedForAuthorityChain)}
+                  verified={Boolean(setup.verifiedForAuthorityChain(setup.chainId))}
                   walletNeedsChainSwitch={setup.walletNeedsChainSwitch}
                   isSubmitting={setup.isSigningMandate || setup.isMandatePending}
                   onSubmit={(e) => void setup.handleCreateMandate(e)}

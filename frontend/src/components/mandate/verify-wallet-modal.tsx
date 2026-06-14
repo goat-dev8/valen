@@ -24,6 +24,8 @@ export function VerifyWalletModal({ open, onClose, onVerified, chainId: chainIdP
 
   if (!open) return null;
 
+  const verifiedOnChain = setup.verifiedForAuthorityChain(setup.chainId);
+
   const handleVerify = async () => {
     const ok = await setup.handleVerifyConnectedWallet();
     if (ok) {
@@ -86,7 +88,7 @@ export function VerifyWalletModal({ open, onClose, onVerified, chainId: chainIdP
                 type="button"
                 className="app-btn app-btn-primary mt-4"
                 disabled={!setup.connectedWallet || setup.isSwitchingChain}
-                onClick={setup.handleSwitchWalletNetwork}
+                onClick={() => void setup.handleSwitchWalletNetwork(setup.chainId)}
               >
                 {setup.isSwitchingChain ? 'Switching network…' : `Switch wallet to ${chainName(setup.chainId)}`}
               </button>
@@ -115,7 +117,7 @@ export function VerifyWalletModal({ open, onClose, onVerified, chainId: chainIdP
             </div>
             <div className="wallet-row">
               <span>Verification status</span>
-              <strong>{setup.verifiedForAuthorityChain ? 'Verified owner' : 'Not verified'}</strong>
+              <strong>{verifiedOnChain ? 'Verified owner' : 'Not verified'}</strong>
             </div>
             <div className="wallet-row">
               <span>Authority chain</span>
@@ -123,7 +125,7 @@ export function VerifyWalletModal({ open, onClose, onVerified, chainId: chainIdP
             </div>
           </div>
 
-          {setup.verifiedForAuthorityChain && (
+          {verifiedOnChain && (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
               <CheckCircle className="mr-2 inline h-4 w-4" />
               Wallet verified on {chainName(setup.chainId)}.
@@ -142,9 +144,9 @@ export function VerifyWalletModal({ open, onClose, onVerified, chainId: chainIdP
 
           <div className="flex flex-col-reverse gap-3 border-t border-[#E8ECF0] pt-4 sm:flex-row sm:justify-end">
             <button type="button" className="app-btn app-btn-outline" onClick={onClose}>
-              {setup.verifiedForAuthorityChain ? 'Done' : 'Cancel'}
+              {verifiedOnChain ? 'Done' : 'Cancel'}
             </button>
-            {!setup.verifiedForAuthorityChain && (
+            {!verifiedOnChain && (
               <button
                 type="button"
                 className="app-btn app-btn-primary"

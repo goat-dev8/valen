@@ -3,15 +3,24 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
-import { AgentIdentityDto } from '@/types/api';
 import { useRegisterErc8004 } from '@/hooks/use-valen-api';
 import { explorerAddressUrl, explorerTxUrl } from '@/lib/explorer';
 import { formatApiErrorMessage } from '@/lib/utils';
 
-type Erc8004Identity = AgentIdentityDto['erc8004'];
+type Erc8004IdentityFields = {
+  status: string;
+  registryAddress: string | null;
+  resolverAddress: string | null;
+  tokenId: string | null;
+  chainId: number;
+  ownerAddress: string | null;
+  metadataHash: string | null;
+  mintTxHash?: string | null;
+  mintedAt?: string | null;
+};
 
 type Erc8004BadgeProps = {
-  identity?: Erc8004Identity | null;
+  identity?: Erc8004IdentityFields | null;
   agentId?: string;
   publicSlug?: string | null;
 };
