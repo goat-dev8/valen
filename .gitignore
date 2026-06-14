@@ -11,6 +11,12 @@ node_modules/
 artifacts/
 cache/
 typechain-types/
+backend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# Documentation — root README only (planning docs stay local)
+*.md
+!/README.md
 
 # Rust / Stylus
 stylus/target/
@@ -68,4 +74,3 @@ contracts/artifacts/
 
 # Sentry
 .sentryclirc
-ARBITRUM_OPEN_HOUSE_LONDON_COMPLETE_ANALYSIS.md
