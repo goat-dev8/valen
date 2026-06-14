@@ -15,8 +15,8 @@ import type {
   AgentDto,
   ComplianceCheckDto,
   ExecutionDto,
-  ExecutionTimelineEventDto,
-  RiskEvaluationDto,
+  TimelineEventDto,
+  RiskScoreDto,
   SettlementDto,
 } from '@/types/api';
 
@@ -64,9 +64,9 @@ type ExecutionDetailViewProps = {
   ex: ExecutionDto;
   agent?: AgentDto | null;
   compliance?: ComplianceCheckDto[];
-  risk?: RiskEvaluationDto | null;
+  risk?: RiskScoreDto | null;
   settlement?: SettlementDto | null;
-  timeline?: ExecutionTimelineEventDto[];
+  timeline?: TimelineEventDto[];
   actionError?: string | null;
   approvalReason: string;
   onApprovalReasonChange: (value: string) => void;
