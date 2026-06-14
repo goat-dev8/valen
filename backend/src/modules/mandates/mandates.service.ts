@@ -8,6 +8,7 @@ import { OrganizationsRepository } from '../../database/repositories/organizatio
 import { PoliciesRepository } from '../../database/repositories/policies.repository';
 import { WalletVerificationsRepository } from '../../database/repositories/wallet-verifications.repository';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
+import { normalizeMandateAmountForDb } from '../../common/utils/mandate-amount-limit.util';
 import {
   ROBINHOOD_STOCK_TOKENS,
   ROBINHOOD_TESTNET_USDG,
@@ -257,8 +258,8 @@ export class MandatesService {
         scopeHash: typedDataHash,
         validFrom: new Date(),
         validUntil: new Date(dto.validUntil),
-        maxPerTransaction: dto.maxPerTransaction,
-        maxTotal: dto.maxTotal,
+        maxPerTransaction: normalizeMandateAmountForDb(dto.maxPerTransaction) ?? undefined,
+        maxTotal: normalizeMandateAmountForDb(dto.maxTotal) ?? undefined,
         signerAddress: signer.toLowerCase(),
         signature: dto.signature,
         typedDataHash,

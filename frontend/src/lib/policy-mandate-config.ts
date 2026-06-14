@@ -4,6 +4,7 @@ import {
   type PolicyTemplate,
 } from '@/lib/policy-templates';
 import type { PolicyDto } from '@/types/api';
+import { parseMandateAmountLimit } from '@/lib/mandate-amount-limit';
 
 export type PolicyMandateDefaults = {
   templateId: string;
@@ -14,8 +15,14 @@ export type PolicyMandateDefaults = {
   allowedAssets: string[];
   allowedActions: string[];
   allowedTargets: string[];
+  /** Human-readable limit shown in forms and signed mandate message. */
   maxPerTransaction: string;
   maxTotal: string;
+  /** Numeric amount for Postgres numeric columns. */
+  maxPerTransactionAmount: string;
+  maxTotalAmount: string;
+  maxPerTransactionUnit: string | null;
+  maxTotalUnit: string | null;
   approvalThreshold: string;
   expiresInDays: number;
 };
@@ -72,6 +79,8 @@ export function mandateDefaultsFromTemplate(template: PolicyTemplate): PolicyMan
   const defaultAssets =
     template.defaultAssets ??
     normalizePolicyAssets(permissions.allowedAssets ?? template.supportedAssets);
+  const maxPerTx = parseMandateAmountLimit(amountLimits.maxPerTransaction);
+  const maxTotal = parseMandateAmountLimit(amountLimits.maxTotal);
 
   return {
     templateId: template.id,
@@ -86,8 +95,12 @@ export function mandateDefaultsFromTemplate(template: PolicyTemplate): PolicyMan
       ? (permissions.allowedActions as string[])
       : ['transfer'],
     allowedTargets: normalizeTargets(permissions.allowedTargets),
-    maxPerTransaction: amountLimits.maxPerTransaction ?? '',
-    maxTotal: amountLimits.maxTotal ?? '',
+    maxPerTransaction: maxPerTx.display,
+    maxTotal: maxTotal.display,
+    maxPerTransactionAmount: maxPerTx.amount ?? '',
+    maxTotalAmount: maxTotal.amount ?? '',
+    maxPerTransactionUnit: maxPerTx.unit,
+    maxTotalUnit: maxTotal.unit,
     approvalThreshold: String(permissions.approvalThreshold ?? template.approvalMode),
     expiresInDays: Number(permissions.expiresInDays ?? 30),
   };

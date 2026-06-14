@@ -202,6 +202,16 @@ export function useAuthoritySetup(initialChainId?: number) {
         .filter((value) => Number.isFinite(value));
     const assetSymbols = form.getAll('allowedAssets').map(String).filter(Boolean);
     const actionValues = form.getAll('allowedActions').map(String).filter(Boolean);
+    const rawMaxPerTx =
+      String(form.get('maxPerTransaction') || '') ||
+      policyDefaults?.maxPerTransaction ||
+      policyDefaults?.maxPerTransactionAmount ||
+      '';
+    const rawMaxTotal =
+      String(form.get('maxTotal') || '') ||
+      policyDefaults?.maxTotal ||
+      policyDefaults?.maxTotalAmount ||
+      '';
     const body = {
       agentId: String(form.get('agentId')),
       policyId,
@@ -215,9 +225,8 @@ export function useAuthoritySetup(initialChainId?: number) {
         ? mandateAssetValues(assetSymbols)
         : mandateAssetValues(policyDefaults?.allowedAssets ?? DEFAULT_SUPPORTED_ASSETS),
       allowedTargets: commaList(form.get('allowedTargets'), policyDefaults?.allowedTargets ?? ['*']),
-      maxPerTransaction:
-        String(form.get('maxPerTransaction') || '') || policyDefaults?.maxPerTransaction || undefined,
-      maxTotal: String(form.get('maxTotal') || '') || policyDefaults?.maxTotal || undefined,
+      maxPerTransaction: rawMaxPerTx || undefined,
+      maxTotal: rawMaxTotal || undefined,
       approvalThreshold:
         String(form.get('approvalThreshold') || '') || policyDefaults?.approvalThreshold || undefined,
       validUntil,
