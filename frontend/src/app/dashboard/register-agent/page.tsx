@@ -4,15 +4,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Bot, FlaskConical, Globe, Server } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { AgentScopeFields } from '@/components/agents/agent-scope-fields';
 import { PageHeader } from '@/components/app/page-header';
 import {
-  AGENT_CAPABILITY_OPTIONS,
   AGENT_TYPE_OPTIONS,
-  type AgentCapability,
   type AgentTypeValue,
-  defaultCapabilitiesForType,
   setupStepsForType,
 } from '@/lib/agent-types';
+import {
+  DEFAULT_SUPPORTED_ACTIONS,
+  DEFAULT_SUPPORTED_ASSETS,
+  DEFAULT_SUPPORTED_NETWORKS,
+} from '@/lib/agent-scope';
 import { useCreateAgent, usePolicies } from '@/hooks/use-valen-api';
 import { formatApiErrorMessage } from '@/lib/utils';
 
@@ -29,7 +32,10 @@ export default function RegisterAgentPage() {
   const { data: policies } = usePolicies();
   const [error, setError] = useState<string | null>(null);
   const [agentType, setAgentType] = useState<AgentTypeValue>('hosted');
-  const [capabilities, setCapabilities] = useState<AgentCapability[]>(() => defaultCapabilitiesForType('hosted'));
+  const [supportedNetworks, setSupportedNetworks] = useState<number[]>(DEFAULT_SUPPORTED_NETWORKS);
+  const [supportedAssets, setSupportedAssets] = useState<string[]>(DEFAULT_SUPPORTED_ASSETS);
+  const [supportedActions, setSupportedActions] = useState<string[]>(DEFAULT_SUPPORTED_ACTIONS);
+  const [allAssets, setAllAssets] = useState(true);
 
   const activePolicies = useMemo(
     () => (policies ?? []).filter((policy) => policy.status === 'active'),
@@ -38,17 +44,6 @@ export default function RegisterAgentPage() {
 
   const selectedType = AGENT_TYPE_OPTIONS.find((option) => option.value === agentType) ?? AGENT_TYPE_OPTIONS[0];
   const setupSteps = setupStepsForType(agentType);
-
-  const handleTypeChange = (value: AgentTypeValue) => {
-    setAgentType(value);
-    setCapabilities(defaultCapabilitiesForType(value));
-  };
-
-  const toggleCapability = (value: AgentCapability) => {
-    setCapabilities((current) =>
-      current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
-    );
-  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -62,7 +57,9 @@ export default function RegisterAgentPage() {
         description: (formData.get('description') as string) || undefined,
         agentType,
         defaultPolicyId,
-        capabilities,
+        supportedNetworks,
+        supportedAssets: allAssets ? DEFAULT_SUPPORTED_ASSETS : supportedAssets,
+        supportedActions,
       });
 
       router.push(`/dashboard/agents/${agent.id}?welcome=1`);
@@ -133,7 +130,7 @@ export default function RegisterAgentPage() {
                         name="agentType"
                         value={option.value}
                         checked={selected}
-                        onChange={() => handleTypeChange(option.value)}
+                        onChange={() => setAgentType(option.value)}
                         className="sr-only"
                       />
                       <div className="flex items-start gap-3">
@@ -159,34 +156,16 @@ export default function RegisterAgentPage() {
               </div>
             </div>
 
-            <div className="app-form-group">
-              <span className="mb-2 block text-sm font-medium text-[#012b54]">Capabilities</span>
-              <div className="space-y-2">
-                {AGENT_CAPABILITY_OPTIONS.map((option) => {
-                  const checked = capabilities.includes(option.value);
-
-                  return (
-                    <label
-                      key={option.value}
-                      className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition ${
-                        checked ? 'border-[#007dfc]/40 bg-[#f8fbff]' : 'border-[#eef0f3]'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleCapability(option.value)}
-                        className="mt-1"
-                      />
-                      <span>
-                        <span className="block text-sm font-medium text-[#012b54]">{option.label}</span>
-                        <span className="mt-0.5 block text-xs leading-5 text-[#64748b]">{option.description}</span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
+            <AgentScopeFields
+              supportedNetworks={supportedNetworks}
+              onSupportedNetworksChange={setSupportedNetworks}
+              supportedAssets={supportedAssets}
+              onSupportedAssetsChange={setSupportedAssets}
+              supportedActions={supportedActions}
+              onSupportedActionsChange={setSupportedActions}
+              allAssets={allAssets}
+              onAllAssetsChange={setAllAssets}
+            />
 
             <div className="app-form-group">
               <label htmlFor="defaultPolicyId">Default Policy</label>

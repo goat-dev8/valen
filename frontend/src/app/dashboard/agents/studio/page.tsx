@@ -21,12 +21,9 @@ import {
   resolvePolicyTemplateByPolicyId,
 } from '@/lib/policy-mandate-config';
 import {
-  AGENT_CAPABILITY_OPTIONS,
   AGENT_TYPE_OPTIONS,
-  type AgentCapability,
   type AgentTypeValue,
   agentTypeLabel,
-  defaultCapabilitiesForType,
 } from '@/lib/agent-types';
 import {
   DEFAULT_SUPPORTED_ACTIONS,
@@ -76,7 +73,6 @@ export default function AgentStudioPage() {
   const { data: budget } = useBudget(agentId);
 
   const [agentType, setAgentType] = useState<AgentTypeValue>('hosted');
-  const [capabilities, setCapabilities] = useState<AgentCapability[]>(() => defaultCapabilitiesForType('hosted'));
   const [supportedNetworks, setSupportedNetworks] = useState<number[]>(DEFAULT_SUPPORTED_NETWORKS);
   const [supportedAssets, setSupportedAssets] = useState<string[]>(DEFAULT_SUPPORTED_ASSETS);
   const [supportedActions, setSupportedActions] = useState<string[]>(DEFAULT_SUPPORTED_ACTIONS);
@@ -157,11 +153,6 @@ export default function AgentStudioPage() {
     }
     if (agent.agentType) {
       setAgentType(agent.agentType as AgentTypeValue);
-      setCapabilities(
-        Array.isArray(agent.metadata?.capabilities)
-          ? (agent.metadata.capabilities as AgentCapability[])
-          : defaultCapabilitiesForType(agent.agentType as AgentTypeValue),
-      );
     }
     const scope = readAgentScope(agent.metadata);
     setSupportedNetworks(scope.supportedNetworks);

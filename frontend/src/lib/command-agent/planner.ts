@@ -68,7 +68,7 @@ export function buildCommandExecutionPlan(input: {
   if (!agent && parsed.kind === 'execution') {
     blockers.unshift({
       id: 'agent-match',
-      label: 'No agent with matching mandate and capabilities',
+      label: 'No agent with matching mandate scope',
       passed: false,
       href: '/dashboard/agents/studio',
       fixLabel: 'Create agent in-console',
