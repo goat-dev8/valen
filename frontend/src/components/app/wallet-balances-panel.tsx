@@ -7,9 +7,15 @@ type WalletBalancesPanelProps = {
   walletAddress?: string | null;
   chainId?: number;
   compact?: boolean;
+  layout?: 'stack' | 'grid';
 };
 
-export function WalletBalancesPanel({ walletAddress, chainId, compact = false }: WalletBalancesPanelProps) {
+export function WalletBalancesPanel({
+  walletAddress,
+  chainId,
+  compact = false,
+  layout = 'stack',
+}: WalletBalancesPanelProps) {
   const { data, isLoading, isError, refetch, isFetching } = useWalletBalances(walletAddress);
 
   if (!walletAddress) {
@@ -21,12 +27,12 @@ export function WalletBalancesPanel({ walletAddress, chainId, compact = false }:
   const rows = chainId != null ? data?.filter((row) => row.chainId === chainId) : data;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-[#012b54]">Your wallet balances</p>
+    <div className="wallet-balances-panel">
+      <div className="wallet-balances-panel__toolbar">
+        <p className="wallet-balances-panel__title">Your wallet balances</p>
         <button
           type="button"
-          className="text-xs font-medium text-[#007dfc] hover:underline disabled:opacity-50"
+          className="wallet-balances-panel__refresh"
           onClick={() => refetch()}
           disabled={isFetching}
         >
@@ -34,11 +40,15 @@ export function WalletBalancesPanel({ walletAddress, chainId, compact = false }:
         </button>
       </div>
 
-      {isLoading && <p className="text-sm text-[#64748b]">Loading balances from chain RPC…</p>}
-      {isError && <p className="text-sm text-red-600">Could not load balances. Try refresh.</p>}
+      {isLoading && <p className="wallet-balances-panel__hint">Loading balances from chain RPC…</p>}
+      {isError && <p className="wallet-balances-panel__error">Could not load balances. Try refresh.</p>}
 
-      {rows?.map((row) => (
-        <div key={row.chainId} className={`rounded-2xl border border-[#eef0f3] ${compact ? 'p-3' : 'p-4'}`}>
+      <div className={layout === 'grid' ? 'wallet-balances-panel__grid' : 'wallet-balances-panel__stack'}>
+        {rows?.map((row) => (
+          <div
+            key={row.chainId}
+            className={`wallet-balances-panel__chain ${compact ? 'wallet-balances-panel__chain--compact' : ''}`}
+          >
           <div className="mb-2 flex items-center justify-between gap-2">
             <ChainBadge chainId={row.chainId} />
             <span className="font-mono text-xs text-[#64748b]">{walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}</span>
@@ -56,10 +66,11 @@ export function WalletBalancesPanel({ walletAddress, chainId, compact = false }:
             ))}
           </div>
         </div>
-      ))}
+        ))}
+      </div>
 
       {!compact && (
-        <p className="text-xs leading-5 text-[#64748b]">
+        <p className="wallet-balances-panel__footnote">
           Balances are read directly from chain RPC (your Privy wallet). USDC, USDG, and Robinhood stock tokens use verified ERC-20 contract reads.
         </p>
       )}
