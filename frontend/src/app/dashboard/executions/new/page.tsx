@@ -10,15 +10,21 @@ import { PageHeader } from '@/components/app/page-header';
 import { IntentAgentPicker } from '@/components/execution/intent-agent-picker';
 import { IntentConfigPanel } from '@/components/execution/intent-config-panel';
 import { IntentContextSidebar } from '@/components/execution/intent-context-sidebar';
+import { IntentRequirementsPanel } from '@/components/execution/intent-requirements-panel';
 import { IntentReviewCard } from '@/components/execution/intent-review-card';
 import { IntentTemplatePicker } from '@/components/execution/intent-template-picker';
 import { IntentWizardNav } from '@/components/execution/intent-wizard-nav';
-import { useAgents, useCreateExecution, useMandates } from '@/hooks/use-valen-api';
+import { useAgents, useCreateExecution, useMandates, usePolicies } from '@/hooks/use-valen-api';
 import { useWalletBalanceForChain } from '@/hooks/use-wallet-balances';
 import { compareAmountToBalance } from '@/components/app/selected-asset-balance';
 import { INTENT_TEMPLATES, intentTemplateById, type IntentTemplate } from '@/lib/intent-templates';
 import { knownAssetForMandateValue, knownAssetsForChain, settlementLabelForAsset } from '@/lib/known-assets';
-import { mandateMatchesIntent } from '@/lib/mandate-match';
+import {
+  evaluateIntentEligibility,
+  findEligibleMandate,
+  intentRequirementsFromTemplate,
+  type IntentEligibilityResult,
+} from '@/lib/intent-eligibility';
 import { GOVERNED_INTENT_LABEL } from '@/lib/navigation';
 import { assetSelectValue, resolveIntentAssetForSubmit } from '@/lib/resolve-intent-asset';
 import { formatApiErrorMessage } from '@/lib/utils';
@@ -31,28 +37,13 @@ function robinhoodTickerFromTemplate(template: IntentTemplate): string | undefin
 function agentMatchesTemplate(
   agentId: string,
   template: IntentTemplate,
-  mandates: Array<{
-    status: string;
-    agentId: string;
-    allowedChains: number[];
-    allowedActions: string[];
-    allowedAssets: string[];
-    allowedTargets: string[];
-  }>,
+  mandates: import('@/types/api').MandateDto[],
   targetAddress: string,
   assetAddress: string,
+  policyName?: string | null,
 ): boolean {
-  return mandates.some((mandate) =>
-    mandateMatchesIntent({
-      mandate,
-      agentId,
-      chainId: template.targetChainId,
-      actionType: template.actionType,
-      templateId: template.id,
-      targetAddress,
-      assetAddress,
-    }),
-  );
+  const requirements = intentRequirementsFromTemplate(template, targetAddress, assetAddress);
+  return Boolean(findEligibleMandate(mandates, agentId, requirements, policyName ?? null));
 }
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -74,6 +65,7 @@ export default function SubmitIntentPage() {
   const connectedWallet = wallets[0]?.address;
   const { data: agents, isLoading: agentsLoading } = useAgents({ limit: 100, status: 'active' });
   const { data: mandates } = useMandates();
+  const { data: policies } = usePolicies();
   const createMutation = useCreateExecution();
   const [error, setError] = useState<string | null>(null);
 
@@ -101,21 +93,53 @@ export default function SubmitIntentPage() {
   });
 
   const selectedAgent = agents?.items.find((agent) => agent.id === agentId) ?? agents?.items[0];
-  const activeMandates = useMemo(
-    () =>
-      (mandates ?? []).filter((mandate) =>
-        mandateMatchesIntent({
-          mandate,
-          agentId: selectedAgent?.id,
-          chainId: selectedTemplate.targetChainId,
-          actionType: selectedTemplate.actionType,
-          templateId: selectedTemplate.id,
-          targetAddress,
-          assetAddress: resolvedSubmitAsset,
-        }),
-      ),
-    [mandates, selectedAgent?.id, selectedTemplate, targetAddress, resolvedSubmitAsset],
+  const intentRequirements = useMemo(
+    () => intentRequirementsFromTemplate(selectedTemplate, targetAddress, resolvedSubmitAsset),
+    [selectedTemplate, targetAddress, resolvedSubmitAsset],
   );
+
+  const agentEvaluations = useMemo(() => {
+    const map = new Map<string, IntentEligibilityResult>();
+    for (const agent of agents?.items ?? []) {
+      const match = findEligibleMandate(
+        mandates ?? [],
+        agent.id,
+        intentRequirements,
+        policies?.find((p) => p.id === agent.defaultPolicyId)?.name ?? null,
+      );
+      if (match) {
+        map.set(agent.id, match.result);
+        continue;
+      }
+      const agentMandates = (mandates ?? []).filter((m) => m.agentId === agent.id);
+      const best =
+        agentMandates.length > 0
+          ? evaluateIntentEligibility({
+              mandate: agentMandates[0],
+              requirements: intentRequirements,
+              policyName: policies?.find((p) => p.id === agent.defaultPolicyId)?.name ?? null,
+            })
+          : {
+              eligible: false,
+              checks: [],
+              failureReason: 'No active mandate on agent',
+              mandateStatus: 'missing' as const,
+            };
+      map.set(agent.id, best);
+    }
+    return map;
+  }, [agents?.items, mandates, intentRequirements, policies]);
+
+  const activeMandates = useMemo(() => {
+    if (!selectedAgent?.id) return [];
+    const match = findEligibleMandate(
+      mandates ?? [],
+      selectedAgent.id,
+      intentRequirements,
+      policies?.find((p) => p.id === selectedAgent.defaultPolicyId)?.name ?? null,
+    );
+    return match ? [match.mandate] : [];
+  }, [mandates, selectedAgent?.id, intentRequirements, policies]);
   const selectedMandate = activeMandates[0];
   const chainAssets = knownAssetsForChain(selectedTemplate.targetChainId);
   const settlementNote = settlementLabelForAsset(selectedTemplate.targetChainId, resolvedSubmitAsset);
@@ -129,20 +153,23 @@ export default function SubmitIntentPage() {
   const matchingAgents = useMemo(
     () =>
       (agents?.items ?? []).filter((agent) =>
-        agentMatchesTemplate(agent.id, selectedTemplate, mandates ?? [], targetAddress, resolvedSubmitAsset),
+        agentEvaluations.get(agent.id)?.eligible,
       ),
-    [agents?.items, selectedTemplate, mandates, targetAddress, resolvedSubmitAsset],
+    [agents?.items, agentEvaluations],
   );
   const matchingAgentIds = useMemo(() => new Set(matchingAgents.map((a) => a.id)), [matchingAgents]);
+
+  const selectedEvaluation = agentId ? agentEvaluations.get(agentId) : undefined;
 
   const submitBlockedReason = !selectedAgent
     ? 'Select an active agent.'
     : !selectedAgent.defaultPolicyId
       ? 'Selected agent needs an assigned policy.'
       : !selectedMandate
-        ? matchingAgents.length
-          ? `No mandate for this agent. Try "${matchingAgents[0]?.name}" — it has a matching mandate.`
-          : 'No active mandate matches this agent, chain, action, and target.'
+        ? selectedEvaluation?.failureReason ??
+          (matchingAgents.length
+            ? `Select an eligible agent — ${matchingAgents[0]?.name} has a matching mandate snapshot.`
+            : 'No agent has an active mandate snapshot matching this intent.')
         : null;
 
   const { data: chainBalance } = useWalletBalanceForChain(connectedWallet, selectedTemplate.targetChainId);
@@ -168,7 +195,7 @@ export default function SubmitIntentPage() {
       complete: Boolean(selectedAgent?.defaultPolicyId),
       href: selectedAgent ? `/dashboard/agents/${selectedAgent.id}` : '/dashboard/agents',
     },
-    { label: 'Matching mandate', complete: Boolean(selectedMandate), href: '/dashboard/authority' },
+    { label: 'Mandate snapshot match', complete: Boolean(selectedMandate), href: '/dashboard/authority' },
   ];
 
   useEffect(() => {
@@ -195,12 +222,21 @@ export default function SubmitIntentPage() {
     if (
       preferred &&
       agents.items.some((a) => a.id === preferred) &&
-      agentMatchesTemplate(preferred, selectedTemplate, mandates, targetAddress, resolvedSubmitAsset)
+      agentMatchesTemplate(
+        preferred,
+        selectedTemplate,
+        mandates ?? [],
+        targetAddress,
+        resolvedSubmitAsset,
+        agents.items.find((a) => a.id === preferred)?.defaultPolicyId
+          ? policies?.find((p) => p.id === agents.items.find((a) => a.id === preferred)?.defaultPolicyId)?.name
+          : null,
+      )
     ) {
       if (agentId !== preferred) setAgentId(preferred);
       return;
     }
-    if (agentId && agentMatchesTemplate(agentId, selectedTemplate, mandates, targetAddress, resolvedSubmitAsset)) {
+    if (agentId && agentEvaluations.get(agentId)?.eligible) {
       return;
     }
     if (matchingAgents[0] && matchingAgents[0].id !== agentId) {
@@ -320,15 +356,18 @@ export default function SubmitIntentPage() {
               )}
 
               {wizardStep === 2 && (
-                <IntentAgentPicker
-                  agents={agents.items}
-                  matchingAgentIds={matchingAgentIds}
-                  selectedId={agentId || selectedAgent?.id || ''}
-                  templateName={selectedTemplate.name}
-                  onSelect={setAgentId}
-                  onBack={() => goToStep(1)}
-                  onContinue={() => goToStep(3)}
-                />
+                <>
+                  <IntentRequirementsPanel requirements={intentRequirements} />
+                  <IntentAgentPicker
+                    agents={agents.items}
+                    evaluations={agentEvaluations}
+                    selectedId={agentId || selectedAgent?.id || ''}
+                    templateName={selectedTemplate.name}
+                    onSelect={setAgentId}
+                    onBack={() => goToStep(1)}
+                    onContinue={() => goToStep(3)}
+                  />
+                </>
               )}
 
               {wizardStep === 3 && (

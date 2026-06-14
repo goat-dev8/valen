@@ -16,6 +16,7 @@ import {
   mandateDefaultsFromPolicyId,
   type PolicyMandateDefaults,
 } from '@/lib/policy-mandate-config';
+import { buildMandateScopeSnapshot } from '@/lib/intent-eligibility';
 
 type SignMandateModalProps = {
   open: boolean;
@@ -129,6 +130,21 @@ export function SignMandateModal({
   const activeDefaults = selectedPolicyId
     ? mandateDefaultsFromPolicyId(setup.policies, selectedPolicyId)
     : null;
+  const finalScopePreview = buildMandateScopeSnapshot({
+    mandateId: 'preview',
+    policyId: selectedPolicyId || null,
+    policyName: activeDefaults?.policyName ?? null,
+    riskLevel: activeDefaults?.riskLevel ?? null,
+    allowedChains,
+    allowedActions,
+    allowedAssets: allAssets ? DEFAULT_SUPPORTED_ASSETS : allowedAssets,
+    maxPerTransaction: maxPerTransaction || null,
+    maxTotal: maxTotal || null,
+    approvalThreshold: approvalThreshold || null,
+    validUntil: new Date(Date.now() + validDays * 86400000).toISOString(),
+    signedAt: new Date().toISOString(),
+    agentScopeHash: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     if (!allowedChains.length) {
@@ -298,6 +314,17 @@ export function SignMandateModal({
                 value={approvalThreshold}
                 onChange={(e) => setApprovalThreshold(e.target.value)}
               />
+            </div>
+
+            <div className="rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4 text-sm text-[#012b54]">
+              <p className="font-semibold">Final agent scope (mandate snapshot)</p>
+              <dl className="intent-requirements-panel__grid mt-3">
+                <div><dt>Policy</dt><dd>{finalScopePreview.policyName ?? '—'}</dd></div>
+                <div><dt>Risk</dt><dd>{finalScopePreview.riskLevel ?? '—'}</dd></div>
+                <div className="sm:col-span-2"><dt>Actions</dt><dd>{finalScopePreview.actions.join(', ')}</dd></div>
+                <div className="sm:col-span-2"><dt>Assets</dt><dd>{finalScopePreview.assets.join(', ')}</dd></div>
+                <div className="sm:col-span-2"><dt>Networks</dt><dd>{finalScopePreview.networkLabels.join(', ')}</dd></div>
+              </dl>
             </div>
 
             {!verifiedOnSigningChain && (

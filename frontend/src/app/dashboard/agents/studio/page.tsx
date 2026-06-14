@@ -179,7 +179,6 @@ export default function AgentStudioPage() {
   };
 
   const scopePayload = () => ({
-    capabilities,
     supportedNetworks,
     supportedAssets: allAssets ? DEFAULT_SUPPORTED_ASSETS : supportedAssets,
     supportedActions,
@@ -333,7 +332,6 @@ export default function AgentStudioPage() {
                         type="button"
                         onClick={() => {
                           setAgentType(option.value);
-                          setCapabilities(defaultCapabilitiesForType(option.value));
                         }}
                         className={`flex items-start gap-2 rounded-xl border p-3 text-left ${selected ? 'border-[#0066FF] bg-[#EBF2FF]/50' : 'border-[#E8ECF0]'}`}
                       >
@@ -345,26 +343,6 @@ export default function AgentStudioPage() {
                       </button>
                     );
                   })}
-                </div>
-              </div>
-              <div className="app-form-group">
-                <span className="mb-2 block text-sm font-medium">Capabilities</span>
-                <div className="space-y-2">
-                  {AGENT_CAPABILITY_OPTIONS.map((option) => (
-                    <label key={option.value} className="flex items-start gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={capabilities.includes(option.value)}
-                        onChange={() =>
-                          setCapabilities((cur) =>
-                            cur.includes(option.value) ? cur.filter((v) => v !== option.value) : [...cur, option.value],
-                          )
-                        }
-                        className="mt-1"
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  ))}
                 </div>
               </div>
               <AgentScopeFields
@@ -456,7 +434,6 @@ export default function AgentStudioPage() {
               <div><dt>Assets</dt><dd>{(policyGovernanceDefaults?.allowedAssets ?? (allAssets ? DEFAULT_SUPPORTED_ASSETS : supportedAssets)).join(', ')}</dd></div>
               <div><dt>Actions</dt><dd>{(policyGovernanceDefaults?.allowedActions ?? supportedActions).map((action) => action.replace(/_/g, ' ')).join(', ')}</dd></div>
               <div><dt>Owner wallet</dt><dd className="font-mono text-xs">{ownerWallet?.walletAddress ?? 'Not verified'}</dd></div>
-              <div><dt>Capabilities</dt><dd>{capabilities.map((c) => c.replace(/_/g, ' ')).join(', ')}</dd></div>
               {activeMandate && (
                 <div><dt>Mandate chains</dt><dd>{(activeMandate.allowedChains ?? []).map((id) => networkLabel(id)).join(', ')}</dd></div>
               )}

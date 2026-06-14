@@ -26,6 +26,7 @@ export interface MandateRow {
   allowed_assets: string[];
   allowed_targets: string[];
   approval_threshold: string | null;
+  scope_snapshot: Record<string, unknown> | null;
   created_by_user_id: string | null;
   created_at: Date;
   updated_at: Date;
@@ -58,6 +59,7 @@ export class MandatesRepository extends BaseRepository {
     allowedAssets: string[];
     allowedTargets: string[];
     approvalThreshold?: string;
+    scopeSnapshot: Record<string, unknown>;
   }): Promise<MandateRow> {
     const row = await this.queryOne<MandateRow>(
       `INSERT INTO mandates (
@@ -81,10 +83,11 @@ export class MandatesRepository extends BaseRepository {
          allowed_assets,
          allowed_targets,
          approval_threshold,
+         scope_snapshot,
          created_by_user_id
        )
        VALUES (
-         $1,$2,$3,$4,$5,$6,'active',$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19,$20
+         $1,$2,$3,$4,$5,$6,'active',$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,$18,$19,$20,$21
        )
        RETURNING *`,
       [
@@ -107,6 +110,7 @@ export class MandatesRepository extends BaseRepository {
         input.allowedAssets,
         input.allowedTargets,
         input.approvalThreshold ?? null,
+        JSON.stringify(input.scopeSnapshot),
         input.userId,
       ],
     );
@@ -136,5 +140,23 @@ export class MandatesRepository extends BaseRepository {
        RETURNING *`,
       [organizationId, mandateId],
     );
+  }
+
+  async updateScopeSnapshot(mandateId: string, snapshot: Record<string, unknown>): Promise<void> {
+    await this.queryOne(
+      `UPDATE mandates SET scope_snapshot = $2::jsonb, updated_at = now() WHERE id = $1 RETURNING id`,
+      [mandateId, JSON.stringify(snapshot)],
+    );
+  }
+
+  async markStaleForAgent(organizationId: string, agentId: string): Promise<number> {
+    const rows = await this.queryMany<{ id: string }>(
+      `UPDATE mandates
+       SET status = 'stale', updated_at = now()
+       WHERE organization_id = $1 AND agent_id = $2 AND status = 'active'
+       RETURNING id`,
+      [organizationId, agentId],
+    );
+    return rows.length;
   }
 }

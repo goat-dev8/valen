@@ -33,6 +33,7 @@ import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
 import { agentReadinessSummary, buildAgentReadinessSteps } from '@/lib/agent-readiness';
 import { agentTypeLabel, agentTypeOption } from '@/lib/agent-types';
 import { readAgentScope } from '@/lib/agent-scope';
+import { agentScopeFromSnapshot, resolveMandateSnapshot } from '@/lib/intent-eligibility';
 import { executionAssetSymbol, formatExecutionAmount } from '@/lib/execution-display';
 import { publicProofHref } from '@/lib/proof-outcomes';
 
@@ -92,10 +93,14 @@ export default function AgentDetailPage() {
     ) ?? [];
   const hasVerifiedWallet = walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false;
   const typeMeta = agent ? agentTypeOption(agent.agentType) : null;
-  const capabilities = Array.isArray(agent?.metadata?.capabilities)
-    ? agent.metadata.capabilities.filter((item): item is string => typeof item === 'string')
-    : [];
-  const scope = readAgentScope(agent?.metadata);
+  const activeMandate = agentMandates[0] ?? mandates?.find((m) => m.agentId === agentId && m.status === 'active');
+  const mandateScope = activeMandate ? agentScopeFromSnapshot(resolveMandateSnapshot(activeMandate)) : null;
+  const draftScope = readAgentScope(agent?.metadata);
+  const scopeSource = mandateScope ? 'Active mandate snapshot' : 'Agent draft scope (no active mandate)';
+  const displayActions = mandateScope?.actions ?? draftScope.supportedActions.map((a) => a.replace(/_/g, ' '));
+  const displayAssets = mandateScope?.assets ?? draftScope.supportedAssets;
+  const displayNetworkIds = mandateScope ? undefined : draftScope.supportedNetworks;
+  const displayNetworks = mandateScope?.networks;
   const proofCount = executions?.items.filter((ex) => ex.status === 'executed').length ?? 0;
   const lastExecution = executions?.items[0]?.createdAt ?? null;
   const budgetOk = Boolean(budget?.remaining && Number(budget.remaining) > 0);
@@ -381,7 +386,8 @@ export default function AgentDetailPage() {
               />
 
               <div className="app-card">
-                <h3 className="app-card-title mb-3">Agent Profile</h3>
+                <h3 className="app-card-title mb-1">Agent scope</h3>
+                <p className="mb-3 text-xs text-[#64748b]">{scopeSource}</p>
                 <dl className="app-detail-list">
                   <div>
                     <dt>Type</dt>
@@ -391,33 +397,26 @@ export default function AgentDetailPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt>Supported networks</dt>
-                    <dd><AgentNetworksRow chainIds={scope.supportedNetworks} /></dd>
+                    <dt>Actions</dt>
+                    <dd>{displayActions.join(', ') || '—'}</dd>
                   </div>
                   <div>
-                    <dt>Supported assets</dt>
-                    <dd>{scope.supportedAssets.join(', ')}</dd>
+                    <dt>Assets</dt>
+                    <dd>{displayAssets.join(', ') || '—'}</dd>
                   </div>
                   <div>
-                    <dt>Capabilities</dt>
+                    <dt>Networks</dt>
                     <dd>
-                      {capabilities.length ? (
-                        <div className="flex flex-wrap gap-2">
-                          {capabilities.map((capability) => (
-                            <span
-                              key={capability}
-                              className="rounded-full bg-[#f1f5f9] px-2.5 py-1 text-xs font-medium capitalize text-[#012b54]"
-                            >
-                              {capability.replace(/_/g, ' ')}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        '—'
-                      )}
+                      {displayNetworks ? displayNetworks.join(', ') : <AgentNetworksRow chainIds={displayNetworkIds ?? []} />}
                     </dd>
                   </div>
-                  <div><dt>Default Policy</dt><dd>{policyName ?? agent.defaultPolicyId ?? '—'}</dd></div>
+                  <div><dt>Policy</dt><dd>{mandateScope?.policyName ?? policyName ?? agent.defaultPolicyId ?? '—'}</dd></div>
+                  {mandateScope?.riskLevel && (
+                    <div><dt>Risk</dt><dd>{mandateScope.riskLevel}</dd></div>
+                  )}
+                  {activeMandate && (
+                    <div><dt>Mandate status</dt><dd>{activeMandate.status === 'stale' ? 'Stale — re-sign required' : activeMandate.status}</dd></div>
+                  )}
                   <div><dt>Description</dt><dd>{agent.description ?? '—'}</dd></div>
                   <div><dt>Created</dt><dd>{new Date(agent.createdAt).toLocaleString()}</dd></div>
                 </dl>

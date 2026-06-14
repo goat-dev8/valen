@@ -56,21 +56,23 @@ export function AgentScopeFields(props: AgentScopeFieldsProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="agent-scope-fields space-y-4">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0066FF]">Agent scope</p>
+
       <div className="app-form-group">
-        <span className="mb-2 block text-sm font-medium">Supported networks</span>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {AGENT_NETWORKS.map((network) => (
+        <span className="mb-2 block text-sm font-medium">Actions</span>
+        <div className="flex flex-wrap gap-2">
+          {AGENT_ACTION_OPTIONS.map((action) => (
             <label
-              key={network.chainId}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#E8ECF0] bg-[#FAFBFC] px-3 py-2.5 text-sm"
+              key={action.value}
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#E8ECF0] bg-[#FAFBFC] px-3 py-2 text-sm"
             >
               <input
                 type="checkbox"
-                checked={supportedNetworks.includes(network.chainId)}
-                onChange={() => toggleNetwork(network.chainId)}
+                checked={supportedActions.includes(action.value)}
+                onChange={() => toggleAction(action.value)}
               />
-              {network.label}
+              {action.label}
             </label>
           ))}
         </div>
@@ -78,7 +80,7 @@ export function AgentScopeFields(props: AgentScopeFieldsProps) {
 
       <div className="app-form-group">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium">Supported assets</span>
+          <span className="text-sm font-medium">Assets</span>
           <button
             type="button"
             className="text-xs font-semibold text-[#0066FF] hover:underline"
@@ -108,19 +110,19 @@ export function AgentScopeFields(props: AgentScopeFieldsProps) {
       </div>
 
       <div className="app-form-group">
-        <span className="mb-2 block text-sm font-medium">Supported actions</span>
-        <div className="flex flex-wrap gap-2">
-          {AGENT_ACTION_OPTIONS.map((action) => (
+        <span className="mb-2 block text-sm font-medium">Networks</span>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {AGENT_NETWORKS.map((network) => (
             <label
-              key={action.value}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#E8ECF0] bg-[#FAFBFC] px-3 py-2 text-sm"
+              key={network.chainId}
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#E8ECF0] bg-[#FAFBFC] px-3 py-2.5 text-sm"
             >
               <input
                 type="checkbox"
-                checked={supportedActions.includes(action.value)}
-                onChange={() => toggleAction(action.value)}
+                checked={supportedNetworks.includes(network.chainId)}
+                onChange={() => toggleNetwork(network.chainId)}
               />
-              {action.label}
+              {network.label}
             </label>
           ))}
         </div>

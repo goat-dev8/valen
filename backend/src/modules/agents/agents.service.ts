@@ -4,9 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AgentsRepository } from '../../database/repositories/agents.repository';
+import { MandatesRepository } from '../../database/repositories/mandates.repository';
 import { PoliciesRepository } from '../../database/repositories/policies.repository';
 import { AuditLogsRepository } from '../../database/repositories/audit-logs.repository';
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
+import { computeAgentScopeHash } from '../../common/utils/mandate-scope.util';
 import { hashPayload } from '../../common/utils/hash.util';
 import {
   AgentResponseDto,
@@ -19,6 +21,7 @@ import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.in
 export class AgentsService {
   constructor(
     private readonly agentsRepository: AgentsRepository,
+    private readonly mandatesRepository: MandatesRepository,
     private readonly policiesRepository: PoliciesRepository,
     private readonly auditLogsRepository: AuditLogsRepository,
   ) {}
@@ -138,6 +141,14 @@ export class AgentsService {
     }
 
     const metadata = { ...agent.metadata };
+    const scopeChanged =
+      (dto.supportedNetworks &&
+        JSON.stringify(dto.supportedNetworks) !== JSON.stringify(metadata.supportedNetworks)) ||
+      (dto.supportedAssets &&
+        JSON.stringify(dto.supportedAssets) !== JSON.stringify(metadata.supportedAssets)) ||
+      (dto.supportedActions &&
+        JSON.stringify(dto.supportedActions) !== JSON.stringify(metadata.supportedActions));
+
     if (dto.capabilities) {
       metadata.capabilities = dto.capabilities;
     }
@@ -167,6 +178,10 @@ export class AgentsService {
       entityId: agentId,
       eventHash: hashPayload({ agentId, dto }),
     });
+
+    if (scopeChanged) {
+      await this.mandatesRepository.markStaleForAgent(organizationId, agentId);
+    }
 
     return this.toDto(updated!);
   }

@@ -193,6 +193,7 @@ export type MandateDto = {
   signature: string;
   validUntil: string;
   createdAt: string;
+  scopeSnapshot?: import('@/lib/intent-eligibility').MandateScopeSnapshot;
 };
 
 export type ApiKeyDto = {

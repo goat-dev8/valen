@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Bot, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowRight, Bot, CheckCircle } from 'lucide-react';
+import { AgentEligibilityEvaluation } from '@/components/execution/agent-eligibility-evaluation';
+import type { IntentEligibilityResult } from '@/lib/intent-eligibility';
 import type { AgentDto } from '@/types/api';
 
 type IntentAgentPickerProps = {
   agents: AgentDto[];
-  matchingAgentIds: Set<string>;
+  evaluations: Map<string, IntentEligibilityResult>;
   selectedId: string;
   templateName: string;
   onSelect: (agentId: string) => void;
@@ -16,14 +18,15 @@ type IntentAgentPickerProps = {
 
 export function IntentAgentPicker({
   agents,
-  matchingAgentIds,
+  evaluations,
   selectedId,
   templateName,
   onSelect,
   onBack,
   onContinue,
 }: IntentAgentPickerProps) {
-  const selectedMatches = selectedId ? matchingAgentIds.has(selectedId) : false;
+  const selectedEval = selectedId ? evaluations.get(selectedId) : undefined;
+  const selectedEligible = selectedEval?.eligible ?? false;
 
   return (
     <div className="intent-agent-picker">
@@ -31,55 +34,59 @@ export function IntentAgentPicker({
         <p className="intent-step-eyebrow">Step 2</p>
         <h2 className="intent-step-title">Which agent runs this?</h2>
         <p className="intent-step-desc">
-          Only agents with a matching mandate for <strong>{templateName}</strong> can submit this intent.
+          Eligibility is evaluated from each agent&apos;s <strong>active mandate snapshot</strong> for{' '}
+          <strong>{templateName}</strong>.
         </p>
       </div>
 
-      <div className="intent-agent-grid">
+      <div className="intent-agent-grid space-y-3">
         {agents.map((agent) => {
-          const matches = matchingAgentIds.has(agent.id);
+          const evaluation = evaluations.get(agent.id);
+          const eligible = evaluation?.eligible ?? false;
           const selected = agent.id === selectedId;
 
           return (
-            <button
-              key={agent.id}
-              type="button"
-              onClick={() => onSelect(agent.id)}
-              className={`intent-agent-card ${selected ? 'intent-agent-card--selected' : ''} ${
-                matches ? 'intent-agent-card--ready' : 'intent-agent-card--blocked'
-              }`}
-            >
-              <span className="intent-agent-card__avatar">
-                <Bot className="h-5 w-5" />
-              </span>
-              <span className="min-w-0 flex-1 text-left">
-                <span className="intent-agent-card__name">{agent.name}</span>
-                <span className="intent-agent-card__status">
-                  {matches ? (
-                    <>
-                      <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
-                      Mandate matches
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
-                      No matching mandate
-                    </>
-                  )}
+            <div key={agent.id} className="space-y-2">
+              <button
+                type="button"
+                onClick={() => onSelect(agent.id)}
+                className={`intent-agent-card w-full ${selected ? 'intent-agent-card--selected' : ''} ${
+                  eligible ? 'intent-agent-card--ready' : 'intent-agent-card--blocked'
+                }`}
+              >
+                <span className="intent-agent-card__avatar">
+                  <Bot className="h-5 w-5" />
                 </span>
-              </span>
-              {selected && <CheckCircle className="h-5 w-5 shrink-0 text-[#0066FF]" aria-hidden />}
-            </button>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="intent-agent-card__name">{agent.name}</span>
+                  <span className="intent-agent-card__status">
+                    {eligible ? (
+                      <>
+                        <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                        Eligible — mandate snapshot match
+                      </>
+                    ) : (
+                      <span className="text-amber-800">{evaluation?.failureReason ?? 'Mandate scope mismatch'}</span>
+                    )}
+                  </span>
+                </span>
+                {selected && <CheckCircle className="h-5 w-5 shrink-0 text-[#0066FF]" aria-hidden />}
+              </button>
+              {evaluation && (selected || !eligible) && (
+                <AgentEligibilityEvaluation agentName={agent.name} result={evaluation} />
+              )}
+            </div>
           );
         })}
       </div>
 
-      {!selectedMatches && selectedId && (
+      {!selectedEligible && selectedId && selectedEval && (
         <p className="intent-hint intent-hint--warn">
-          This agent needs an active mandate for this chain and action.{' '}
+          {selectedEval.failureReason}. Re-sign mandate with required scope on{' '}
           <Link href="/dashboard/authority" className="font-semibold text-[#0066FF] hover:underline">
-            Set up authority →
+            Authority
           </Link>
+          .
         </p>
       )}
 
@@ -87,7 +94,7 @@ export function IntentAgentPicker({
         <button type="button" className="app-btn app-btn-outline" onClick={onBack}>
           Back
         </button>
-        <button type="button" className="app-btn app-btn-primary" onClick={onContinue} disabled={!selectedId}>
+        <button type="button" className="app-btn app-btn-primary" onClick={onContinue} disabled={!selectedEligible}>
           Continue
           <ArrowRight className="h-4 w-4" />
         </button>

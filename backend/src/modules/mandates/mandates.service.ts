@@ -10,6 +10,13 @@ import { WalletVerificationsRepository } from '../../database/repositories/walle
 import { ErrorCodes } from '../../common/constants/error-codes.constant';
 import { normalizeMandateAmountForDb } from '../../common/utils/mandate-amount-limit.util';
 import {
+  buildMandateScopeSnapshot,
+  computeAgentScopeHash,
+  evaluateIntentEligibility,
+  snapshotFromMandateRow,
+  type IntentRequirements,
+} from '../../common/utils/mandate-scope.util';
+import {
   ROBINHOOD_STOCK_TOKENS,
   ROBINHOOD_TESTNET_USDG,
   resolveRobinhoodTickerAddress,
@@ -249,6 +256,27 @@ export class MandatesService {
     }
 
     try {
+      const agent = await this.agentsRepository.findByOrgAndId(organizationId, dto.agentId);
+      const policy = dto.policyId
+        ? await this.policiesRepository.findByOrgAndId(organizationId, dto.policyId)
+        : null;
+      const signedAt = new Date().toISOString();
+      const scopeSnapshot = buildMandateScopeSnapshot({
+        mandateId: 'pending',
+        policyId: dto.policyId ?? null,
+        policyName: policy?.name ?? null,
+        riskLevel: null,
+        allowedChains: dto.allowedChains,
+        allowedActions: dto.allowedActions,
+        allowedAssets: dto.allowedAssets,
+        maxPerTransaction: dto.maxPerTransaction ?? null,
+        maxTotal: dto.maxTotal ?? null,
+        approvalThreshold: dto.approvalThreshold ?? null,
+        validUntil: new Date(dto.validUntil).toISOString(),
+        signedAt,
+        agentScopeHash: computeAgentScopeHash(agent?.metadata ?? {}),
+      });
+
       const row = await this.mandatesRepository.createSigned({
         organizationId,
         agentId: dto.agentId,
@@ -269,7 +297,28 @@ export class MandatesService {
         allowedAssets: dto.allowedAssets,
         allowedTargets: dto.allowedTargets,
         approvalThreshold: dto.approvalThreshold,
+        scopeSnapshot: {
+          ...scopeSnapshot,
+          mandateId: 'pending',
+        },
       });
+
+      const finalizedSnapshot = buildMandateScopeSnapshot({
+        mandateId: row.id,
+        policyId: dto.policyId ?? null,
+        policyName: policy?.name ?? null,
+        riskLevel: null,
+        allowedChains: dto.allowedChains,
+        allowedActions: dto.allowedActions,
+        allowedAssets: dto.allowedAssets,
+        maxPerTransaction: dto.maxPerTransaction ?? null,
+        maxTotal: dto.maxTotal ?? null,
+        approvalThreshold: dto.approvalThreshold ?? null,
+        validUntil: new Date(dto.validUntil).toISOString(),
+        signedAt,
+        agentScopeHash: computeAgentScopeHash(agent?.metadata ?? {}),
+      });
+      await this.mandatesRepository.updateScopeSnapshot(row.id, finalizedSnapshot as unknown as Record<string, unknown>);
 
       await this.auditLogsRepository.append({
         organizationId,
@@ -319,6 +368,12 @@ export class MandatesService {
         message: 'Active signed mandate is required',
       });
     }
+    if (mandate.status === 'stale') {
+      throw new BadRequestException({
+        code: ErrorCodes.DOMAIN_REJECTED,
+        message: 'Mandate is stale — agent scope changed after signing. Re-sign mandate.',
+      });
+    }
     if (mandate.status !== 'active') {
       throw new BadRequestException({
         code: ErrorCodes.DOMAIN_REJECTED,
@@ -339,28 +394,32 @@ export class MandatesService {
         message: 'Mandate is expired or not yet valid',
       });
     }
-    if (mandate.allowed_chains?.length && !mandate.allowed_chains.includes(context.targetChainId)) {
+    const snapshot = snapshotFromMandateRow(mandate);
+    const requirements: IntentRequirements = {
+      assetSymbol: context.assetAddress ?? 'Asset',
+      actionLabel: context.actionType,
+      actionType: context.actionType,
+      networkId: context.targetChainId,
+      networkLabel: String(context.targetChainId),
+      policyName: 'Any',
+      targetAddress: context.targetAddress ?? undefined,
+      assetAddress: context.assetAddress,
+    };
+    const eligibility = evaluateIntentEligibility({
+      mandate: {
+        id: mandate.id,
+        status: mandate.status,
+        agentId: mandate.agent_id,
+        policyId: mandate.policy_id,
+        validUntil: mandate.valid_until.toISOString(),
+        scopeSnapshot: snapshot,
+      },
+      requirements,
+    });
+    if (!eligibility.eligible) {
       throw new BadRequestException({
         code: ErrorCodes.DOMAIN_REJECTED,
-        message: 'Mandate does not allow this chain',
-      });
-    }
-    if (!actionAllowed(mandate.allowed_actions ?? [], context.actionType)) {
-      throw new BadRequestException({
-        code: ErrorCodes.DOMAIN_REJECTED,
-        message: 'Mandate does not allow this action type',
-      });
-    }
-    if (!targetAllowed(mandate.allowed_targets ?? [], context.targetAddress)) {
-      throw new BadRequestException({
-        code: ErrorCodes.DOMAIN_REJECTED,
-        message: 'Mandate does not allow this target',
-      });
-    }
-    if (!assetAllowed(mandate.allowed_assets ?? [], context.assetAddress)) {
-      throw new BadRequestException({
-        code: ErrorCodes.DOMAIN_REJECTED,
-        message: 'Mandate does not allow this asset',
+        message: eligibility.failureReason ?? 'Mandate does not authorize this intent',
       });
     }
 
@@ -546,6 +605,7 @@ export class MandatesService {
   }
 
   private toDto(row: MandateRow): MandateResponseDto {
+    const scopeSnapshot = snapshotFromMandateRow(row);
     return {
       id: row.id,
       organizationId: row.organization_id,
@@ -565,6 +625,7 @@ export class MandatesService {
       signature: row.signature ?? '',
       validUntil: row.valid_until.toISOString(),
       createdAt: row.created_at.toISOString(),
+      scopeSnapshot,
     };
   }
 }

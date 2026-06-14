@@ -18,7 +18,8 @@ export const AGENT_ASSET_OPTIONS = [
 
 export const AGENT_ACTION_OPTIONS = [
   { value: 'transfer', label: 'Transfer' },
-  { value: 'x402_payment', label: 'x402 payment' },
+  { value: 'x402_payment', label: 'x402 Payment' },
+  { value: 'demo_trade', label: 'Robinhood Trading' },
 ] as const;
 
 export type AgentScopeMetadata = {

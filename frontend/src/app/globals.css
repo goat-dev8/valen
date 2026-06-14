@@ -9958,6 +9958,32 @@ body {
   grid-column: 1 / -1;
 }
 
+.intent-requirements-panel__grid,
+.agent-eligibility-evaluation ul {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.intent-requirements-panel__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.intent-requirements-panel__grid dt,
+.agent-eligibility-evaluation strong {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+
+.intent-requirements-panel__grid dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #012b54;
+}
+
 .command-lifecycle__step {
   display: flex;
   align-items: flex-start;

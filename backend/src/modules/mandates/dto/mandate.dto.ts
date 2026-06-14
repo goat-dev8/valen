@@ -148,4 +148,7 @@ export class MandateResponseDto {
 
   @ApiProperty()
   createdAt!: string;
+
+  @ApiProperty({ type: Object })
+  scopeSnapshot!: Record<string, unknown>;
 }

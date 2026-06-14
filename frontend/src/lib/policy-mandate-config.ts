@@ -30,7 +30,7 @@ export type PolicyMandateDefaults = {
 export const MANDATE_ACTION_OPTIONS = [
   { value: 'transfer', label: 'Transfer' },
   { value: 'x402_payment', label: 'x402 payment' },
-  { value: 'demo_trade', label: 'Trade' },
+  { value: 'demo_trade', label: 'Robinhood Trading' },
 ] as const;
 
 function policyMatchesTemplate(policy: PolicyDto, templateName: string): boolean {
