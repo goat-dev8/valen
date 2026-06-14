@@ -88,9 +88,15 @@ export default function CreatePolicyPage() {
 
       <PageHeader
         title="Create Policy"
-        description="Pick a template, name your policy, and publish the first version."
+        description="Use a governance template, clone an existing policy, or publish a custom ruleset."
         className="intent-wizard-header"
       />
+
+      <div className="flex flex-wrap gap-2">
+        <span className="policy-risk-badge policy-risk--low">Use template</span>
+        <Link href="/dashboard/policies" className="app-btn app-btn-outline">Clone from catalog</Link>
+        <span className="policy-risk-badge policy-risk--medium">Custom rules below</span>
+      </div>
 
       <div className="app-panel-floating policy-create-form">
         <form onSubmit={handleSubmit} className="space-y-5">

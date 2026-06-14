@@ -18,6 +18,49 @@ export type ParsedCommand = {
 
 const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: string) => ParsedCommand }> = [
   {
+    pattern: /^(?:show|open|view)\s+(?:my\s+)?budgets?/i,
+    resolve: () => ({
+      kind: 'budget',
+      label: 'Review USDC budgets',
+      href: '/dashboard/budgets',
+    }),
+  },
+  {
+    pattern: /^(?:why|explain).*(?:refus|denied|blocked)/i,
+    resolve: () => ({
+      kind: 'proof',
+      label: 'Review refusal proofs',
+      href: '/dashboard/proofs',
+    }),
+  },
+  {
+    pattern: /^(?:create|start|run)\s+(?:an?\s+)?x402\s+payment/i,
+    resolve: () => ({
+      kind: 'x402',
+      label: 'Create x402 payment',
+      href: '/dashboard/payments',
+      amount: '1',
+    }),
+  },
+  {
+    pattern: /^(?:transfer|send)\s+([\d.]+)?\s*(tsla|amzn|pltr|nflx|amd)\s+(?:to\s+)?(?:wallet|address)?/i,
+    resolve: (m) => ({
+      kind: 'execution',
+      label: `Transfer ${(m[2] ?? 'TSLA').toUpperCase()} on Robinhood Testnet`,
+      href: '/dashboard/executions/new',
+      templateId: `robinhood-${(m[2] ?? 'tsla').toLowerCase()}-allowed`,
+      amount: m[1] ?? '1',
+    }),
+  },
+  {
+    pattern: /^(?:create|launch)\s+(?:a\s+)?treasury\s+agent/i,
+    resolve: () => ({
+      kind: 'agent',
+      label: 'Create treasury agent',
+      href: '/dashboard/agents/studio',
+    }),
+  },
+  {
     pattern: /^(?:show|open|view)\s+(?:proof|latest\s+proof)/i,
     resolve: () => ({
       kind: 'proof',

@@ -1,13 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Search } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/app/page-header';
 import { PolicyCard, PolicyCardSkeleton } from '@/components/policies/policy-card';
 import { PolicyExplainer } from '@/components/policies/policy-explainer';
 import { PolicyStats, type PolicyFilter } from '@/components/policies/policy-stats';
+import { useAuth } from '@/contexts/auth-context';
+import { useOrganization } from '@/contexts/org-context';
 import { useAgents, usePolicies } from '@/hooks/use-valen-api';
+import { ensurePolicyCatalog } from '@/lib/ensure-policy-catalog';
 
 function matchesPolicySearch(
   policy: { id: string; name: string; description: string | null; status: string },
@@ -26,8 +30,19 @@ function matchesPolicySearch(
 export default function PoliciesPage() {
   const [filter, setFilter] = useState<PolicyFilter>('all');
   const [search, setSearch] = useState('');
+  const { token } = useAuth();
+  const { orgId } = useOrganization();
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = usePolicies();
   const { data: agentsData } = useAgents({ limit: 100 });
+
+  useEffect(() => {
+    if (!token || !orgId || !data) return;
+    void ensurePolicyCatalog(token, orgId, data).then(() =>
+      queryClient.invalidateQueries({ queryKey: ['policies', orgId] }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed catalog once on policies page load
+  }, [token, orgId]);
 
   const policies = data ?? [];
   const agents = agentsData?.items ?? [];

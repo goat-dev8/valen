@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Bot, CheckCircle, FlaskConical, Globe, Server } from 'lucide-react';
 import { AgentScopeFields } from '@/components/agents/agent-scope-fields';
 import { BudgetMeter } from '@/components/app/budget-meter';
@@ -11,7 +12,10 @@ import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
 import { AuthoritySetupFlow } from '@/components/mandate/authority-setup-flow';
 import { CreatePolicyModal } from '@/components/policies/create-policy-modal';
-import { ActivePolicyPicker } from '@/components/policies/active-policy-picker';
+import { PolicyCatalogPicker } from '@/components/policies/policy-catalog-picker';
+import { useAuth } from '@/contexts/auth-context';
+import { useOrganization } from '@/contexts/org-context';
+import { ensurePolicyCatalog } from '@/lib/ensure-policy-catalog';
 import {
   AGENT_CAPABILITY_OPTIONS,
   AGENT_TYPE_OPTIONS,
@@ -46,6 +50,9 @@ const MAX_STEP = STUDIO_STEPS.length;
 export default function AgentStudioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const { token } = useAuth();
+  const { orgId } = useOrganization();
   const agentIdParam = searchParams.get('agentId') ?? '';
   const stepParam = Number(searchParams.get('step') ?? '1');
   const clonedFromTemplate = searchParams.get('cloned') === '1';
@@ -71,6 +78,7 @@ export default function AgentStudioPage() {
   const [allAssets, setAllAssets] = useState(true);
   const [selectedPolicyId, setSelectedPolicyId] = useState('');
   const [createPolicyOpen, setCreatePolicyOpen] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(false);
 
   const activePolicies = useMemo(
     () => (policies ?? []).filter((policy) => policy.status === 'active'),
@@ -86,6 +94,35 @@ export default function AgentStudioPage() {
   useEffect(() => {
     if (agentIdParam) setAgentId(agentIdParam);
   }, [agentIdParam]);
+
+  useEffect(() => {
+    if (step !== 2 || !token || !orgId) return;
+    let cancelled = false;
+    setCatalogLoading(true);
+    void ensurePolicyCatalog(token, orgId, policies ?? [])
+      .then(() => queryClient.invalidateQueries({ queryKey: ['policies', orgId] }))
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once per Rules step entry
+  }, [step, token, orgId]);
+
+  const handlePolicySelect = async (policyId: string) => {
+    setSelectedPolicyId(policyId);
+    if (!agentId) return;
+    setError(null);
+    try {
+      await updateMutation.mutateAsync({
+        agentId,
+        body: { defaultPolicyId: policyId },
+      });
+    } catch (err) {
+      setError(formatApiErrorMessage(err, 'Failed to bind policy'));
+    }
+  };
 
   useEffect(() => {
     if (!agent) return;
@@ -323,10 +360,11 @@ export default function AgentStudioPage() {
         {step === 2 && agentId && (
           <div className="app-panel-floating app-card max-w-none space-y-4">
             <p className="text-sm text-[#5E6C7B]">Assign the compliance policy that governs this agent&apos;s actions.</p>
-            <ActivePolicyPicker
+            <PolicyCatalogPicker
               policies={activePolicies}
-              selectedId={selectedPolicyId}
-              onSelect={setSelectedPolicyId}
+              selectedPolicyId={selectedPolicyId}
+              onSelect={handlePolicySelect}
+              loading={catalogLoading}
             />
             <div className="flex flex-col gap-3 border-t border-[#E8ECF0] pt-4 sm:flex-row sm:items-center sm:justify-between">
               <button type="button" className="app-btn app-btn-outline w-full sm:w-auto" onClick={() => setCreatePolicyOpen(true)}>Create new policy</button>

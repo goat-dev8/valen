@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/app/page-header';
 import { AccountKpiStrip, buildAccountKpis } from '@/components/command-center/account-kpi-strip';
 import { AgentsListCompact } from '@/components/command-center/agents-list-compact';
 import { AssetStrip } from '@/components/command-center/asset-strip';
-import { CommandSurface } from '@/components/command-center/command-surface';
+import { CommandAgentConsole } from '@/components/command-center/command-agent-console';
 import { GovernancePipelineStrip } from '@/components/command-center/governance-pipeline-strip';
 import { X402PaymentDrawer } from '@/components/payments/x402-payment-drawer';
 import { useOrganization } from '@/contexts/org-context';
@@ -131,7 +131,7 @@ export default function DashboardPage() {
         />
 
         <div className="space-y-5">
-          <CommandSurface summary={dashboardSummary} onX402Open={openX402} />
+          <CommandAgentConsole summary={dashboardSummary} onX402Open={openX402} />
           <AssetStrip onX402Click={() => openX402('0.01')} />
           <GovernancePipelineStrip
             status={inFlight?.[0]?.status ?? pipelineExecution?.status}
