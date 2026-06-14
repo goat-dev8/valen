@@ -1,22 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { useOrganization } from '@/contexts/org-context';
 import { useUpdateOrganization } from '@/hooks/use-valen-api';
+import { useJudgeMode } from '@/hooks/use-judge-mode';
 import { chainName } from '@/lib/constants';
-import { isJudgeModeEnabled, setJudgeModeEnabled } from '@/lib/judge-mode';
+import { setJudgeModeEnabled } from '@/lib/judge-mode';
 
 export default function SettingsPage() {
   const { organization, loading } = useOrganization();
   const updateMutation = useUpdateOrganization();
   const [message, setMessage] = useState<string | null>(null);
-  const [judgeMode, setJudgeMode] = useState(true);
-
-  useEffect(() => {
-    setJudgeMode(isJudgeModeEnabled());
-  }, []);
+  const judgeMode = useJudgeMode();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -72,7 +69,6 @@ export default function SettingsPage() {
                     type="checkbox"
                     checked={judgeMode}
                     onChange={(e) => {
-                      setJudgeMode(e.target.checked);
                       setJudgeModeEnabled(e.target.checked);
                     }}
                     className="mt-1"

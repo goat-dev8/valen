@@ -25,7 +25,7 @@ export function evaluateCommandGates(
       id: 'agent',
       label: 'Active agent',
       passed: readiness?.agentActive ?? false,
-      href: '/dashboard/register-agent',
+      href: '/dashboard/agents/studio',
       fixLabel: 'Register agent',
     },
     {

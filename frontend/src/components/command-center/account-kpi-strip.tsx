@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { CheckCircle } from 'lucide-react';
 import type { DashboardSummaryDto } from '@/types/api';
+import { formatUsdcBaseUnits } from '@/lib/token-amount';
 
 export type AccountKpi = {
   label: string;
@@ -79,14 +80,17 @@ export function buildAccountKpis(input: {
   executedCount: number;
 }): AccountKpi[] {
   const budget = input.summary?.budget;
-  const remaining = budget?.remaining ?? '—';
   const symbol = budget?.assetSymbol ?? 'USDC';
-  const spent = budget?.spent ?? '0';
+  const hasBudget =
+    budget?.status === 'active' &&
+    Boolean(budget?.remaining != null || budget?.cap != null || budget?.spent != null);
+  const remaining = hasBudget ? formatUsdcBaseUnits(budget?.remaining) : null;
+  const spent = hasBudget ? formatUsdcBaseUnits(budget?.spent ?? '0') : '0';
 
   return [
     {
       label: 'USDC Budget',
-      value: remaining !== '—' ? `${remaining} ${symbol}` : 'Not configured',
+      value: remaining != null ? `${remaining} ${symbol}` : 'Not configured',
       href: '/dashboard/budgets',
     },
     {
@@ -96,7 +100,7 @@ export function buildAccountKpis(input: {
     },
     {
       label: 'USDC Spent',
-      value: `${spent} ${symbol}`,
+      value: hasBudget ? `${spent} ${symbol}` : `0 ${symbol}`,
       tone: 'positive',
       href: '/dashboard/budgets',
     },

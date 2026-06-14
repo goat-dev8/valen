@@ -58,6 +58,15 @@ function toIso(value: Date | string | null | undefined): string | null {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+/** Postgres numeric columns often serialize as "1000000.000000" — keep integer base units. */
+function budgetBaseUnits(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const [whole] = raw.split('.');
+  return whole || '0';
+}
+
 function proofUrl(executionId: string | null): string | null {
   return executionId ? `/dashboard/executions/${executionId}/proof` : null;
 }
@@ -269,9 +278,9 @@ export class DashboardService {
         ? {
             assetSymbol: budgetRow.asset_symbol ?? 'USDC',
             status: budgetRow.status ?? 'active',
-            cap: budgetRow.cap?.toString?.() ?? budgetRow.cap,
-            spent: budgetRow.spent?.toString?.() ?? budgetRow.spent,
-            remaining: budgetRow.remaining?.toString?.() ?? budgetRow.remaining,
+            cap: budgetBaseUnits(budgetRow.cap),
+            spent: budgetBaseUnits(budgetRow.spent),
+            remaining: budgetBaseUnits(budgetRow.remaining),
             evidenceHash: budgetRow.evidence_hash ?? null,
             resetsAt: toIso(budgetRow.resets_at),
           }

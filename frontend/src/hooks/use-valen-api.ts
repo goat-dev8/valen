@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/org-context';
 import { api } from '@/lib/api';
 import { asArray } from '@/lib/array';
+import { dashboardSummaryStaleTimeMs } from '@/lib/query-config';
 import type {
   ApprovalInput,
   ApiKeyDto,
@@ -39,7 +40,7 @@ export function useDashboardSummary() {
     queryKey: ['dashboard-summary', orgId],
     queryFn: () => api.dashboard.summary(token!, orgId!),
     enabled,
-    staleTime: 5000,
+    staleTime: dashboardSummaryStaleTimeMs,
   });
 }
 

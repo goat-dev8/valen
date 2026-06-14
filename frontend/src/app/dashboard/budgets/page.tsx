@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { formatUnits } from 'viem';
 import { PageHeader } from '@/components/app/page-header';
 import { BudgetMeter } from '@/components/app/budget-meter';
 import { BudgetEventsList } from '@/components/budget/budget-events-list';
@@ -13,16 +12,10 @@ import { BudgetSidebar } from '@/components/budget/budget-sidebar';
 import { BudgetStats } from '@/components/budget/budget-stats';
 import { useAgents, useBudget, useBudgetEvents, useDashboardSummary } from '@/hooks/use-valen-api';
 
-function formatUsdc(baseUnits?: string | null): string {
-  if (!baseUnits) return '0';
-  try {
-    const human = formatUnits(BigInt(baseUnits), 6);
-    const num = Number(human);
-    if (!Number.isFinite(num)) return human;
-    return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  } catch {
-    return baseUnits;
-  }
+import { formatUsdcBaseUnits } from '@/lib/token-amount';
+
+function formatUsdc(baseUnits?: string | number | null): string {
+  return formatUsdcBaseUnits(baseUnits);
 }
 
 export default function BudgetsPage() {

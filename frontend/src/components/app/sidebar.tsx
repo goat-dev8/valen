@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ValenLogo } from '@/components/brand/valen-logo';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/contexts/org-context';
 import { useExecutions } from '@/hooks/use-valen-api';
-import { isJudgeModeEnabled, subscribeJudgeMode } from '@/lib/judge-mode';
+import { useJudgeMode } from '@/hooks/use-judge-mode';
 import { isNavActive, NAV_SECTIONS, type NavItem } from '@/lib/navigation';
 import { ChainBadge } from '@/components/app/chain-badge';
 
@@ -23,7 +23,12 @@ function NavItemLink({
   const active = isNavActive(pathname, item.href);
 
   return (
-    <Link href={item.href} className={cn('app-nav-item', active && 'app-nav-item-active')} title={item.description}>
+    <Link
+      href={item.href}
+      prefetch={false}
+      className={cn('app-nav-item', active && 'app-nav-item-active')}
+      title={item.description}
+    >
       <span className="app-nav-item__icon">
         <item.icon className="h-[17px] w-[17px]" aria-hidden />
       </span>
@@ -39,12 +44,7 @@ export function Sidebar({ className }: { className?: string }) {
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
   const approvalCount = approvals?.total ?? 0;
   const orgInitials = organization?.name?.slice(0, 2).toUpperCase() ?? 'OR';
-  const [judgeMode, setJudgeMode] = useState(true);
-
-  useEffect(() => {
-    setJudgeMode(isJudgeModeEnabled());
-    return subscribeJudgeMode(setJudgeMode);
-  }, []);
+  const judgeMode = useJudgeMode();
 
   const sections = NAV_SECTIONS.filter((section) => !(judgeMode && section.judgeModeHidden));
   const moreOpen = NAV_SECTIONS.find((s) => s.id === 'advanced')?.items.some((item) =>

@@ -1,10 +1,16 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { Sidebar } from '@/components/app/sidebar';
 import { AppHeader } from '@/components/app/header';
 import { MobileNavDrawer } from '@/components/app/mobile-nav';
-import { CommandPalette, useCommandPalette } from '@/components/command-center/command-palette';
+import { useCommandPalette } from '@/components/command-center/command-palette';
+
+const CommandPalette = dynamic(
+  () => import('@/components/command-center/command-palette').then((mod) => mod.CommandPalette),
+  { ssr: false },
+);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);

@@ -23,3 +23,7 @@ export function subscribeJudgeMode(callback: (enabled: boolean) => void): () => 
   window.addEventListener('valen:judge-mode-changed', handler);
   return () => window.removeEventListener('valen:judge-mode-changed', handler);
 }
+
+export function judgeModeServerSnapshot(): boolean {
+  return true;
+}

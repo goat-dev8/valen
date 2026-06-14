@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { CheckCircle, ExternalLink } from 'lucide-react';
 import { formatUnits, parseUnits } from 'viem';
 import { useBudget, useBudgetEvents, useBudgetTopup } from '@/hooks/use-valen-api';
+import { formatUsdcBaseUnits } from '@/lib/token-amount';
 
 type BudgetMeterProps = {
   agentId?: string | null;
@@ -14,12 +15,13 @@ type BudgetMeterProps = {
 
 const USDC_SEPOLIA = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
 
-function formatBaseUnits(value?: string | null, decimals = 6): string {
-  if (!value) return '0';
+function formatBaseUnits(value?: string | number | null, decimals = 6): string {
+  if (decimals === 6) return formatUsdcBaseUnits(value);
+  if (value == null || value === '') return '0';
   try {
-    return formatUnits(BigInt(value), decimals);
+    return formatUnits(BigInt(String(value).split('.')[0] || '0'), decimals);
   } catch {
-    return value;
+    return String(value);
   }
 }
 

@@ -83,7 +83,7 @@ export default function ContractsPage() {
       <QueryState
         isLoading={contractsQuery.isLoading}
         error={contractsQuery.error}
-        isEmpty={!contractsQuery.data?.networks.length}
+        isEmpty={!(contractsQuery.data?.networks?.length ?? 0)}
       >
         <div className="space-y-6">
           {contractsQuery.data?.networks.map((network) => {

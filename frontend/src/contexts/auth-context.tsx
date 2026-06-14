@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { TOKEN_STORAGE_KEY } from '@/lib/constants';
+import { clearCachedMe, readCachedMe, writeCachedMe } from '@/lib/query-config';
 import type { MeResponseDto } from '@/types/api';
 
 type AuthContextValue = {
@@ -19,7 +20,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
-  const [me, setMe] = useState<MeResponseDto | null>(null);
+  const [me, setMe] = useState<MeResponseDto | null>(() => readCachedMe<MeResponseDto>());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setMe(null);
     setError(null);
+    clearCachedMe();
   }, [setToken]);
 
   useEffect(() => {
@@ -63,6 +65,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     let cancelled = false;
+    const cached = readCachedMe<MeResponseDto>();
+    if (cached) {
+      setMe(cached);
+      setLoading(false);
+      return;
+    }
     if (!me) {
       setLoading(true);
     }
@@ -72,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((profile) => {
         if (!cancelled) {
           setMe(profile);
+          writeCachedMe(profile);
           setError(null);
         }
       })

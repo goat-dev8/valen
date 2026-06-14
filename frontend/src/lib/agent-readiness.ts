@@ -55,8 +55,8 @@ export function buildAgentReadinessSteps({
       complete: hasVerifiedWallet,
       detail: hasVerifiedWallet
         ? 'Owner wallet authority is verified.'
-        : 'Verify wallet ownership from Wallet & Authority.',
-      href: '/dashboard/wallets',
+        : 'Verify wallet ownership from Authority.',
+      href: '/dashboard/authority',
       optional: false,
     },
     {
@@ -64,7 +64,7 @@ export function buildAgentReadinessSteps({
       label: 'Signed mandate',
       complete: mandateCount > 0,
       detail: mandateCount ? `${mandateCount} active mandate(s).` : 'Sign a mandate for this agent.',
-      href: '/dashboard/wallets',
+      href: '/dashboard/authority',
       optional: false,
     },
   ];

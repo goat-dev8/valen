@@ -76,7 +76,7 @@ export default function RobinhoodDemoPage() {
         {ROBINHOOD_HEADLINE_ASSETS.map((asset) => (
           <Link
             key={asset.symbol}
-            href={`/dashboard/demo/robinhood/${asset.symbol.toLowerCase()}`}
+            href={`/dashboard/assets/${asset.symbol.toLowerCase()}`}
             className="app-card transition hover:border-[#cfe6ff] hover:bg-[#f8fbff]"
           >
             <AssetPill asset={asset} />

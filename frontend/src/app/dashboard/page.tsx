@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { SetupModal } from '@/components/onboarding/setup-modal';
 import { GuidedSetupPanel } from '@/components/onboarding/guided-setup-panel';
 import { PageHeader } from '@/components/app/page-header';
-import { QueryState } from '@/components/app/query-state';
 import { AccountKpiStrip, buildAccountKpis } from '@/components/command-center/account-kpi-strip';
 import { AgentsListCompact } from '@/components/command-center/agents-list-compact';
 import { AssetStrip } from '@/components/command-center/asset-strip';
@@ -28,9 +27,8 @@ export default function DashboardPage() {
   const { organization } = useOrganization();
   const { data: totalAgents, isLoading: totalAgentsLoading } = useAgents({ limit: 100 });
   const { data: activeAgents } = useAgents({ status: 'active', limit: 1 });
-  const { data: executions, isLoading: execLoading, error } = useExecutions({ limit: 10 });
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
-  const { data: allExec, isLoading: allExecLoading } = useExecutions({ limit: 100 });
+  const { data: allExec, isLoading: allExecLoading, error } = useExecutions({ limit: 100 });
   const { data: dashboardSummary } = useDashboardSummary();
   const { data: policies, isLoading: policiesLoading } = usePolicies();
   const { data: walletVerifications, isLoading: walletVerificationsLoading } = useWalletVerifications();
@@ -161,9 +159,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <QueryState isLoading={execLoading} error={error} isEmpty={false}>
-        <></>
-      </QueryState>
+      {error && (
+        <div className="app-panel-premium px-4 py-3 text-sm font-medium text-red-700">
+          Failed to load recent executions. Refresh the page or try again shortly.
+        </div>
+      )}
     </div>
   );
 }

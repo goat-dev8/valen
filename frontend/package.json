@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "next dev --turbo --port 3001",
+    "dev:fast": "cross-env NEXT_TELEMETRY_DISABLED=1 VALEN_DEV_FAST=1 NEXT_PUBLIC_VALEN_DEV_FAST=1 next dev --turbo --port 3001",
     "dev:webpack": "next dev --port 3001",
     "prebuild": "node scripts/sync-deploy-manifests.mjs",
     "build": "next build",

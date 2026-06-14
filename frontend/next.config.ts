@@ -45,8 +45,10 @@ const privyAppId =
 
 const monorepoRoot = path.resolve(process.cwd(), '..');
 
+const isDevFast = process.env.VALEN_DEV_FAST === '1';
+
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: !isDevFast,
   poweredByHeader: false,
   outputFileTracingRoot: monorepoRoot,
   eslint: {
@@ -64,8 +66,12 @@ const nextConfig: NextConfig = {
       'lucide-react',
       '@radix-ui/react-dialog',
       '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-scroll-area',
       '@tanstack/react-query',
       'viem',
+      'recharts',
+      '@splinetool/react-spline',
     ],
   },
   outputFileTracingIncludes: {

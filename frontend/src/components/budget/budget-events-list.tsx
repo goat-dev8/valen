@@ -3,18 +3,11 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
-import { formatUnits } from 'viem';
 import type { BudgetEventDto } from '@/types/api';
+import { formatUsdcBaseUnits } from '@/lib/token-amount';
 
 function formatUsdc(baseUnits: string): string {
-  try {
-    const human = formatUnits(BigInt(baseUnits), 6);
-    const num = Number(human);
-    if (!Number.isFinite(num)) return human;
-    return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  } catch {
-    return baseUnits;
-  }
+  return formatUsdcBaseUnits(baseUnits);
 }
 
 function eventTone(kind: string): 'spend' | 'topup' | 'refusal' | 'other' {

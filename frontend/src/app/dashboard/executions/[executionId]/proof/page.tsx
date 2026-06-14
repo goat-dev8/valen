@@ -99,14 +99,14 @@ export default function ExecutionProofPage() {
                   <dl className="app-detail-list">
                     <div><dt>Agent</dt><dd className="font-mono text-xs break-all">{execution.agentId}</dd></div>
                     <div><dt>Mandate</dt><dd className="font-mono text-xs break-all">{execution.mandateId ?? 'Unavailable'}</dd></div>
-                    <div><dt>Mandate Signer</dt><dd className="font-mono text-xs break-all">{identity?.mandates.find((mandate) => mandate.id === execution.mandateId)?.signerAddress ?? 'Unavailable'}</dd></div>
-                    <div><dt>Mandate Hash</dt><dd className="font-mono text-xs break-all">{identity?.mandates.find((mandate) => mandate.id === execution.mandateId)?.typedDataHash ?? 'Unavailable'}</dd></div>
+                    <div><dt>Mandate Signer</dt><dd className="font-mono text-xs break-all">{identity?.mandates?.find((mandate) => mandate.id === execution.mandateId)?.signerAddress ?? 'Unavailable'}</dd></div>
+                    <div><dt>Mandate Hash</dt><dd className="font-mono text-xs break-all">{identity?.mandates?.find((mandate) => mandate.id === execution.mandateId)?.typedDataHash ?? 'Unavailable'}</dd></div>
                     <div><dt>Policy</dt><dd className="font-mono text-xs break-all">{execution.policyId ?? 'Agent default'}</dd></div>
                     <div><dt>Asset</dt><dd>{asset?.symbol ?? execution.assetAddress ?? 'Native ETH'}</dd></div>
                     <div><dt>Asset Address</dt><dd className="font-mono text-xs break-all">{asset?.address ?? execution.assetAddress ?? 'native'}</dd></div>
                     <div><dt>Amount</dt><dd>{humanAmount(execution.valueAmount, asset?.decimals)} {asset?.symbol ?? ''}</dd></div>
-                    <div><dt>Verified Wallets</dt><dd>{identity?.verifiedWallets.length ?? 0}</dd></div>
-                    <div><dt>Wallet Bindings</dt><dd>{identity?.walletBindings.length ?? 0}</dd></div>
+                    <div><dt>Verified Wallets</dt><dd>{identity?.verifiedWallets?.length ?? 0}</dd></div>
+                    <div><dt>Wallet Bindings</dt><dd>{identity?.walletBindings?.length ?? 0}</dd></div>
                     <div><dt>Payload Hash</dt><dd className="font-mono text-xs break-all">{execution.requestPayloadHash}</dd></div>
                   </dl>
                 </div>

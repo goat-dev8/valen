@@ -55,6 +55,18 @@ function agentMatchesTemplate(
   );
 }
 
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+function defaultTargetForTemplate(template: IntentTemplate, connectedWallet?: string): string {
+  if (
+    connectedWallet &&
+    template.targetAddress.toLowerCase() === ZERO_ADDRESS
+  ) {
+    return connectedWallet;
+  }
+  return template.targetAddress;
+}
+
 export default function SubmitIntentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,7 +84,9 @@ export default function SubmitIntentPage() {
   const [templateId, setTemplateId] = useState(initialTemplate.id);
   const [agentId, setAgentId] = useState(searchParams.get('agentId') ?? '');
   const [amount, setAmount] = useState(urlAmount ?? initialTemplate.amount);
-  const [targetAddress, setTargetAddress] = useState(initialTemplate.targetAddress);
+  const [targetAddress, setTargetAddress] = useState(
+    defaultTargetForTemplate(initialTemplate, connectedWallet),
+  );
   const [assetAddress, setAssetAddress] = useState(initialTemplate.assetAddress ?? '');
   const [wizardStep, setWizardStep] = useState(initialStep);
   const [maxStep, setMaxStep] = useState(initialStep);
@@ -167,6 +181,15 @@ export default function SubmitIntentPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (!connectedWallet) return;
+    setTargetAddress((current) => {
+      if (current.toLowerCase() !== ZERO_ADDRESS) return current;
+      if (selectedTemplate.targetAddress.toLowerCase() !== ZERO_ADDRESS) return current;
+      return connectedWallet;
+    });
+  }, [connectedWallet, selectedTemplate.id, selectedTemplate.targetAddress]);
+
+  useEffect(() => {
     if (!mandates?.length || !agents?.items.length) return;
     const preferred = searchParams.get('agentId');
     if (
@@ -203,7 +226,7 @@ export default function SubmitIntentPage() {
   const applyTemplate = (template: IntentTemplate) => {
     setTemplateId(template.id);
     setAmount(template.amount);
-    setTargetAddress(template.targetAddress);
+    setTargetAddress(defaultTargetForTemplate(template, connectedWallet));
     setAssetAddress(template.assetAddress ?? '');
   };
 

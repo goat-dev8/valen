@@ -117,6 +117,10 @@ export default function AgentStudioPage() {
 
   const handleRulesSubmit = async () => {
     if (!agentId) return;
+    if (!selectedPolicyId) {
+      setError('Select a policy before continuing.');
+      return;
+    }
     setError(null);
     try {
       if (selectedPolicyId) {

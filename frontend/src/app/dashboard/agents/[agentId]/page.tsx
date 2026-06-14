@@ -399,8 +399,8 @@ export default function AgentDetailPage() {
             <TechnicalDisclosure title="Technical agent ID">
               <p className="font-mono text-xs break-all text-[#1A2332]">{agent.id}</p>
             </TechnicalDisclosure>
-            <Link href={`/dashboard?agent=${agent.id}`} className="text-sm font-semibold text-[#0066FF] hover:underline">
-              Run command from Command Center →
+            <Link href={`/dashboard/executions/new?agentId=${agent.id}`} className="text-sm font-semibold text-[#0066FF] hover:underline">
+              Submit governed intent →
             </Link>
             </>
             )}
@@ -410,7 +410,7 @@ export default function AgentDetailPage() {
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="app-card">
                 <h3 className="app-card-title mb-3">Wallet Bindings</h3>
-                {!identity?.walletBindings.length ? (
+                {!identity?.walletBindings?.length ? (
                   <p className="text-sm text-[#64748b]">No wallet bindings yet.</p>
                 ) : (
                   <div className="space-y-3">
