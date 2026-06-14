@@ -12,6 +12,7 @@ type AuthoritySetupFlowProps = {
   initialNetworks?: number[];
   initialAssets?: string[];
   initialActions?: string[];
+  verifyChainId?: number;
   verifyComplete: boolean;
   mandateComplete: boolean;
   onSetupChange?: () => void;
@@ -24,6 +25,7 @@ export function AuthoritySetupFlow({
   initialNetworks,
   initialAssets,
   initialActions,
+  verifyChainId = 421614,
   verifyComplete,
   mandateComplete,
   onSetupChange,
@@ -107,6 +109,7 @@ export function AuthoritySetupFlow({
 
       <VerifyWalletModal
         open={verifyOpen}
+        chainId={verifyChainId}
         onClose={() => {
           setVerifyOpen(false);
           onSetupChange?.();

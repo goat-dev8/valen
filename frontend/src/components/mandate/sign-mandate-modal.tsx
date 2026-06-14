@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { MandateScopeFields } from '@/components/mandate/mandate-scope-fields';
+import { VerifyWalletModal } from '@/components/mandate/verify-wallet-modal';
 import { useAuthoritySetup } from '@/hooks/use-authority-setup';
 import {
   DEFAULT_SUPPORTED_ACTIONS,
@@ -75,6 +76,7 @@ export function SignMandateModal({
   const [approvalThreshold, setApprovalThreshold] = useState('');
   const [validDays, setValidDays] = useState(30);
   const [allowedTargets, setAllowedTargets] = useState('*');
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   const setters = {
     setAllowedChains,
@@ -116,9 +118,14 @@ export function SignMandateModal({
     }
   }, [open, defaultPolicyId, applyPolicyDefaults]);
 
-  if (!open) return null;
-
   const signingChainId = allowedChains[0] ?? 421614;
+
+  useEffect(() => {
+    if (!open) return;
+    setup.setChainId(signingChainId);
+  }, [open, signingChainId, setup.setChainId]);
+
+  if (!open) return null;
   const activeDefaults = selectedPolicyId
     ? mandateDefaultsFromPolicyId(setup.policies, selectedPolicyId)
     : null;
@@ -139,8 +146,10 @@ export function SignMandateModal({
   };
 
   const mandateActive = setup.mandateCompleteForAgent(agentId);
+  const verifiedOnSigningChain = setup.verifiedForAuthorityChain(signingChainId);
 
   return (
+    <>
     <div
       className="fixed inset-0 z-[100] flex items-end justify-center bg-[#012b54]/40 p-4 sm:items-center"
       role="dialog"
@@ -291,10 +300,21 @@ export function SignMandateModal({
               />
             </div>
 
-            {!setup.verifiedForAuthorityChain(signingChainId) && (
-              <p className="text-xs font-medium text-amber-700">
-                Verify the connected wallet on {chainName(signingChainId)} before signing mandates.
-              </p>
+            {!verifiedOnSigningChain && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-semibold">Verify wallet on {chainName(signingChainId)}</p>
+                <p className="mt-2 leading-6">
+                  Mandates for this policy must be signed on {chainName(signingChainId)}. Verify your connected wallet
+                  on this network before signing — Arbitrum verification does not cover Robinhood Testnet.
+                </p>
+                <button
+                  type="button"
+                  className="app-btn app-btn-primary mt-3"
+                  onClick={() => setVerifyOpen(true)}
+                >
+                  Verify on {chainName(signingChainId)}
+                </button>
+              </div>
             )}
 
             {(setup.actionError || setup.actionSuccess) && (
@@ -317,7 +337,7 @@ export function SignMandateModal({
                   className="app-btn app-btn-primary"
                   disabled={
                     !allowedChains.length ||
-                    !setup.verifiedForAuthorityChain(signingChainId) ||
+                    !verifiedOnSigningChain ||
                     setup.isSigningMandate ||
                     setup.isMandatePending
                   }
@@ -330,5 +350,19 @@ export function SignMandateModal({
         </div>
       </div>
     </div>
+
+    <VerifyWalletModal
+      open={verifyOpen}
+      chainId={signingChainId}
+      onClose={() => {
+        setVerifyOpen(false);
+        void setup.refetch();
+      }}
+      onVerified={() => {
+        setVerifyOpen(false);
+        void setup.refetch();
+      }}
+    />
+    </>
   );
 }

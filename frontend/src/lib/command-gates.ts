@@ -1,5 +1,5 @@
 import type { ParsedCommand } from '@/lib/command-parser';
-import type { DashboardSummaryDto } from '@/types/api';
+import type { AgentDto, DashboardSummaryDto, MandateDto } from '@/types/api';
 
 export type CommandGate = {
   id: string;
@@ -7,12 +7,26 @@ export type CommandGate = {
   passed: boolean;
   href: string;
   fixLabel: string;
+  remediation?: 'navigate' | 'inline';
+};
+
+export type CommandGateContext = {
+  agentId?: string | null;
+  agents?: AgentDto[];
+  mandates?: MandateDto[];
 };
 
 export function evaluateCommandGates(
   parsed: ParsedCommand,
   summary?: DashboardSummaryDto | null,
+  context?: CommandGateContext | string | null,
 ): { ready: boolean; gates: CommandGate[] } {
+  const gateContext: CommandGateContext =
+    typeof context === 'string' || context === null || context === undefined
+      ? { agentId: context ?? null }
+      : context;
+
+  const { agentId, agents = [], mandates = [] } = gateContext;
   const readiness = summary?.readiness;
   const needsExecutionGates = parsed.kind === 'execution' || parsed.kind === 'x402';
 
@@ -20,26 +34,45 @@ export function evaluateCommandGates(
     return { ready: true, gates: [] };
   }
 
+  const selectedAgent = agentId ? agents.find((agent) => agent.id === agentId) : null;
+  const agentActive = selectedAgent
+    ? selectedAgent.status === 'active'
+    : agentId
+      ? true
+      : (readiness?.agentActive ?? false);
+
+  const agentHasPolicy = selectedAgent
+    ? Boolean(selectedAgent.defaultPolicyId)
+    : agentId
+      ? true
+      : (readiness?.rulesActive ?? false);
+
+  const agentHasMandate =
+    agentId && mandates.length > 0
+      ? mandates.some((mandate) => mandate.agentId === agentId && mandate.status === 'active')
+      : (readiness?.mandateSigned ?? false);
+
   const gates: CommandGate[] = [
     {
       id: 'agent',
-      label: 'Active agent',
-      passed: readiness?.agentActive ?? false,
-      href: '/dashboard/agents/studio',
-      fixLabel: 'Register agent',
+      label: agentId ? 'Agent selected' : 'Agent selection',
+      passed: Boolean(agentId) && agentActive,
+      href: '/dashboard/agents',
+      fixLabel: agentId ? 'Confirm agent active' : 'Select agent',
+      remediation: 'inline',
     },
     {
       id: 'policy',
       label: 'Policy rules',
-      passed: readiness?.rulesActive ?? false,
-      href: '/dashboard/policies/new',
-      fixLabel: 'Create policy',
+      passed: agentHasPolicy,
+      href: '/dashboard/policies',
+      fixLabel: 'Assign policy',
     },
     {
       id: 'mandate',
       label: 'Signed mandate',
-      passed: readiness?.mandateSigned ?? false,
-      href: '/dashboard/authority',
+      passed: agentHasMandate,
+      href: agentId ? `/dashboard/agents/${agentId}?tab=authority` : '/dashboard/authority',
       fixLabel: 'Sign mandate',
     },
   ];

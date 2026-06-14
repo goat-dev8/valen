@@ -9426,6 +9426,24 @@ body {
   color: #0066ff;
 }
 
+.command-agent-console__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  width: 2.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e8ecf0;
+  background: #fff;
+  color: #5e6c7b;
+}
+
+.command-lifecycle {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
 @media (max-width: 768px) {
   .org-profile-hero-premium__banner {
     grid-template-columns: 1fr;
@@ -9852,6 +9870,134 @@ body {
 .app-sidebar-org--premium .app-sidebar-org__plan {
   display: inline-block;
   margin-top: 0.35rem;
+}
+
+.command-agent-console__state {
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #eef0f3;
+  color: #64748b;
+}
+
+.command-agent-console__state--ready {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.command-agent-console__state--executing {
+  background: #eff6ff;
+  color: #0066ff;
+}
+
+.command-agent-console__state--completed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.command-agent-console__state--refused {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.command-agent-console__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.command-agent-console__tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #e8ecf0;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #5e6c7b;
+}
+
+.command-agent-console__footnote {
+  margin-top: 0.75rem;
+}
+
+.command-plan-card__grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.command-plan-card__grid div {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  background: #fff;
+  border: 1px solid #eef0f3;
+}
+
+.command-plan-card__grid dt {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b98a5;
+}
+
+.command-plan-card__grid dd {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #012b54;
+}
+
+.command-plan-card__wide {
+  grid-column: 1 / -1;
+}
+
+.command-lifecycle__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.75rem;
+  background: #fafbfc;
+  border: 1px solid #eef0f3;
+}
+
+.command-lifecycle__dot {
+  margin-top: 0.25rem;
+  height: 0.55rem;
+  width: 0.55rem;
+  border-radius: 999px;
+  background: #cbd5e1;
+  flex-shrink: 0;
+}
+
+.command-lifecycle__step--passed .command-lifecycle__dot {
+  background: #10b981;
+}
+
+.command-lifecycle__step--running .command-lifecycle__dot {
+  background: #0066ff;
+}
+
+.command-lifecycle__step--failed .command-lifecycle__dot {
+  background: #ef4444;
+}
+
+.command-lifecycle__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #012b54;
+}
+
+.command-lifecycle__detail {
+  font-size: 0.72rem;
+  color: #64748b;
 }
 
 .policy-governance-cards {

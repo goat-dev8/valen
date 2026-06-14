@@ -131,7 +131,13 @@ export default function DashboardPage() {
         />
 
         <div className="space-y-5">
-          <CommandAgentConsole summary={dashboardSummary} onX402Open={openX402} />
+          <CommandAgentConsole
+            summary={dashboardSummary}
+            agents={totalAgents?.items ?? []}
+            mandates={mandates ?? []}
+            policies={policies ?? []}
+            onX402Open={openX402}
+          />
           <AssetStrip onX402Click={() => openX402('0.01')} />
           <GovernancePipelineStrip
             status={inFlight?.[0]?.status ?? pipelineExecution?.status}

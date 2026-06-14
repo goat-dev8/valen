@@ -10,11 +10,14 @@ export type ParsedCommandKind =
 export type ParsedCommand = {
   kind: ParsedCommandKind;
   label: string;
-  href: string;
   templateId?: string;
   amount?: string;
+  /** Agent catalog template when kind is `agent`. */
+  agentTemplateId?: string;
   query?: Record<string, string>;
 };
+
+const ROBINHOOD_TICKERS = 'tsla|amzn|pltr|nflx|amd';
 
 const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: string) => ParsedCommand }> = [
   {
@@ -22,7 +25,6 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: () => ({
       kind: 'budget',
       label: 'Review USDC budgets',
-      href: '/dashboard/budgets',
     }),
   },
   {
@@ -30,15 +32,13 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: () => ({
       kind: 'proof',
       label: 'Review refusal proofs',
-      href: '/dashboard/proofs',
     }),
   },
   {
     pattern: /^(?:create|start|run)\s+(?:an?\s+)?x402\s+payment/i,
     resolve: () => ({
       kind: 'x402',
-      label: 'Create x402 payment',
-      href: '/dashboard/payments',
+      label: 'x402 USDC payment',
       amount: '1',
     }),
   },
@@ -47,7 +47,6 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: (m) => ({
       kind: 'execution',
       label: `Transfer ${(m[2] ?? 'TSLA').toUpperCase()} on Robinhood Testnet`,
-      href: '/dashboard/executions/new',
       templateId: `robinhood-${(m[2] ?? 'tsla').toLowerCase()}-allowed`,
       amount: m[1] ?? '1',
     }),
@@ -57,15 +56,14 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: () => ({
       kind: 'agent',
       label: 'Create treasury agent',
-      href: '/dashboard/agents/studio',
+      agentTemplateId: 'usdc-treasury',
     }),
   },
   {
     pattern: /^(?:show|open|view)\s+(?:proof|latest\s+proof)/i,
     resolve: () => ({
       kind: 'proof',
-      label: 'Open latest proof',
-      href: '/dashboard/proofs',
+      label: 'Latest outcome proof',
     }),
   },
   {
@@ -73,7 +71,6 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: (m) => ({
       kind: 'x402',
       label: `Pay ${m[1]} USDC via x402`,
-      href: '/dashboard/payments',
       amount: m[1],
     }),
   },
@@ -82,7 +79,16 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: () => ({
       kind: 'x402',
       label: 'x402 USDC payment',
-      href: '/dashboard/payments',
+      amount: '1',
+    }),
+  },
+  {
+    pattern: new RegExp(`^(?:pay|send)\\s+([\\d.]+)\\s*(${ROBINHOOD_TICKERS})\\b`, 'i'),
+    resolve: (m) => ({
+      kind: 'execution',
+      label: `Pay ${m[1]} ${m[2].toUpperCase()} on Robinhood Testnet`,
+      templateId: `robinhood-${m[2].toLowerCase()}-allowed`,
+      amount: m[1],
     }),
   },
   {
@@ -90,7 +96,6 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: (m) => ({
       kind: 'execution',
       label: `${m[2].toUpperCase()} transfer`,
-      href: '/dashboard/executions/new',
       templateId: `robinhood-${m[2].toLowerCase()}-allowed`,
       amount: m[1],
     }),
@@ -100,7 +105,6 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: (m) => ({
       kind: 'execution',
       label: `Refused ${(m[1] ?? 'TSLA').toUpperCase()} demo`,
-      href: '/dashboard/executions/new',
       templateId: `robinhood-${(m[1] ?? 'tsla').toLowerCase()}-refused`,
     }),
   },
@@ -109,18 +113,16 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: () => ({
       kind: 'execution',
       label: 'USDG transfer on Robinhood Testnet',
-      href: '/dashboard/executions/new',
       templateId: 'robinhood-usdg-allowed',
     }),
   },
   {
     pattern: /^(?:pay|send|transfer)\s+([\d.]+)\s*usdc/i,
     resolve: (m) => ({
-      kind: 'execution',
+      kind: 'x402',
       label: `Pay ${m[1]} USDC`,
-      href: '/dashboard/executions/new',
-      templateId: 'arbitrum-usdc',
       amount: m[1],
+      templateId: 'arbitrum-usdc',
     }),
   },
   {
@@ -128,7 +130,6 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: () => ({
       kind: 'execution',
       label: 'Allowed USDC demo',
-      href: '/dashboard/executions/new',
       templateId: 'arbitrum-usdc',
     }),
   },
@@ -137,7 +138,6 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: (m) => ({
       kind: 'budget',
       label: `Budget target ${m[1]} USDC`,
-      href: '/dashboard/budgets',
       amount: m[1],
     }),
   },
@@ -146,7 +146,6 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: () => ({
       kind: 'identity',
       label: 'Register ERC-8004 identity',
-      href: '/dashboard/agents',
     }),
   },
   {
@@ -154,7 +153,7 @@ const RULES: Array<{ pattern: RegExp; resolve: (match: RegExpMatchArray, raw: st
     resolve: () => ({
       kind: 'agent',
       label: 'Create governed agent',
-      href: '/dashboard/agents/studio',
+      agentTemplateId: 'usdc-treasury',
     }),
   },
 ];
@@ -171,10 +170,10 @@ export function parseCommand(input: string): ParsedCommand | null {
   return {
     kind: 'unknown',
     label: raw,
-    href: '/dashboard/executions/new',
   };
 }
 
+/** Optional secondary navigation for palette / legacy surfaces only — not used by Command Agent execution. */
 export function hrefForParsedCommand(parsed: ParsedCommand): string {
   const params = new URLSearchParams();
   if (parsed.templateId) params.set('template', parsed.templateId);
@@ -182,6 +181,20 @@ export function hrefForParsedCommand(parsed: ParsedCommand): string {
   if (parsed.query) {
     Object.entries(parsed.query).forEach(([k, v]) => params.set(k, v));
   }
-  const qs = params.toString();
-  return qs ? `${parsed.href}?${qs}` : parsed.href;
+  if (parsed.templateId) {
+    const qs = params.toString();
+    return qs ? `/dashboard/executions/new?${qs}` : '/dashboard/executions/new';
+  }
+  switch (parsed.kind) {
+    case 'budget':
+      return '/dashboard/budgets';
+    case 'proof':
+      return '/dashboard/proofs';
+    case 'agent':
+      return `/dashboard/agents/studio?template=${parsed.agentTemplateId ?? 'usdc-treasury'}`;
+    case 'x402':
+      return '/dashboard/payments';
+    default:
+      return '/dashboard';
+  }
 }

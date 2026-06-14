@@ -414,6 +414,7 @@ export default function AgentStudioPage() {
               initialNetworks={policyGovernanceDefaults?.allowedChains ?? supportedNetworks}
               initialAssets={policyGovernanceDefaults?.allowedAssets ?? (allAssets ? DEFAULT_SUPPORTED_ASSETS : supportedAssets)}
               initialActions={policyGovernanceDefaults?.allowedActions ?? supportedActions}
+              verifyChainId={policyGovernanceDefaults?.allowedChains[0] ?? 421614}
               verifyComplete={ownerWalletVerified}
               mandateComplete={mandateSigned}
               onSetupChange={() => { void refetchMandates(); void refetchWalletVerifications(); }}
