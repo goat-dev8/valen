@@ -8,11 +8,19 @@ const ICON_BY_SYMBOL: Record<string, string> = {
   NFLX: '/nflx.svg',
   AMD: '/amd.svg',
   ETH: '/arbitrum-logo.png',
+  NATIVE: '/arbitrum-logo.png',
 };
+
+export function normalizeAssetSymbol(symbol: string | null | undefined): string {
+  if (!symbol) return 'USDC';
+  const upper = symbol.toUpperCase();
+  if (upper === 'NATIVE') return 'ETH';
+  return upper;
+}
 
 export function assetIconUrl(symbol: string | null | undefined): string | null {
   if (!symbol) return null;
-  return ICON_BY_SYMBOL[symbol.toUpperCase()] ?? null;
+  return ICON_BY_SYMBOL[normalizeAssetSymbol(symbol)] ?? null;
 }
 
 export function AssetIcon({
@@ -24,14 +32,15 @@ export function AssetIcon({
   size?: number;
   className?: string;
 }) {
-  const src = assetIconUrl(symbol);
+  const displaySymbol = normalizeAssetSymbol(symbol);
+  const src = assetIconUrl(displaySymbol);
   if (!src) {
     return (
       <span
         className={`inline-flex items-center justify-center rounded-full bg-[#e8f4ff] text-[10px] font-bold text-[#007dfc] ${className}`}
         style={{ width: size, height: size }}
       >
-        {symbol.slice(0, 3)}
+        {displaySymbol.slice(0, 3)}
       </span>
     );
   }

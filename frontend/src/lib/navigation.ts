@@ -141,6 +141,7 @@ export function isNavActive(pathname: string, href: string): boolean {
 
 /** Resolve the short sidebar label for the current path */
 export function navLabelForPath(pathname: string): string | null {
+  if (pathname.startsWith('/organization/profile')) return 'Organization Profile';
   for (const section of NAV_SECTIONS) {
     for (const item of section.items) {
       if (isNavActive(pathname, item.href)) return item.label;

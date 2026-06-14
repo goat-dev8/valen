@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/app/page-header';
-import { PolicyTemplatePreview } from '@/components/policies/policy-template-preview';
+import { PolicyTemplateGallery } from '@/components/policies/policy-template-gallery';
 import {
   useActivatePolicyVersion,
   useAgents,
@@ -95,20 +95,8 @@ export default function CreatePolicyPage() {
       <div className="app-panel-floating policy-create-form">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="app-form-group">
-            <label htmlFor="templateId">Template</label>
-            <select
-              id="templateId"
-              className="app-input"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-            >
-              {POLICY_TEMPLATES.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-            <PolicyTemplatePreview template={selectedTemplate} />
+            <label>Governance template</label>
+            <PolicyTemplateGallery selectedId={templateId} onSelect={setTemplateId} />
           </div>
 
           <div className="app-form-group">

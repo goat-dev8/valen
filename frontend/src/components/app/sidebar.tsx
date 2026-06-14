@@ -54,7 +54,7 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside className={cn('app-sidebar', className)}>
       <div className="app-sidebar-brand">
-        <ValenLogo href="/dashboard" size="lg" />
+        <ValenLogo href="/" size="lg" />
       </div>
 
       <nav className="app-sidebar-nav" aria-label="Main navigation">
@@ -93,7 +93,7 @@ export function Sidebar({ className }: { className?: string }) {
       </nav>
 
       <div className="app-sidebar-footer">
-        <div className="app-sidebar-org">
+        <Link href="/organization/profile" className="app-sidebar-org app-sidebar-org--link">
           <div className="app-sidebar-org__avatar">{orgInitials}</div>
           <div className="app-sidebar-org__copy">
             <p className="app-sidebar-org__name">{organization?.name ?? 'Organization'}</p>
@@ -102,7 +102,7 @@ export function Sidebar({ className }: { className?: string }) {
               <span className="app-sidebar-org__plan">{organization?.plan ?? '—'}</span>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
     </aside>
   );

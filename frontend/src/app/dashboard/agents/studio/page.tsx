@@ -11,6 +11,7 @@ import { ChainBadge } from '@/components/app/chain-badge';
 import { PageHeader } from '@/components/app/page-header';
 import { AuthoritySetupFlow } from '@/components/mandate/authority-setup-flow';
 import { CreatePolicyModal } from '@/components/policies/create-policy-modal';
+import { ActivePolicyPicker } from '@/components/policies/active-policy-picker';
 import {
   AGENT_CAPABILITY_OPTIONS,
   AGENT_TYPE_OPTIONS,
@@ -322,15 +323,11 @@ export default function AgentStudioPage() {
         {step === 2 && agentId && (
           <div className="app-panel-floating app-card max-w-none space-y-4">
             <p className="text-sm text-[#5E6C7B]">Assign the compliance policy that governs this agent&apos;s actions.</p>
-            <div className="app-form-group">
-              <label htmlFor="policy">Default policy</label>
-              <select id="policy" className="app-input" value={selectedPolicyId} onChange={(e) => setSelectedPolicyId(e.target.value)}>
-                <option value="">Select policy</option>
-                {activePolicies.map((policy) => (
-                  <option key={policy.id} value={policy.id}>{policy.name}</option>
-                ))}
-              </select>
-            </div>
+            <ActivePolicyPicker
+              policies={activePolicies}
+              selectedId={selectedPolicyId}
+              onSelect={setSelectedPolicyId}
+            />
             <div className="flex flex-col gap-3 border-t border-[#E8ECF0] pt-4 sm:flex-row sm:items-center sm:justify-between">
               <button type="button" className="app-btn app-btn-outline w-full sm:w-auto" onClick={() => setCreatePolicyOpen(true)}>Create new policy</button>
               <button type="button" className="app-btn app-btn-primary w-full sm:w-auto" onClick={handleRulesSubmit} disabled={updateMutation.isPending}>

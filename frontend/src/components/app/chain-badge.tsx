@@ -13,10 +13,18 @@ type ChainBadgeProps = {
   chainId: number;
   className?: string;
   showLogo?: boolean;
+  compact?: boolean;
 };
 
-export function ChainBadge({ chainId, className, showLogo = true }: ChainBadgeProps) {
+const COMPACT_CHAIN_LABEL: Record<number, string> = {
+  421614: 'Arbitrum',
+  42161: 'Arbitrum',
+  46630: 'Robinhood',
+};
+
+export function ChainBadge({ chainId, className, showLogo = true, compact = false }: ChainBadgeProps) {
   const logo = showLogo ? chainLogoSrc(chainId) : null;
+  const label = compact ? (COMPACT_CHAIN_LABEL[chainId] ?? chainName(chainId)) : chainName(chainId);
 
   return (
     <span
@@ -36,7 +44,7 @@ export function ChainBadge({ chainId, className, showLogo = true }: ChainBadgePr
           aria-hidden
         />
       )}
-      {chainName(chainId)}
+      {label}
     </span>
   );
 }

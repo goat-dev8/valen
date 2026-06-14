@@ -12,7 +12,7 @@ import {
   useUpdateAgent,
 } from '@/hooks/use-valen-api';
 import { POLICY_TEMPLATES, policyTemplateById } from '@/lib/policy-templates';
-import { PolicyTemplatePreview } from '@/components/policies/policy-template-preview';
+import { PolicyTemplateGallery } from '@/components/policies/policy-template-gallery';
 import { formatApiErrorMessage } from '@/lib/utils';
 
 export type CreatePolicyModalProps = {
@@ -107,7 +107,7 @@ export function CreatePolicyModal({ open, onClose, onCreated, assignAgentId }: C
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#E8ECF0] bg-white shadow-[0_24px_64px_-12px_rgba(0,102,255,0.25)]"
+        className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-[#E8ECF0] bg-white shadow-[0_24px_64px_-12px_rgba(0,102,255,0.25)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-[#E8ECF0] p-6">
@@ -132,20 +132,8 @@ export function CreatePolicyModal({ open, onClose, onCreated, assignAgentId }: C
 
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div className="app-form-group">
-            <label htmlFor="create-policy-template">Template</label>
-            <select
-              id="create-policy-template"
-              className="app-input"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-            >
-              {POLICY_TEMPLATES.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-            <PolicyTemplatePreview template={selectedTemplate} />
+            <label>Governance template</label>
+            <PolicyTemplateGallery selectedId={templateId} onSelect={setTemplateId} />
           </div>
 
           <div className="app-form-group">
