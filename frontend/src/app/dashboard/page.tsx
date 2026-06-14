@@ -28,15 +28,11 @@ export default function DashboardPage() {
   const { data: totalAgents, isLoading: totalAgentsLoading } = useAgents({ limit: 100 });
   const { data: activeAgents } = useAgents({ status: 'active', limit: 1 });
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
-  const { data: allExec, isLoading: allExecLoading, error } = useExecutions({ limit: 100 });
-  const { data: dashboardSummary } = useDashboardSummary();
+  const { data: allExec, isLoading: allExecLoading, error } = useExecutions({ limit: 100 }, { live: true });
+  const { data: dashboardSummary } = useDashboardSummary({ live: true });
   const { data: policies, isLoading: policiesLoading } = usePolicies();
   const { data: walletVerifications, isLoading: walletVerificationsLoading } = useWalletVerifications();
   const { data: mandates, isLoading: mandatesLoading } = useMandates();
-
-  const total = allExec?.total ?? 0;
-  const executed = allExec?.items.filter((e) => e.status === 'executed').length ?? 0;
-  const passRate = total > 0 ? Math.round((executed / total) * 1000) / 10 : 0;
 
   const setupSteps = buildSetupSteps({
     organization,
@@ -71,15 +67,8 @@ export default function DashboardPage() {
   }, [organization, setupComplete, setupLoading]);
 
   const dashboardKpis = useMemo(
-    () =>
-      buildAccountKpis({
-        summary: dashboardSummary,
-        activeAgentCount: activeAgents?.total ?? 0,
-        totalAgentCount: totalAgents?.total ?? 0,
-        passRate,
-        executedCount: executed,
-      }),
-    [dashboardSummary, activeAgents?.total, totalAgents?.total, passRate, executed],
+    () => buildAccountKpis({ summary: dashboardSummary }),
+    [dashboardSummary],
   );
 
   const systemsHealthy = setupComplete && (approvals?.total ?? 0) === 0;

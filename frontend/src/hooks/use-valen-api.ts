@@ -34,13 +34,14 @@ export function useAgents(params?: { status?: string; page?: number; limit?: num
   });
 }
 
-export function useDashboardSummary() {
+export function useDashboardSummary(options?: { live?: boolean }) {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({
     queryKey: ['dashboard-summary', orgId],
     queryFn: () => api.dashboard.summary(token!, orgId!),
     enabled,
     staleTime: dashboardSummaryStaleTimeMs,
+    refetchInterval: options?.live ? 12_000 : false,
   });
 }
 
@@ -145,12 +146,16 @@ export function useAgentApiKeys(agentId: string) {
   });
 }
 
-export function useExecutions(params?: { status?: string; agentId?: string; page?: number; limit?: number }) {
+export function useExecutions(
+  params?: { status?: string; agentId?: string; page?: number; limit?: number },
+  options?: { live?: boolean },
+) {
   const { token, orgId, enabled } = useAuthOrg();
   return useQuery({
     queryKey: ['executions', orgId, params],
     queryFn: () => api.executions.list(token!, orgId!, params),
     enabled,
+    refetchInterval: options?.live ? 8000 : false,
   });
 }
 
@@ -196,6 +201,14 @@ export function useExecutionSettlement(executionId: string, queryEnabled = true)
     queryFn: () => api.settlements.get(token!, orgId!, executionId),
     enabled: enabled && Boolean(executionId) && queryEnabled,
     retry: false,
+    refetchInterval: (query) => {
+      if (!queryEnabled) return false;
+      const settlement = query.state.data;
+      if (settlement?.txHash && settlement.status && !['failed', 'reverted', 'pending'].includes(settlement.status)) {
+        return false;
+      }
+      return 4000;
+    },
   });
 }
 

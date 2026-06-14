@@ -295,6 +295,26 @@ export type DashboardSummaryDto = {
     pendingApprovals: number;
     failedOrRefusedExecutions: number;
   };
+  organizationStats: {
+    activeAgents: number;
+    budgetTotals: {
+      assetSymbol: string;
+      status: string;
+      cap?: string | null;
+      spent?: string | null;
+      remaining?: string | null;
+      budgetedAgents: number;
+    };
+    governance: {
+      totalExecutions: number;
+      executedExecutions: number;
+      failedOrRefusedExecutions: number;
+      pendingApprovals: number;
+      successRatePercent: number;
+      totalProofs: number;
+      x402Settlements: number;
+    };
+  };
   latest: {
     execution: {
       id: string;

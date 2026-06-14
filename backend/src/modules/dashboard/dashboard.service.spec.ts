@@ -48,7 +48,33 @@ describe('DashboardService', () => {
 
   it('returns a Mission Control summary and caches it for five seconds', async () => {
     const db = {
-      query: jest.fn().mockResolvedValue({ rows: [row] }),
+      query: jest.fn(async (sql: string) => {
+        if (sql.includes('agent_summary_v') || sql.includes('FROM organizations o')) {
+          return { rows: [row] };
+        }
+        if (sql.includes('agent_budget_status_v') || sql.includes('FROM x402_payments')) {
+          return { rows: [] };
+        }
+        if (sql.includes('active_agents')) {
+          return { rows: [{ active_agents: 1 }] };
+        }
+        if (sql.includes('budgeted_agents')) {
+          return {
+            rows: [
+              {
+                total_cap: '1000000',
+                total_spent: '5000',
+                total_remaining: '995000',
+                budgeted_agents: 1,
+              },
+            ],
+          };
+        }
+        if (sql.includes('x402_settlements')) {
+          return { rows: [{ x402_settlements: 1 }] };
+        }
+        return { rows: [] };
+      }),
     };
     const redis = {
       get: jest.fn().mockResolvedValue(null),
@@ -67,6 +93,8 @@ describe('DashboardService', () => {
     );
     expect(summary.latest.proof?.href).toBe('/proofs/executions/44444444-4444-4444-8444-444444444444');
     expect(summary.latest.robinhood?.asset).toBe('TSLA');
+    expect(summary.organizationStats.activeAgents).toBe(1);
+    expect(summary.organizationStats.governance.successRatePercent).toBe(50);
     expect(redis.set).toHaveBeenCalledWith(
       `dashboard:summary:${row.organization_id}`,
       expect.any(String),

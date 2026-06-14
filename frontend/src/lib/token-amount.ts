@@ -72,20 +72,23 @@ export function formatProofAmount(
   amount: string | null | undefined,
   chainId: number,
   assetAddress?: string | null,
-  symbol = 'USDC',
+  symbol?: string,
 ): string {
   if (!amount) return 'Unavailable';
-  if (/^\d+\.\d+$/.test(amount)) return `${amount} ${symbol}`;
+  const asset = assetAddress ? knownAssetForMandateValue(chainId, assetAddress) : undefined;
+  const resolvedSymbol = symbol ?? asset?.symbol ?? (chainId === 421614 ? 'USDC' : 'ETH');
 
-  const decimals = assetDecimals(chainId, assetAddress);
+  if (/^\d+\.\d+$/.test(amount)) return `${amount} ${resolvedSymbol}`;
+
+  const decimals = assetDecimals(chainId, assetAddress ?? asset?.address);
   try {
     const raw = BigInt(amount);
     const threshold = BigInt(10) ** BigInt(Math.max(decimals - 2, 0));
     if (raw >= threshold) {
-      return formatBaseUnitsAmount(amount, decimals, symbol);
+      return formatBaseUnitsAmount(amount, decimals, resolvedSymbol);
     }
-    return `${amount} ${symbol}`;
+    return `${amount} ${resolvedSymbol}`;
   } catch {
-    return `${amount} ${symbol}`;
+    return `${amount} ${resolvedSymbol}`;
   }
 }

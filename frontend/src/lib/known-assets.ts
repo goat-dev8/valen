@@ -132,3 +132,14 @@ export function settlementLabelForAsset(chainId: number, mandateValue: string): 
   }
   return `Settlement asset: ${asset.symbol} (${asset.address}). ERC-20 transfer via ValenTokenSettlementAdapter.`;
 }
+
+/** Settlement-ready assets shown on Command Center (no gas/legacy duplicates). */
+export function governedHomeAssets(): KnownAsset[] {
+  const arbitrum = ASSETS_BY_CHAIN[421614].filter(
+    (asset) => asset.supportLevel === 'demo-ready' && asset.category === 'stablecoin',
+  );
+  const robinhood = ASSETS_BY_CHAIN[46630].filter(
+    (asset) => asset.supportLevel === 'demo-ready' && asset.category !== 'gas',
+  );
+  return [...arbitrum, ...robinhood];
+}

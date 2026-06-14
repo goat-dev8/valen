@@ -2,22 +2,21 @@
 
 import Link from 'next/link';
 import { AssetIcon } from '@/lib/asset-icons';
-
-const STRIP_ASSETS = [
-  { symbol: 'USDC', chainId: 421614, allowed: 'arbitrum-usdc', refused: null as string | null },
-  { symbol: 'USDG', chainId: 46630, allowed: 'robinhood-usdg-allowed', refused: null },
-  { symbol: 'TSLA', chainId: 46630, allowed: 'robinhood-tsla-allowed', refused: 'robinhood-tsla-refused' },
-  { symbol: 'AMZN', chainId: 46630, allowed: 'robinhood-amzn-allowed', refused: 'robinhood-amzn-refused' },
-  { symbol: 'PLTR', chainId: 46630, allowed: 'robinhood-pltr-allowed', refused: 'robinhood-pltr-refused' },
-  { symbol: 'NFLX', chainId: 46630, allowed: 'robinhood-nflx-allowed', refused: 'robinhood-nflx-refused' },
-  { symbol: 'AMD', chainId: 46630, allowed: 'robinhood-amd-allowed', refused: 'robinhood-amd-refused' },
-];
+import { governedHomeAssets } from '@/lib/known-assets';
 
 function templateHref(templateId: string) {
   return `/dashboard/executions/new?template=${templateId}`;
 }
 
+function assetTemplateId(symbol: string): string {
+  if (symbol === 'USDC') return 'arbitrum-usdc';
+  if (symbol === 'USDG') return 'robinhood-usdg-allowed';
+  return `robinhood-${symbol.toLowerCase()}-allowed`;
+}
+
 export function AssetStrip({ onX402Click }: { onX402Click?: () => void }) {
+  const assets = governedHomeAssets();
+
   return (
     <section aria-label="Governed assets" className="app-panel-floating p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -35,12 +34,16 @@ export function AssetStrip({ onX402Click }: { onX402Click?: () => void }) {
           <AssetIcon symbol="USDC" size={32} />
           <span className="text-[10px] font-semibold text-[#1A2332]">x402</span>
         </button>
-        {STRIP_ASSETS.map((asset) => (
+        {assets.map((asset) => (
           <Link
-            key={asset.symbol}
-            href={asset.refused ? `/dashboard/assets/${asset.symbol.toLowerCase()}` : templateHref(asset.allowed!)}
+            key={`${asset.symbol}-${asset.address}`}
+            href={
+              asset.category === 'rwa-stock-token'
+                ? `/dashboard/assets/${asset.symbol.toLowerCase()}`
+                : templateHref(assetTemplateId(asset.symbol))
+            }
             className="flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-[#E8ECF0] bg-[#FAFBFC] px-3 py-2 transition hover:border-[#0066FF]/40"
-            title={`${asset.symbol} on chain ${asset.chainId}`}
+            title={`${asset.symbol} · chain ${asset.symbol === 'USDC' ? '421614' : '46630'}`}
           >
             <AssetIcon symbol={asset.symbol} size={32} />
             <span className="text-[10px] font-semibold text-[#1A2332]">{asset.symbol}</span>

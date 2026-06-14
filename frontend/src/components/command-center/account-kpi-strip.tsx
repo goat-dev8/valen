@@ -74,18 +74,17 @@ export function AccountKpiStrip({
 
 export function buildAccountKpis(input: {
   summary?: DashboardSummaryDto | null;
-  activeAgentCount: number;
-  totalAgentCount: number;
-  passRate: number;
-  executedCount: number;
 }): AccountKpi[] {
-  const budget = input.summary?.budget;
+  const org = input.summary?.organizationStats;
+  const budget = org?.budgetTotals;
+  const governance = org?.governance;
   const symbol = budget?.assetSymbol ?? 'USDC';
-  const hasBudget =
-    budget?.status === 'active' &&
-    Boolean(budget?.remaining != null || budget?.cap != null || budget?.spent != null);
+  const budgetedAgents = budget?.budgetedAgents ?? 0;
+  const hasBudget = Boolean(budget && budget.status === 'active' && budgetedAgents > 0);
   const remaining = hasBudget ? formatUsdcBaseUnits(budget?.remaining) : null;
   const spent = hasBudget ? formatUsdcBaseUnits(budget?.spent ?? '0') : '0';
+  const passRate = governance?.successRatePercent ?? 0;
+  const activeAgents = org?.activeAgents ?? 0;
 
   return [
     {
@@ -95,8 +94,8 @@ export function buildAccountKpis(input: {
     },
     {
       label: 'Success Rate',
-      value: `${input.passRate}%`,
-      tone: input.passRate >= 80 ? 'positive' : 'default',
+      value: `${passRate}%`,
+      tone: passRate >= 80 ? 'positive' : 'default',
     },
     {
       label: 'USDC Spent',
@@ -106,7 +105,7 @@ export function buildAccountKpis(input: {
     },
     {
       label: 'Active Agents',
-      value: String(input.activeAgentCount),
+      value: String(activeAgents),
       href: '/dashboard/agents',
     },
   ];

@@ -88,9 +88,94 @@ export class DashboardService {
     const row = await this.loadSummaryRow(organizationId);
     const budgetRow = row.agent_id ? await this.loadBudgetRow(row.agent_id) : null;
     const paymentRow = await this.loadLatestPayment(organizationId);
-    const payload = this.toPayload(row, budgetRow, paymentRow);
+    const organizationStats = await this.loadOrganizationStats(organizationId, row);
+    const payload = this.toPayload(row, budgetRow, paymentRow, organizationStats);
     await this.redis.set(cacheKey, JSON.stringify(payload), 5).catch(() => undefined);
     return payload;
+  }
+
+  private async loadOrganizationStats(organizationId: string, row: SummaryRow) {
+    try {
+      const [agentsResult, budgetsResult, x402Result] = await Promise.all([
+        this.db.query<{ active_agents: number }>(
+          `SELECT COUNT(*)::int AS active_agents FROM agents WHERE organization_id = $1 AND status = 'active'`,
+          [organizationId],
+        ),
+        this.db.query<{
+          total_cap: string;
+          total_spent: string;
+          total_remaining: string;
+          budgeted_agents: number;
+        }>(
+          `SELECT
+             COALESCE(SUM(b.cap::numeric), 0)::text AS total_cap,
+             COALESCE(SUM(b.spent::numeric), 0)::text AS total_spent,
+             COALESCE(SUM(GREATEST(b.cap::numeric - b.spent::numeric, 0)), 0)::text AS total_remaining,
+             COUNT(DISTINCT b.agent_id)::int AS budgeted_agents
+           FROM agent_budgets b
+           INNER JOIN agents a ON a.id = b.agent_id
+           WHERE a.organization_id = $1 AND b.status = 'active' AND UPPER(b.asset_symbol) = 'USDC'`,
+          [organizationId],
+        ),
+        this.db.query<{ x402_settlements: number }>(
+          `SELECT COUNT(*)::int AS x402_settlements
+           FROM x402_payments
+           WHERE organization_id = $1 AND status IN ('settled', 'executed')`,
+          [organizationId],
+        ).catch(() => ({ rows: [{ x402_settlements: 0 }] })),
+      ]);
+
+      const budgetedAgents = budgetsResult.rows[0]?.budgeted_agents ?? 0;
+      const totalExecutions = row.total_executions ?? 0;
+      const executedExecutions = row.executed_executions ?? 0;
+      const failedOrRefused = row.failed_or_refused_executions ?? 0;
+
+      return {
+        activeAgents: agentsResult.rows[0]?.active_agents ?? 0,
+        budgetTotals: {
+          assetSymbol: 'USDC',
+          status: budgetedAgents > 0 ? 'active' : 'not_configured',
+          cap: budgetBaseUnits(budgetsResult.rows[0]?.total_cap),
+          spent: budgetBaseUnits(budgetsResult.rows[0]?.total_spent),
+          remaining: budgetBaseUnits(budgetsResult.rows[0]?.total_remaining),
+          budgetedAgents,
+        },
+        governance: {
+          totalExecutions,
+          executedExecutions,
+          failedOrRefusedExecutions: failedOrRefused,
+          pendingApprovals: row.approval_required_executions ?? 0,
+          successRatePercent:
+            totalExecutions > 0 ? Math.round((executedExecutions / totalExecutions) * 1000) / 10 : 0,
+          totalProofs: executedExecutions + failedOrRefused,
+          x402Settlements: x402Result.rows[0]?.x402_settlements ?? 0,
+        },
+      };
+    } catch {
+      return {
+        activeAgents: 0,
+        budgetTotals: {
+          assetSymbol: 'USDC',
+          status: 'not_configured',
+          cap: null,
+          spent: null,
+          remaining: null,
+          budgetedAgents: 0,
+        },
+        governance: {
+          totalExecutions: row.total_executions ?? 0,
+          executedExecutions: row.executed_executions ?? 0,
+          failedOrRefusedExecutions: row.failed_or_refused_executions ?? 0,
+          pendingApprovals: row.approval_required_executions ?? 0,
+          successRatePercent:
+            (row.total_executions ?? 0) > 0
+              ? Math.round(((row.executed_executions ?? 0) / row.total_executions) * 1000) / 10
+              : 0,
+          totalProofs: (row.executed_executions ?? 0) + (row.failed_or_refused_executions ?? 0),
+          x402Settlements: 0,
+        },
+      };
+    }
   }
 
   private async loadSummaryRow(organizationId: string): Promise<SummaryRow> {
@@ -239,7 +324,12 @@ export class DashboardService {
     }
   }
 
-  private toPayload(row: SummaryRow, budgetRow: QueryResultRow | null, paymentRow: QueryResultRow | null) {
+  private toPayload(
+    row: SummaryRow,
+    budgetRow: QueryResultRow | null,
+    paymentRow: QueryResultRow | null,
+    organizationStats: Awaited<ReturnType<DashboardService['loadOrganizationStats']>>,
+  ) {
     const readiness = {
       walletConnected: row.verified_wallet_count > 0,
       agentActive: row.agent_status === 'active',
@@ -298,6 +388,7 @@ export class DashboardService {
         pendingApprovals: row.approval_required_executions,
         failedOrRefusedExecutions: row.failed_or_refused_executions,
       },
+      organizationStats,
       latest: {
         execution: row.last_execution_id
           ? {
