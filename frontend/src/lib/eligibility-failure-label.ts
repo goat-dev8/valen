@@ -3,9 +3,11 @@ import type { IntentEligibilityResult } from '@/lib/intent-eligibility';
 
 /** User-facing rejection label for agent cards (FIX 9). */
 export function eligibilityFailureLabel(
-  result: IntentEligibilityResult,
+  result: IntentEligibilityResult | undefined | null,
   budgetCheck?: BudgetValidationResult | null,
 ): string {
+  if (!result) return 'Select an eligible agent.';
+
   if (result.eligible && budgetCheck && !budgetCheck.allow) {
     return budgetCheck.message;
   }

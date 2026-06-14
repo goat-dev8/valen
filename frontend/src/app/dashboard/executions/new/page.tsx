@@ -101,7 +101,7 @@ export default function SubmitIntentPage() {
     robinhoodTicker: robinhoodTickerFromTemplate(selectedTemplate),
   });
 
-  const selectedAgent = agents?.items.find((agent) => agent.id === agentId) ?? agents?.items[0];
+  const selectedAgent = agents?.items.find((agent) => agent.id === agentId);
   const intentRequirements = useMemo(
     () => intentRequirementsFromTemplate(selectedTemplate, targetAddress, resolvedSubmitAsset),
     [selectedTemplate, targetAddress, resolvedSubmitAsset],
@@ -227,7 +227,9 @@ export default function SubmitIntentPage() {
     : !selectedAgent.defaultPolicyId
       ? 'Selected agent needs an assigned policy.'
       : !selectedRunnable
-        ? eligibilityFailureLabel(selectedEvaluation!, selectedBudgetCheck)
+        ? selectedEvaluation
+          ? eligibilityFailureLabel(selectedEvaluation, selectedBudgetCheck)
+          : 'Select an eligible agent.'
         : null;
 
   const { data: chainBalance } = useWalletBalanceForChain(connectedWallet, selectedTemplate.targetChainId);
@@ -430,7 +432,7 @@ export default function SubmitIntentPage() {
                     agents={agents.items}
                     evaluations={agentEvaluations}
                     budgetsByAgentId={budgetsByAgentId}
-                    selectedId={agentId || selectedAgent?.id || ''}
+                    selectedId={agentId}
                     templateName={selectedTemplate.name}
                     paymentAmount={amount}
                     requiresBudget={showUsdcBudget}

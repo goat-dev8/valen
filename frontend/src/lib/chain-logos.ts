@@ -2,7 +2,7 @@
 export const CHAIN_LOGOS: Record<number, string> = {
   421614: '/arbitrum-logo.png',
   42161: '/arbitrum-logo.png',
-  46630: '/robinhood-chain-logo.svg',
+  46630: '/robinhood.svg',
 };
 
 export function chainLogoSrc(chainId: number): string | null {

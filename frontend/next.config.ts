@@ -96,6 +96,15 @@ const nextConfig: NextConfig = {
     ];
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: '/favicon.ico',
+        destination: '/valen-logo.svg',
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

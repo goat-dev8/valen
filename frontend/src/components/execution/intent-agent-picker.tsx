@@ -14,6 +14,13 @@ import type { IntentEligibilityResult } from '@/lib/intent-eligibility';
 import { formatUsdcBaseUnits } from '@/lib/token-amount';
 import type { AgentDto, BudgetDto } from '@/types/api';
 
+const MISSING_EVALUATION: IntentEligibilityResult = {
+  eligible: false,
+  checks: [],
+  failureReason: 'No active mandate on agent',
+  mandateStatus: 'missing',
+};
+
 type IntentAgentPickerProps = {
   agents: AgentDto[];
   evaluations: Map<string, IntentEligibilityResult>;
@@ -216,7 +223,7 @@ export function IntentAgentPicker({
               <CompactAgentCard
                 key={agent.id}
                 agent={agent}
-                evaluation={evaluations.get(agent.id)!}
+                evaluation={evaluations.get(agent.id) ?? MISSING_EVALUATION}
                 budget={budgetsByAgentId.get(agent.id)}
                 policyName={policyNamesByAgentId?.get(agent.id)}
                 requiresBudget={requiresBudget}
@@ -242,8 +249,7 @@ export function IntentAgentPicker({
           {ineligibleOpen && (
             <div className="intent-agent-grid space-y-3 mt-3">
               {ineligible.map((agent) => {
-                const evaluation = evaluations.get(agent.id);
-                if (!evaluation) return null;
+                const evaluation = evaluations.get(agent.id) ?? MISSING_EVALUATION;
                 return (
                   <CompactAgentCard
                     key={agent.id}

@@ -38,7 +38,11 @@ export function ValenPrivyProvider({ children }: { children: React.ReactNode }) 
                 },
                 supportedChains: [arbitrumSepolia, robinhoodTestnet],
                 defaultChain: arbitrumSepolia,
-                appearance: { theme: 'light', accentColor: '#007dfc' },
+                appearance: {
+                  theme: 'light',
+                  accentColor: '#007dfc',
+                  walletList: ['detected_wallets', 'metamask', 'wallet_connect', 'rainbow'],
+                },
               }}
             >
               {inner}
