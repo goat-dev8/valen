@@ -8,6 +8,8 @@ export type AgentTemplate = {
   tagline: string;
   agentType: AgentTypeValue;
   capabilities: AgentCapability[];
+  supportedNetworks: number[];
+  supportedAssets: string[];
   policyTemplateId: string;
   visualPattern: AgentVisualPattern;
   setupSteps: string[];
@@ -24,6 +26,8 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     tagline: 'Treasury · USDC · Arbitrum',
     agentType: 'hosted',
     capabilities: ['token_transfer', 'x402_payment'],
+    supportedNetworks: [421614],
+    supportedAssets: ['USDC'],
     policyTemplateId: 'conservative-transfer',
     visualPattern: 'wave',
     setupSteps: [
@@ -43,6 +47,8 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     tagline: 'Robinhood · TSLA demo · Proofs',
     agentType: 'hosted',
     capabilities: ['token_transfer', 'robinhood_trade'],
+    supportedNetworks: [46630],
+    supportedAssets: ['TSLA', 'USDG', 'AMZN', 'NFLX', 'PLTR', 'AMD'],
     policyTemplateId: 'robinhood-tsla-demo',
     visualPattern: 'orbit',
     setupSteps: [
@@ -62,6 +68,8 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     tagline: 'x402 · API · Headless pay',
     agentType: 'external',
     capabilities: ['x402_payment', 'token_transfer'],
+    supportedNetworks: [421614],
+    supportedAssets: ['USDC'],
     policyTemplateId: 'conservative-transfer',
     visualPattern: 'grid',
     setupSteps: [
@@ -81,6 +89,8 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     tagline: 'Service · Cron · API intents',
     agentType: 'service',
     capabilities: ['token_transfer', 'x402_payment', 'robinhood_trade'],
+    supportedNetworks: [421614, 46630],
+    supportedAssets: ['USDC', 'USDG', 'TSLA', 'AMZN', 'NFLX', 'PLTR', 'AMD'],
     policyTemplateId: 'conservative-transfer',
     visualPattern: 'mesh',
     setupSteps: [
@@ -99,6 +109,8 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     tagline: 'Sandbox · QA · Demos',
     agentType: 'experimental',
     capabilities: ['token_transfer'],
+    supportedNetworks: [421614, 46630],
+    supportedAssets: ['USDC', 'TSLA'],
     policyTemplateId: 'conservative-transfer',
     visualPattern: 'grid',
     setupSteps: [

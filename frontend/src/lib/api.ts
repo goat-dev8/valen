@@ -190,6 +190,9 @@ export const api = {
         agentType: string;
         defaultPolicyId?: string;
         capabilities?: string[];
+        supportedNetworks?: number[];
+        supportedAssets?: string[];
+        supportedActions?: string[];
       },
     ) => apiRequest<AgentDto>(orgPath(orgId, '/agents'), { method: 'POST', body, token }),
     activate: (token: string, orgId: string, agentId: string) =>
@@ -213,7 +216,15 @@ export const api = {
       token: string,
       orgId: string,
       agentId: string,
-      body: { name?: string; description?: string; defaultPolicyId?: string },
+      body: {
+        name?: string;
+        description?: string;
+        defaultPolicyId?: string;
+        capabilities?: string[];
+        supportedNetworks?: number[];
+        supportedAssets?: string[];
+        supportedActions?: string[];
+      },
     ) => apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}`), { method: 'PATCH', body, token }),
     suspend: (token: string, orgId: string, agentId: string, reason: string) =>
       apiRequest<AgentDto>(orgPath(orgId, `/agents/${agentId}/suspend`), { method: 'POST', body: { reason }, token }),

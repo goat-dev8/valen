@@ -9,6 +9,9 @@ type AuthoritySetupFlowProps = {
   agentId: string;
   agentName?: string;
   defaultPolicyId?: string | null;
+  initialNetworks?: number[];
+  initialAssets?: string[];
+  initialActions?: string[];
   verifyComplete: boolean;
   mandateComplete: boolean;
   onSetupChange?: () => void;
@@ -18,6 +21,9 @@ export function AuthoritySetupFlow({
   agentId,
   agentName,
   defaultPolicyId,
+  initialNetworks,
+  initialAssets,
+  initialActions,
   verifyComplete,
   mandateComplete,
   onSetupChange,
@@ -116,6 +122,9 @@ export function AuthoritySetupFlow({
         agentId={agentId}
         agentName={agentName}
         defaultPolicyId={defaultPolicyId}
+        initialNetworks={initialNetworks}
+        initialAssets={initialAssets}
+        initialActions={initialActions}
         onClose={() => {
           setMandateOpen(false);
           onSetupChange?.();

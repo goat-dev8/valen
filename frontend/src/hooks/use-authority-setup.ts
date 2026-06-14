@@ -32,6 +32,7 @@ import {
   walletChainBannerMessage,
 } from '@/lib/wallet-chain';
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
+import { DEFAULT_SUPPORTED_ASSETS, mandateAssetValues } from '@/lib/agent-scope';
 
 export function useAuthoritySetup(initialChainId?: number) {
   const { wallets, ready } = useWallets();
@@ -59,13 +60,14 @@ export function useAuthoritySetup(initialChainId?: number) {
   const verifiedWallets = walletVerificationsQuery.data ?? [];
   const mandates = mandatesQuery.data ?? [];
 
-  const verifiedForAuthorityChain = verifiedWallets.find(
-    (wallet) =>
-      wallet.status === 'verified' &&
-      connectedWallet?.address &&
-      wallet.walletAddress.toLowerCase() === connectedWallet.address.toLowerCase() &&
-      wallet.chainId === chainId,
-  );
+  const verifiedForAuthorityChain = (targetChainId = chainId) =>
+    verifiedWallets.find(
+      (wallet) =>
+        wallet.status === 'verified' &&
+        connectedWallet?.address &&
+        wallet.walletAddress.toLowerCase() === connectedWallet.address.toLowerCase() &&
+        wallet.chainId === targetChainId,
+    );
 
   const ownerWalletVerified = verifiedWallets.some((wallet) => wallet.status === 'verified');
 
@@ -101,12 +103,12 @@ export function useAuthoritySetup(initialChainId?: number) {
     };
   }, [signableWallet, chainId, ready]);
 
-  const ensureAuthorityChainInWallet = async () => {
+  const ensureAuthorityChainInWallet = async (targetChainId = chainId) => {
     if (!signableWallet?.getEthereumProvider) {
       throw new Error('Connect a wallet before signing.');
     }
     const provider = await signableWallet.getEthereumProvider();
-    await ensureWalletOnChain(provider, chainId);
+    await ensureWalletOnChain(provider, targetChainId);
     const updated = await getWalletChainId(provider);
     setLiveWalletChainId(updated);
   };
@@ -116,14 +118,15 @@ export function useAuthoritySetup(initialChainId?: number) {
     setActionSuccess(null);
   };
 
-  const handleSwitchWalletNetwork = async () => {
+  const handleSwitchWalletNetwork = async (targetChainId = chainId) => {
     clearMessages();
     setIsSwitchingChain(true);
     try {
-      await ensureAuthorityChainInWallet();
-      setActionSuccess(`Wallet switched to ${chainName(chainId)}. You can now sign mandates on this network.`);
+      await ensureAuthorityChainInWallet(targetChainId);
+      setChainId(targetChainId);
+      setActionSuccess(`Wallet switched to ${chainName(targetChainId)}. You can now sign mandates on this network.`);
     } catch (err) {
-      setActionError(formatWalletChainError(err, chainId));
+      setActionError(formatWalletChainError(err, targetChainId));
     } finally {
       setIsSwitchingChain(false);
     }
@@ -168,13 +171,16 @@ export function useAuthoritySetup(initialChainId?: number) {
     }
   };
 
-  const handleCreateMandate = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreateMandate = async (
+    e: React.FormEvent<HTMLFormElement>,
+    scope?: { allowedChains: number[]; signingChainId: number },
+  ) => {
     e.preventDefault();
     clearMessages();
 
+    const signingChainId = scope?.signingChainId ?? chainId;
     const walletAddress = normalizeWalletAddress(connectedWallet?.address);
-    const walletChainId = chainId;
-    if (!verifiedForAuthorityChain || !connectedWallet || !signableWallet || !walletAddress || !walletChainId) {
+    if (!verifiedForAuthorityChain(signingChainId) || !connectedWallet || !signableWallet || !walletAddress) {
       setActionError('Verify the connected wallet on the selected chain before signing a mandate.');
       return false;
     }
@@ -182,14 +188,24 @@ export function useAuthoritySetup(initialChainId?: number) {
     const form = new FormData(e.currentTarget);
     const validDays = Math.max(1, Number(form.get('validDays') ?? 30));
     const validUntil = new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString();
+    const allowedChains =
+      scope?.allowedChains ??
+      form
+        .getAll('allowedChains')
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
+    const assetSymbols = form.getAll('allowedAssets').map(String).filter(Boolean);
+    const actionValues = form.getAll('allowedActions').map(String).filter(Boolean);
     const body = {
       agentId: String(form.get('agentId')),
       policyId: String(form.get('policyId') || '') || undefined,
       signerAddress: walletAddress,
-      chainId: walletChainId,
-      allowedChains: [walletChainId],
-      allowedActions: commaList(form.get('allowedActions'), ['transfer']),
-      allowedAssets: commaList(form.get('allowedAssets'), ['native']),
+      chainId: signingChainId,
+      allowedChains: allowedChains.length ? allowedChains : [signingChainId],
+      allowedActions: actionValues.length ? actionValues : commaList(form.get('allowedActions'), ['transfer']),
+      allowedAssets: assetSymbols.length
+        ? mandateAssetValues(assetSymbols)
+        : mandateAssetValues(DEFAULT_SUPPORTED_ASSETS),
       allowedTargets: commaList(form.get('allowedTargets'), ['*']),
       maxPerTransaction: String(form.get('maxPerTransaction') || '') || undefined,
       maxTotal: String(form.get('maxTotal') || '') || undefined,
@@ -199,7 +215,8 @@ export function useAuthoritySetup(initialChainId?: number) {
 
     setIsSigningMandate(true);
     try {
-      await ensureAuthorityChainInWallet();
+      await ensureAuthorityChainInWallet(signingChainId);
+      setChainId(signingChainId);
       const typedData = await typedDataMutation.mutateAsync(body);
       const bodyWithNonce = { ...body, nonce: typedData.nonce };
       const preparedTypedData = prepareMandateTypedDataForSigning(
@@ -218,7 +235,7 @@ export function useAuthoritySetup(initialChainId?: number) {
     } catch (err) {
       setActionError(
         isWalletChainError(err)
-          ? formatWalletChainError(err, walletChainId)
+          ? formatWalletChainError(err, signingChainId)
           : formatApiErrorMessage(err, 'Mandate signing failed'),
       );
       return false;

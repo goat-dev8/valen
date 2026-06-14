@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { X } from 'lucide-react';
+import { MandateScopeFields } from '@/components/mandate/mandate-scope-fields';
 import { useAuthoritySetup } from '@/hooks/use-authority-setup';
-import { chainName } from '@/lib/constants';
+import {
+  DEFAULT_SUPPORTED_ACTIONS,
+  DEFAULT_SUPPORTED_ASSETS,
+  DEFAULT_SUPPORTED_NETWORKS,
+} from '@/lib/agent-scope';
 import { walletChainBannerMessage } from '@/lib/wallet-chain';
+import { chainName } from '@/lib/constants';
 
 type SignMandateModalProps = {
   open: boolean;
@@ -13,7 +19,9 @@ type SignMandateModalProps = {
   agentName?: string;
   defaultPolicyId?: string | null;
   onSigned?: () => void;
-  chainId?: number;
+  initialNetworks?: number[];
+  initialAssets?: string[];
+  initialActions?: string[];
 };
 
 export function SignMandateModal({
@@ -23,18 +31,29 @@ export function SignMandateModal({
   agentName,
   defaultPolicyId,
   onSigned,
-  chainId: chainIdProp,
+  initialNetworks = DEFAULT_SUPPORTED_NETWORKS,
+  initialAssets = DEFAULT_SUPPORTED_ASSETS,
+  initialActions = DEFAULT_SUPPORTED_ACTIONS,
 }: SignMandateModalProps) {
-  const setup = useAuthoritySetup(chainIdProp);
-
-  useEffect(() => {
-    if (chainIdProp) setup.setChainId(chainIdProp);
-  }, [chainIdProp, setup.setChainId]);
+  const setup = useAuthoritySetup(initialNetworks[0] ?? 421614);
+  const [allowedChains, setAllowedChains] = useState(initialNetworks);
+  const [allowedAssets, setAllowedAssets] = useState(initialAssets);
+  const [allowedActions, setAllowedActions] = useState(initialActions);
+  const [allAssets, setAllAssets] = useState(false);
 
   if (!open) return null;
 
+  const signingChainId = allowedChains[0] ?? 421614;
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    const ok = await setup.handleCreateMandate(e);
+    if (!allowedChains.length) {
+      setup.clearMessages();
+      return;
+    }
+    const ok = await setup.handleCreateMandate(e, {
+      allowedChains,
+      signingChainId,
+    });
     if (ok) {
       await setup.refetch();
       onSigned?.();
@@ -70,34 +89,21 @@ export function SignMandateModal({
 
         <div className="space-y-5 p-6">
           <p className="text-sm leading-6 text-[#5E6C7B]">
-            Bind a verified owner wallet to this agent with policy, chains, actions, targets, limits, and expiry —
-            same flow as Wallet &amp; Authority.
+            Multi-chain mandate — select allowed networks, assets, and actions. Signing uses{' '}
+            {chainName(signingChainId)}.
           </p>
-
-          <div className="app-form-group">
-            <label htmlFor="mandate-chain">Authority chain</label>
-            <select
-              id="mandate-chain"
-              className="app-input"
-              value={setup.chainId}
-              onChange={(e) => setup.setChainId(Number(e.target.value))}
-            >
-              <option value={421614}>Arbitrum Sepolia</option>
-              <option value={46630}>Robinhood Testnet</option>
-            </select>
-          </div>
 
           {setup.walletNeedsChainSwitch && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
               <p className="font-semibold">Switch network before signing</p>
-              <p className="mt-2 leading-6">{walletChainBannerMessage(setup.effectiveWalletChainId, setup.chainId)}</p>
+              <p className="mt-2 leading-6">{walletChainBannerMessage(setup.effectiveWalletChainId, signingChainId)}</p>
               <button
                 type="button"
                 className="app-btn app-btn-primary mt-4"
                 disabled={setup.isSwitchingChain}
-                onClick={setup.handleSwitchWalletNetwork}
+                onClick={() => setup.handleSwitchWalletNetwork(signingChainId)}
               >
-                {setup.isSwitchingChain ? 'Switching…' : `Switch to ${chainName(setup.chainId)}`}
+                {setup.isSwitchingChain ? 'Switching…' : `Switch to ${chainName(signingChainId)}`}
               </button>
             </div>
           )}
@@ -117,16 +123,16 @@ export function SignMandateModal({
               </select>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="app-form-group">
-                <label htmlFor="allowedActions">Allowed actions</label>
-                <input id="allowedActions" name="allowedActions" className="app-input" defaultValue="transfer" />
-              </div>
-              <div className="app-form-group">
-                <label htmlFor="allowedAssets">Allowed assets</label>
-                <input id="allowedAssets" name="allowedAssets" className="app-input" defaultValue="native" />
-              </div>
-            </div>
+            <MandateScopeFields
+              allowedChains={allowedChains}
+              onAllowedChainsChange={setAllowedChains}
+              allowedAssets={allowedAssets}
+              onAllowedAssetsChange={setAllowedAssets}
+              allowedActions={allowedActions}
+              onAllowedActionsChange={setAllowedActions}
+              allAssets={allAssets}
+              onAllAssetsChange={setAllAssets}
+            />
 
             <div className="app-form-group">
               <label htmlFor="allowedTargets">Allowed targets</label>
@@ -158,9 +164,9 @@ export function SignMandateModal({
               />
             </div>
 
-            {!setup.verifiedForAuthorityChain && (
+            {!setup.verifiedForAuthorityChain(signingChainId) && (
               <p className="text-xs font-medium text-amber-700">
-                Verify the connected wallet on {chainName(setup.chainId)} before signing mandates.
+                Verify the connected wallet on {chainName(signingChainId)} before signing mandates.
               </p>
             )}
 
@@ -182,7 +188,12 @@ export function SignMandateModal({
                 <button
                   type="submit"
                   className="app-btn app-btn-primary"
-                  disabled={!setup.verifiedForAuthorityChain || setup.isSigningMandate || setup.isMandatePending}
+                  disabled={
+                    !allowedChains.length ||
+                    !setup.verifiedForAuthorityChain(signingChainId) ||
+                    setup.isSigningMandate ||
+                    setup.isMandatePending
+                  }
                 >
                   {setup.isSigningMandate || setup.isMandatePending ? 'Signing…' : 'Sign mandate'}
                 </button>

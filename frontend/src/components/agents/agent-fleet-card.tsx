@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Clock, Lock, Shield, Users } from 'lucide-react';
 import { AgentDitherPortrait } from '@/components/agents/agent-dither-portrait';
+import { AgentHealthStrip } from '@/components/agents/agent-health-strip';
 import {
   getAgentCapabilityTags,
   getAgentTypeTag,
@@ -17,6 +18,10 @@ export type AgentFleetCardModel = {
   typeMeta: AgentTypeOption;
   hasMandate: boolean;
   hasPolicy: boolean;
+  identityStatus?: string;
+  proofCount?: number;
+  lastExecution?: string | null;
+  budgetOk?: boolean;
 };
 
 const TAG_TONE_CLASS: Record<string, string> = {
@@ -27,24 +32,20 @@ const TAG_TONE_CLASS: Record<string, string> = {
 };
 
 export function AgentFleetCard({ model }: { model: AgentFleetCardModel }) {
-  const { agent, readinessCount, typeMeta, hasMandate, hasPolicy } = model;
+  const { agent, readinessCount, typeMeta, hasMandate, hasPolicy, identityStatus, proofCount, lastExecution, budgetOk } =
+    model;
   const identity = getAgentVisualIdentity(agent.id, agent.name);
   const typeTag = getAgentTypeTag(agent.agentType);
   const capabilityTags = getAgentCapabilityTags(agent.agentType).slice(0, 1);
-  const isActive = agent.status === 'active';
-  const isLive = isActive && hasMandate && hasPolicy;
 
   return (
     <Link href={`/dashboard/agents/${agent.id}`} className="agent-fleet-card group">
       <div className="agent-fleet-card__visual">
         <AgentDitherPortrait identity={identity} agentType={agent.agentType} />
-
         <div className="agent-fleet-card__tags">
           <span className={`agent-fleet-tag ${TAG_TONE_CLASS[typeTag.tone]}`}>{typeTag.label}</span>
           {capabilityTags.map((tag) => (
-            <span key={tag} className="agent-fleet-tag agent-fleet-tag--muted">
-              {tag}
-            </span>
+            <span key={tag} className="agent-fleet-tag agent-fleet-tag--muted">{tag}</span>
           ))}
           {hasPolicy && (
             <span className="agent-fleet-tag agent-fleet-tag--governance">
@@ -53,35 +54,25 @@ export function AgentFleetCard({ model }: { model: AgentFleetCardModel }) {
             </span>
           )}
         </div>
-
-        {isLive ? (
-          <span className="agent-fleet-live">
-            <span className="agent-fleet-live__dot" aria-hidden />
-            LIVE
-          </span>
-        ) : isActive ? (
-          <span className="agent-fleet-live agent-fleet-live--idle">ACTIVE</span>
-        ) : (
-          <span className="agent-fleet-live agent-fleet-live--paused">{agent.status}</span>
-        )}
       </div>
 
       <div className="agent-fleet-card__body">
         <h3 className="agent-fleet-card__title">{agent.name}</h3>
         <p className="agent-fleet-card__subtitle">
           <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          {hasMandate
-            ? 'Mandate-bound · policy-gated execution'
-            : hasPolicy
-              ? 'Policy assigned · mandate pending'
-              : 'Setup pending · assign policy & mandate'}
+          {hasMandate ? 'Mandate-bound · policy-gated execution' : hasPolicy ? 'Policy assigned · mandate pending' : 'Setup pending'}
         </p>
-        {agent.description ? (
-          <p className="agent-fleet-card__desc">{agent.description}</p>
-        ) : (
-          <p className="agent-fleet-card__desc">{typeMeta.tagline}</p>
-        )}
-
+        <div className="mt-2">
+          <AgentHealthStrip
+            mandateOk={hasMandate}
+            policyOk={hasPolicy}
+            budgetOk={budgetOk}
+            identityStatus={identityStatus}
+            proofCount={proofCount}
+            lastExecution={lastExecution}
+          />
+        </div>
+        {agent.description ? <p className="agent-fleet-card__desc">{agent.description}</p> : <p className="agent-fleet-card__desc">{typeMeta.tagline}</p>}
         <div className="agent-fleet-card__meta">
           <span className="agent-fleet-card__meta-item">
             <Users className="h-3.5 w-3.5" aria-hidden />
@@ -89,11 +80,7 @@ export function AgentFleetCard({ model }: { model: AgentFleetCardModel }) {
           </span>
           <span className="agent-fleet-card__meta-item">
             <Clock className="h-3.5 w-3.5" aria-hidden />
-            {new Date(agent.updatedAt).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
+            {new Date(agent.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
         </div>
       </div>

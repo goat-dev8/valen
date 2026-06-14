@@ -65,7 +65,7 @@ export function AuthorityMandateForm({
             </div>
             <div className="app-form-group">
               <label htmlFor="allowedAssets">Allowed assets</label>
-              <input id="allowedAssets" name="allowedAssets" className="app-input" defaultValue="native" />
+              <input id="allowedAssets" name="allowedAssets" className="app-input" defaultValue="USDC,USDG,TSLA" />
             </div>
           </div>
           <div className="app-form-group">

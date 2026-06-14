@@ -36,6 +36,21 @@ export class CreateAgentDto {
   @IsOptional()
   @IsArray()
   capabilities?: string[];
+
+  @ApiPropertyOptional({ type: [Number] })
+  @IsOptional()
+  @IsArray()
+  supportedNetworks?: number[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  supportedAssets?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  supportedActions?: string[];
 }
 
 export class UpdateAgentDto {
@@ -59,6 +74,21 @@ export class UpdateAgentDto {
   @IsOptional()
   @IsArray()
   capabilities?: string[];
+
+  @ApiPropertyOptional({ type: [Number] })
+  @IsOptional()
+  @IsArray()
+  supportedNetworks?: number[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  supportedAssets?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  supportedActions?: string[];
 }
 
 export class LinkWalletDto {

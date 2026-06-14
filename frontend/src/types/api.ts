@@ -85,6 +85,8 @@ export type AgentIdentityDto = {
     metadata: Record<string, unknown>;
     metadataHash: string | null;
     lastSyncedAt: string | null;
+    mintTxHash?: string | null;
+    mintedAt?: string | null;
   };
   walletBindings: Array<{
     id: string;

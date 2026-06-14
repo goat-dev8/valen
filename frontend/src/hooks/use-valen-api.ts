@@ -392,6 +392,9 @@ export function useCreateAgent() {
       agentType: string;
       defaultPolicyId?: string;
       capabilities?: string[];
+      supportedNetworks?: number[];
+      supportedAssets?: string[];
+      supportedActions?: string[];
     }) => api.agents.create(token!, orgId!, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents', orgId] });
@@ -550,7 +553,15 @@ export function useUpdateAgent() {
       body,
     }: {
       agentId: string;
-      body: { name?: string; description?: string; defaultPolicyId?: string };
+      body: {
+        name?: string;
+        description?: string;
+        defaultPolicyId?: string;
+        capabilities?: string[];
+        supportedNetworks?: number[];
+        supportedAssets?: string[];
+        supportedActions?: string[];
+      };
     }) => api.agents.update(token!, orgId!, agentId, body),
     onSuccess: (_data, { agentId }) => {
       queryClient.invalidateQueries({ queryKey: ['agents', orgId] });

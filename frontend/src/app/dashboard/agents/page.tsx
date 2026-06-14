@@ -6,12 +6,13 @@ import { PageHeader } from '@/components/app/page-header';
 import { QueryState } from '@/components/app/query-state';
 import { AgentFleetGrid } from '@/components/agents/agent-fleet-grid';
 import { AgentTemplateGallery } from '@/components/agents/agent-template-gallery';
-import { useAgents, useMandates, useWalletVerifications } from '@/hooks/use-valen-api';
+import { useAgents, useExecutions, useMandates, useWalletVerifications } from '@/hooks/use-valen-api';
 import { agentTypeOption } from '@/lib/agent-types';
 
 export default function AgentsPage() {
   const { data, isLoading, error } = useAgents({ limit: 50 });
   const { data: mandates } = useMandates();
+  const { data: executions } = useExecutions({ limit: 100 });
   const { data: walletVerifications } = useWalletVerifications();
   const hasVerifiedWallet = walletVerifications?.some((wallet) => wallet.status === 'verified') ?? false;
 
@@ -19,6 +20,9 @@ export default function AgentsPage() {
     data?.items.map((agent) => {
       const hasMandate = mandates?.some((m) => m.agentId === agent.id && m.status === 'active') ?? false;
       const typeMeta = agentTypeOption(agent.agentType);
+      const agentExecs = executions?.items.filter((ex) => ex.agentId === agent.id) ?? [];
+      const proofCount = agentExecs.filter((ex) => ex.status === 'executed').length;
+      const lastExecution = agentExecs[0]?.createdAt ?? null;
       const readinessCount = [
         agent.status === 'active',
         Boolean(agent.defaultPolicyId),
@@ -31,6 +35,8 @@ export default function AgentsPage() {
         typeMeta,
         hasMandate,
         hasPolicy: Boolean(agent.defaultPolicyId),
+        proofCount,
+        lastExecution,
       };
     }) ?? [];
 

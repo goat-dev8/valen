@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle, Circle, Sparkles } from 'lucide-react';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { BudgetMeter } from '@/components/app/budget-meter';
 import { IdentityCard } from '@/components/agents/identity-card';
+import { AgentHealthStrip, AgentNetworksRow } from '@/components/agents/agent-health-strip';
 import { GovernanceCrewDiagram } from '@/components/agents/governance-crew-diagram';
 import { TechnicalDisclosure } from '@/components/ui/technical-disclosure';
 import { PageHeader } from '@/components/app/page-header';
@@ -17,6 +18,7 @@ import {
   useAgent,
   useAgentIdentity,
   useAgentApiKeys,
+  useBudget,
   useCreateAgentApiKey,
   useExecutions,
   useLinkAgentWallet,
@@ -30,6 +32,9 @@ import {
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
 import { agentReadinessSummary, buildAgentReadinessSteps } from '@/lib/agent-readiness';
 import { agentTypeLabel, agentTypeOption } from '@/lib/agent-types';
+import { readAgentScope } from '@/lib/agent-scope';
+import { executionAssetSymbol, formatExecutionAmount } from '@/lib/execution-display';
+import { publicProofHref } from '@/lib/proof-outcomes';
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -41,6 +46,7 @@ export default function AgentDetailPage() {
   const { data: agent, isLoading, error } = useAgent(reserved ? '' : agentId);
   const { data: identity } = useAgentIdentity(reserved ? '' : agentId);
   const { data: executions } = useExecutions({ agentId: reserved ? undefined : agentId, limit: 10 });
+  const { data: budget } = useBudget(reserved ? '' : agentId);
   const { data: policies } = usePolicies();
   const { data: walletVerifications } = useWalletVerifications();
   const { data: mandates } = useMandates();
@@ -89,6 +95,10 @@ export default function AgentDetailPage() {
   const capabilities = Array.isArray(agent?.metadata?.capabilities)
     ? agent.metadata.capabilities.filter((item): item is string => typeof item === 'string')
     : [];
+  const scope = readAgentScope(agent?.metadata);
+  const proofCount = executions?.items.filter((ex) => ex.status === 'executed').length ?? 0;
+  const lastExecution = executions?.items[0]?.createdAt ?? null;
+  const budgetOk = Boolean(budget?.remaining && Number(budget.remaining) > 0);
   const readinessSteps = agent
     ? buildAgentReadinessSteps({
         agentId,
@@ -261,6 +271,15 @@ export default function AgentDetailPage() {
             {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             {actionSuccess && <p className="text-sm text-emerald-600">{actionSuccess}</p>}
 
+            <AgentHealthStrip
+              mandateOk={agentMandates.length > 0}
+              policyOk={Boolean(agent.defaultPolicyId)}
+              budgetOk={budgetOk}
+              identityStatus={identity?.erc8004.status}
+              proofCount={proofCount}
+              lastExecution={lastExecution}
+            />
+
             {showWelcome && typeMeta && (
               <div className="app-card border-[#cfe6ff] bg-[#f8fbff]">
                 <div className="flex items-start justify-between gap-4">
@@ -370,6 +389,14 @@ export default function AgentDetailPage() {
                       <span className="font-medium text-[#012b54]">{agentTypeLabel(agent.agentType)}</span>
                       <p className="mt-1 text-xs leading-5 text-[#64748b]">{typeMeta?.description}</p>
                     </dd>
+                  </div>
+                  <div>
+                    <dt>Supported networks</dt>
+                    <dd><AgentNetworksRow chainIds={scope.supportedNetworks} /></dd>
+                  </div>
+                  <div>
+                    <dt>Supported assets</dt>
+                    <dd>{scope.supportedAssets.join(', ')}</dd>
                   </div>
                   <div>
                     <dt>Capabilities</dt>
@@ -574,25 +601,25 @@ export default function AgentDetailPage() {
                   <table className="app-table">
                     <thead>
                       <tr>
-                        <th>ID</th>
+                        <th>Asset</th>
                         <th>Action</th>
-                        <th>Chain</th>
+                        <th>Amount</th>
                         <th>Status</th>
-                        <th>Created</th>
+                        <th>Timestamp</th>
+                        <th>Proof</th>
                       </tr>
                     </thead>
                     <tbody>
                       {executions.items.map((ex) => (
                         <tr key={ex.id}>
-                          <td>
-                            <Link href={`/dashboard/executions/${ex.id}`} className="app-link font-mono text-xs">
-                              {ex.id.slice(0, 8)}...
-                            </Link>
-                          </td>
+                          <td>{executionAssetSymbol(ex)}</td>
                           <td className="capitalize">{ex.actionType.replace(/_/g, ' ')}</td>
-                          <td><ChainBadge chainId={ex.targetChainId} /></td>
+                          <td>{formatExecutionAmount(ex)}</td>
                           <td><StatusBadge status={ex.status} /></td>
                           <td className="text-[#64748b]">{new Date(ex.createdAt).toLocaleString()}</td>
+                          <td>
+                            <Link href={publicProofHref(ex)} className="app-link text-xs">Open proof</Link>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

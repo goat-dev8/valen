@@ -47,7 +47,12 @@ export class AgentsService {
       description: dto.description,
       agentType: dto.agentType,
       defaultPolicyId: dto.defaultPolicyId,
-      metadata: { capabilities: dto.capabilities ?? [] },
+      metadata: {
+        capabilities: dto.capabilities ?? [],
+        supportedNetworks: dto.supportedNetworks ?? [421614, 46630],
+        supportedAssets: dto.supportedAssets ?? ['USDC', 'USDG', 'TSLA', 'AMZN', 'NFLX', 'PLTR', 'AMD'],
+        supportedActions: dto.supportedActions ?? ['transfer'],
+      },
       createdByUserId: user.id,
     });
 
@@ -135,6 +140,15 @@ export class AgentsService {
     const metadata = { ...agent.metadata };
     if (dto.capabilities) {
       metadata.capabilities = dto.capabilities;
+    }
+    if (dto.supportedNetworks) {
+      metadata.supportedNetworks = dto.supportedNetworks;
+    }
+    if (dto.supportedAssets) {
+      metadata.supportedAssets = dto.supportedAssets;
+    }
+    if (dto.supportedActions) {
+      metadata.supportedActions = dto.supportedActions;
     }
 
     const updated = await this.agentsRepository.update(agentId, {
