@@ -17,6 +17,11 @@ frontend/tsconfig.tsbuildinfo
 # Documentation — root README only (planning docs stay local)
 *.md
 !/README.md
+docs/
+
+# Legacy reference assets (not used by app)
+markova.css
+markova.html
 
 # Rust / Stylus
 stylus/target/
