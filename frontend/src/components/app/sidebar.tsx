@@ -11,6 +11,10 @@ import { useExecutions } from '@/hooks/use-valen-api';
 import { useJudgeMode } from '@/hooks/use-judge-mode';
 import { isNavActive, NAV_SECTIONS, type NavItem } from '@/lib/navigation';
 import { ChainBadge } from '@/components/app/chain-badge';
+import { useConnectedWalletAddress } from '@/hooks/use-connected-wallet-address';
+import { shortAddress } from '@/lib/authority-wallet-signing';
+
+const SIDEBAR_CHAIN_IDS = [421614, 46630] as const;
 
 function NavItemLink({
   item,
@@ -44,6 +48,8 @@ export function Sidebar({ className }: { className?: string }) {
   const { data: approvals } = useExecutions({ status: 'approval_required', limit: 1 });
   const approvalCount = approvals?.total ?? 0;
   const orgInitials = organization?.name?.slice(0, 2).toUpperCase() ?? 'OR';
+  const { address: walletAddress } = useConnectedWalletAddress();
+  const walletInitials = walletAddress?.slice(2, 4).toUpperCase() ?? orgInitials;
   const judgeMode = useJudgeMode();
 
   const sections = NAV_SECTIONS.filter((section) => !(judgeMode && section.judgeModeHidden));
@@ -93,14 +99,18 @@ export function Sidebar({ className }: { className?: string }) {
       </nav>
 
       <div className="app-sidebar-footer">
-        <Link href="/organization/profile" className="app-sidebar-org app-sidebar-org--link">
-          <div className="app-sidebar-org__avatar">{orgInitials}</div>
+        <Link href="/organization/profile" className="app-sidebar-org app-sidebar-org--link app-sidebar-org--premium">
+          <div className="app-sidebar-org__avatar">{walletInitials}</div>
           <div className="app-sidebar-org__copy">
-            <p className="app-sidebar-org__name">{organization?.name ?? 'Organization'}</p>
-            <div className="app-sidebar-org__meta">
-              <ChainBadge chainId={organization?.defaultChainId ?? 421614} />
-              <span className="app-sidebar-org__plan">{organization?.plan ?? '—'}</span>
+            <p className="app-sidebar-org__name">
+              {walletAddress ? shortAddress(walletAddress) : (organization?.name ?? 'Organization')}
+            </p>
+            <div className="app-sidebar-org__chains">
+              {SIDEBAR_CHAIN_IDS.map((chainId) => (
+                <ChainBadge key={chainId} chainId={chainId} compact />
+              ))}
             </div>
+            <span className="app-sidebar-org__plan">{organization?.plan ?? 'Development'}</span>
           </div>
         </Link>
       </div>

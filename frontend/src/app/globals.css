@@ -9445,3 +9445,97 @@ body {
   }
 }
 
+/* Organization profile page polish */
+.org-profile-page {
+  max-width: 72rem;
+  padding-bottom: 2.5rem;
+}
+
+.org-profile-hero-premium {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #dbeafe;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.12), transparent 42%),
+    radial-gradient(circle at 0% 100%, rgba(0, 102, 255, 0.1), transparent 38%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 1.5rem;
+}
+
+.org-profile-hero-premium__avatar--wallet {
+  background: linear-gradient(135deg, #012b54, #0066ff);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.org-profile-hero__wallet {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: -0.02em;
+}
+
+.org-profile-hero__org-name {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #5e6c7b;
+}
+
+.org-profile-hero__connection {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #ecfdf5;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #047857;
+}
+
+.org-kpi-card {
+  box-shadow: 0 1px 2px rgba(1, 43, 84, 0.04), 0 8px 24px rgba(1, 43, 84, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.org-kpi-card:hover {
+  border-color: #cfe0ff;
+  box-shadow: 0 10px 28px rgba(0, 102, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.org-portfolio-card {
+  box-shadow: 0 1px 2px rgba(1, 43, 84, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.org-portfolio-card:hover {
+  border-color: #cfe0ff;
+  box-shadow: 0 8px 20px rgba(0, 102, 255, 0.06);
+}
+
+.org-profile-section {
+  box-shadow: 0 1px 2px rgba(1, 43, 84, 0.04), 0 10px 30px rgba(1, 43, 84, 0.04);
+}
+
+.app-sidebar-org--premium {
+  border-color: #dbeafe;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 8px 24px rgba(0, 102, 255, 0.06);
+}
+
+.app-sidebar-org--premium:hover {
+  border-color: #93c5fd;
+  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+}
+
+.app-sidebar-org__chains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.app-sidebar-org--premium .app-sidebar-org__plan {
+  display: inline-block;
+  margin-top: 0.35rem;
+}
+

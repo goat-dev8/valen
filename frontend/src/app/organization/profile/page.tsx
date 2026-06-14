@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { useWallets } from '@privy-io/react-auth';
 import {
   Activity,
   ArrowLeft,
@@ -32,7 +31,9 @@ import {
   usePolicies,
   useWalletVerifications,
 } from '@/hooks/use-valen-api';
+import { useConnectedWalletAddress } from '@/hooks/use-connected-wallet-address';
 import { useWalletBalances } from '@/hooks/use-wallet-balances';
+import { shortAddress } from '@/lib/authority-wallet-signing';
 import { chainName } from '@/lib/constants';
 import { governedHomeAssets } from '@/lib/known-assets';
 import { copyToClipboard, formatExecutionAmount } from '@/lib/execution-display';
@@ -62,8 +63,7 @@ function statusTone(status: string): string {
 export default function OrganizationProfilePage() {
   const { organization } = useOrganization();
   const { me } = useAuth();
-  const { wallets } = useWallets();
-  const connectedWallet = wallets[0]?.address;
+  const { address: connectedWallet, isPrivyConnected, walletsReady } = useConnectedWalletAddress();
   const displayName = me?.user.displayName ?? me?.user.email ?? 'User';
   const { data: summary } = useDashboardSummary();
   const { data: agents } = useAgents({ limit: 100 });
@@ -109,10 +109,10 @@ export default function OrganizationProfilePage() {
         chainId,
         balance: hit?.balance ?? '0',
         network: chainName(chainId),
-        status: connectedWallet ? (Number(hit?.balance ?? 0) > 0 ? 'Funded' : 'Ready') : 'Connect wallet',
+        status: connectedWallet ? (Number(hit?.balance ?? 0) > 0 ? 'Funded' : 'Ready') : walletsReady ? 'Connect wallet' : 'Loading',
       };
     });
-  }, [balances, connectedWallet]);
+  }, [balances, connectedWallet, walletsReady]);
 
   const orgInitials = organization?.name?.slice(0, 2).toUpperCase() ?? 'OR';
   const userInitials = displayName
@@ -150,7 +150,9 @@ export default function OrganizationProfilePage() {
 
       <section className="org-profile-hero-premium app-panel-floating">
         <div className="org-profile-hero-premium__left">
-          <div className="org-profile-hero-premium__avatar">{orgInitials}</div>
+          <div className="org-profile-hero-premium__avatar org-profile-hero-premium__avatar--wallet">
+            {connectedWallet ? shortAddress(connectedWallet).slice(0, 2).toUpperCase() : orgInitials}
+          </div>
           <div className="org-profile-hero-premium__user">
             <div className="org-profile-hero-premium__user-avatar">{userInitials}</div>
             <div>
@@ -161,7 +163,16 @@ export default function OrganizationProfilePage() {
         </div>
         <div className="org-profile-hero-premium__copy">
           <p className="org-profile-hero__eyebrow">Organization Overview</p>
-          <h1 className="org-profile-hero__title">{organization?.name ?? 'Organization'}</h1>
+          <h1 className="org-profile-hero__title">
+            {connectedWallet ? (
+              <span className="org-profile-hero__wallet">{shortAddress(connectedWallet)}</span>
+            ) : walletsReady ? (
+              'Connect your wallet'
+            ) : (
+              'Loading wallet…'
+            )}
+          </h1>
+          <p className="org-profile-hero__org-name">{organization?.name ?? 'Organization'}</p>
           <div className="org-dual-network">
             {SUPPORTED_CHAIN_IDS.map((chainId) => (
               <ChainBadge key={chainId} chainId={chainId} />
@@ -169,9 +180,20 @@ export default function OrganizationProfilePage() {
           </div>
           <div className="org-profile-hero-premium__meta">
             <span>{organization?.plan ?? 'Development'}</span>
+            {connectedWallet && (
+              <span className="org-profile-hero__connection">
+                {isPrivyConnected ? 'Privy connected' : 'Verified authority wallet'}
+              </span>
+            )}
             {organization?.createdAt && <span>Created {new Date(organization.createdAt).toLocaleDateString()}</span>}
           </div>
-          {organization?.id && (
+          {connectedWallet && (
+            <button type="button" className="org-profile-id" onClick={() => void copyToClipboard(connectedWallet)}>
+              <code>{connectedWallet}</code>
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {!connectedWallet && organization?.id && (
             <button type="button" className="org-profile-id" onClick={() => void copyToClipboard(organization.id)}>
               <code>{organization.id}</code>
               <Copy className="h-3.5 w-3.5" />
@@ -196,6 +218,9 @@ export default function OrganizationProfilePage() {
             <TrendingUp className="h-5 w-5 text-[#0066FF]" />
             <h2>Portfolio</h2>
           </div>
+          <div className="mt-4">
+            <WalletBalancesPanel walletAddress={connectedWallet} compact />
+          </div>
           <div className="org-portfolio-card-grid mt-4">
             {portfolioCards.map((row) => (
               <article key={`${row.symbol}-${row.chainId}`} className="org-portfolio-card">
@@ -207,9 +232,6 @@ export default function OrganizationProfilePage() {
                 <ChainBadge chainId={row.chainId} compact />
               </article>
             ))}
-          </div>
-          <div className="mt-4">
-            <WalletBalancesPanel walletAddress={connectedWallet} compact />
           </div>
         </section>
 
@@ -226,7 +248,9 @@ export default function OrganizationProfilePage() {
           <dl className="app-detail-list mt-4">
             <div>
               <dt>Connected wallet</dt>
-              <dd className="font-mono text-xs break-all">{connectedWallet ?? 'Not connected'}</dd>
+              <dd className="font-mono text-xs break-all">
+                {connectedWallet ?? (walletsReady ? 'Not connected' : 'Loading…')}
+              </dd>
             </div>
             <div>
               <dt>Arbitrum Sepolia authority</dt>
