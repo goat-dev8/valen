@@ -84,7 +84,8 @@ export function usdcAmountToBaseUnits(amount: string): string {
   }
   const [whole, fraction = ''] = normalized.split('.');
   const paddedFraction = `${fraction}000000`.slice(0, 6);
-  return (BigInt(whole || '0') * 1_000_000n + BigInt(paddedFraction || '0')).toString();
+  const scale = BigInt(1_000_000);
+  return (BigInt(whole || '0') * scale + BigInt(paddedFraction || '0')).toString();
 }
 
 export function buildProtectedMerchantUrl(origin: string): string {
