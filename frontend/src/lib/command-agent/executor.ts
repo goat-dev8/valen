@@ -31,14 +31,14 @@ async function tick(onStepUpdate: (steps: LifecycleStep[]) => void, steps: Lifec
 
 export async function executeGovernedCommand(input: {
   plan: CommandExecutionPlan;
-  summary: import('@/types/api').DashboardSummaryDto | null | undefined;
   agents?: import('@/types/api').AgentDto[];
   mandates?: import('@/types/api').MandateDto[];
+  agentBudget?: import('@/types/api').BudgetDto | null;
   connectedWallet?: string;
   createExecution: (body: CreateExecutionInput) => Promise<ExecutionDto>;
   onStepUpdate: (steps: LifecycleStep[]) => void;
 }): Promise<CommandExecutionResult> {
-  const { plan, summary, agents = [], mandates = [], connectedWallet, createExecution, onStepUpdate } = input;
+  const { plan, agents = [], mandates = [], agentBudget, connectedWallet, createExecution, onStepUpdate } = input;
   let steps = cloneLifecycle();
 
   if (plan.readiness !== 'ready' || !plan.agent) {
@@ -55,10 +55,12 @@ export async function executeGovernedCommand(input: {
 
   steps = updateStep(steps, 'policy_check', 'running', 'Evaluating active policy…');
   await tick(onStepUpdate, steps);
-  const gates = evaluateCommandGates(plan.parsed, summary, {
+  const gates = evaluateCommandGates(plan.parsed, null, {
     agentId: plan.agent.id,
     agents,
     mandates,
+    agentBudget,
+    paymentAmount: plan.parsed.amount ?? undefined,
   });
   if (!gates.gates.find((g) => g.id === 'policy')?.passed) {
     steps = updateStep(steps, 'policy_check', 'failed', 'Active policy required');
@@ -82,15 +84,18 @@ export async function executeGovernedCommand(input: {
   await tick(onStepUpdate, steps);
   const budgetGate = gates.gates.find((g) => g.id === 'budget');
   if (budgetGate && !budgetGate.passed) {
-    steps = updateStep(steps, 'budget_check', 'failed', 'USDC budget not funded');
+    const msg = gates.budgetValidation?.message ?? budgetGate.detail ?? 'Budget exhausted';
+    steps = updateStep(steps, 'budget_check', 'failed', msg);
     onStepUpdate(steps);
-    return { status: 'refused', lifecycle: steps, message: 'Budget check failed — fund USDC budget.' };
+    return { status: 'refused', lifecycle: steps, message: msg };
   }
   steps = updateStep(
     steps,
     'budget_check',
     budgetGate ? 'passed' : 'skipped',
-    budgetGate ? `${summary?.budget.remaining ?? '—'} USDC remaining` : 'Not required',
+    budgetGate
+      ? (gates.budgetValidation?.message ?? 'Budget available')
+      : 'Not required',
   );
   await tick(onStepUpdate, steps);
 

@@ -1,12 +1,17 @@
 import { mandateMatchesIntent } from '@/lib/mandate-match';
 import {
+  evaluateAgentBudget,
+  budgetRefusalMessage,
+  type BudgetValidationResult,
+} from '@/lib/agent-budget-validation';
+import {
   X402_CHAIN_ID,
   X402_MERCHANT_URL,
   X402_TEMPLATE_ID,
   X402_USDC_ADDRESS,
 } from '@/lib/x402-constants';
 import { formatApiErrorMessage } from '@/lib/utils';
-import type { MandateDto } from '@/types/api';
+import type { BudgetDto, MandateDto } from '@/types/api';
 import type { CommandExecutionPlan, CommandExecutionResult, LifecycleStep } from './types';
 import { LIFECYCLE_TEMPLATE } from './types';
 
@@ -32,11 +37,22 @@ async function tick(onStepUpdate: (steps: LifecycleStep[]) => void, steps: Lifec
   await new Promise((r) => setTimeout(r, 100));
 }
 
+function settlementErrorMessage(err: unknown): string {
+  const raw = formatApiErrorMessage(err, 'Settlement failed');
+  if (raw.includes('refused at initiation') || raw.includes('Payment was refused')) {
+    const reasonMatch = raw.match(/budget_[a-z_]+/i);
+    if (reasonMatch) return budgetRefusalMessage(reasonMatch[0]);
+  }
+  return raw;
+}
+
 export async function executeX402InConsole(input: {
   plan: CommandExecutionPlan;
   amount: string;
   recipient?: string;
   mandates: MandateDto[];
+  agentBudget?: BudgetDto | null;
+  budgetValidation?: BudgetValidationResult | null;
   x402Initiate: (body: {
     agentId: string;
     mandateId: string;
@@ -44,12 +60,22 @@ export async function executeX402InConsole(input: {
     amount: string;
     chainId: number;
     merchantUrl: string;
-  }) => Promise<{ paymentId: string; status: string }>;
+  }) => Promise<{ paymentId: string; status: string; refusalReason?: string | null }>;
   x402Execute: (paymentId: string) => Promise<{ settlementTx?: string | null; status: string }>;
   onStepUpdate: (steps: LifecycleStep[]) => void;
 }): Promise<CommandExecutionResult> {
   let steps = cloneLifecycle();
-  const { plan, amount, recipient, mandates, x402Initiate, x402Execute, onStepUpdate } = input;
+  const {
+    plan,
+    amount,
+    recipient,
+    mandates,
+    agentBudget,
+    budgetValidation: presetBudget,
+    x402Initiate,
+    x402Execute,
+    onStepUpdate,
+  } = input;
 
   if (!plan.agent?.mandateId) {
     steps = updateStep(steps, 'authority_check', 'failed', 'Signed USDC mandate required');
@@ -88,9 +114,35 @@ export async function executeX402InConsole(input: {
 
   steps = updateStep(steps, 'policy_check', 'passed', plan.policyName ?? 'Policy active');
   steps = updateStep(steps, 'authority_check', 'passed', 'Mandate covers x402 payment');
+
   steps = updateStep(steps, 'budget_check', 'running', 'Checking USDC budget…');
   await tick(onStepUpdate, steps);
-  steps = updateStep(steps, 'budget_check', 'passed', 'Budget envelope OK');
+
+  const budgetValidation =
+    presetBudget ??
+    evaluateAgentBudget({
+      budget: agentBudget,
+      amountHuman: amount,
+      amountDecimals: 6,
+      required: true,
+    });
+
+  if (!budgetValidation.allow) {
+    steps = updateStep(steps, 'budget_check', 'failed', budgetValidation.message);
+    onStepUpdate(steps);
+    return {
+      status: 'refused',
+      lifecycle: steps,
+      message: budgetValidation.message,
+    };
+  }
+
+  steps = updateStep(
+    steps,
+    'budget_check',
+    'passed',
+    `${budgetValidation.remainingBaseUnits.toString()} base units remaining`,
+  );
   steps = updateStep(steps, 'risk_review', 'passed', plan.riskLevel ?? 'Policy risk profile');
   steps = updateStep(steps, 'settlement', 'running', 'Initiating x402 payment…');
   await tick(onStepUpdate, steps);
@@ -104,6 +156,13 @@ export async function executeX402InConsole(input: {
       chainId: X402_CHAIN_ID,
       merchantUrl: X402_MERCHANT_URL,
     });
+
+    if (initiated.status === 'refused') {
+      const msg = budgetRefusalMessage(initiated.refusalReason);
+      steps = updateStep(steps, 'settlement', 'failed', msg);
+      onStepUpdate(steps);
+      return { status: 'refused', lifecycle: steps, message: msg };
+    }
 
     steps = updateStep(steps, 'settlement', 'running', `Payment ${initiated.paymentId.slice(0, 8)}… settling`);
     await tick(onStepUpdate, steps);
@@ -127,12 +186,13 @@ export async function executeX402InConsole(input: {
       txHref: settled.settlementTx ? `https://sepolia.arbiscan.io/tx/${settled.settlementTx}` : undefined,
     };
   } catch (err) {
-    steps = updateStep(steps, 'settlement', 'failed', formatApiErrorMessage(err, 'Settlement failed'));
+    const msg = settlementErrorMessage(err);
+    steps = updateStep(steps, 'settlement', 'failed', msg);
     onStepUpdate(steps);
     return {
       status: 'error',
       lifecycle: steps,
-      message: formatApiErrorMessage(err, 'x402 payment failed'),
+      message: msg,
     };
   }
 }

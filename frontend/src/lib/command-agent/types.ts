@@ -49,6 +49,7 @@ export type CommandExecutionPlan = {
   riskLevel: string | null;
   chainId: number;
   budgetStatus: 'passed' | 'blocked' | 'not_required';
+  budgetMessage?: string | null;
   authorityStatus: 'passed' | 'blocked' | 'not_required';
   authorityRequirements: string[];
   budgetRequirements: string[];

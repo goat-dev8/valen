@@ -12,6 +12,21 @@ import { X402ChainService } from './x402-chain.service';
 
 const USDC_SEPOLIA = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
 
+function budgetRefusalMessage(reason: string | null): string {
+  switch (reason) {
+    case 'budget_exhausted':
+      return 'Budget exhausted';
+    case 'budget_paused':
+      return 'Budget paused';
+    case 'budget_exceeded':
+      return 'Budget cap exceeded';
+    case 'budget_missing':
+      return 'Budget not configured';
+    default:
+      return reason ? reason.replace(/_/g, ' ') : 'Budget unavailable';
+  }
+}
+
 type PaymentRow = QueryResultRow & {
   id: string;
   organization_id: string;
@@ -58,9 +73,13 @@ export class X402Service {
           const remaining = cap > afterSpent ? cap - afterSpent : 0n;
           const reasonCode =
             budget.status !== 'active'
-              ? ('budget_paused' as const)
+              ? budget.status === 'exhausted'
+                ? ('budget_exhausted' as const)
+                : ('budget_paused' as const)
               : afterSpent > cap
-                ? ('budget_exceeded' as const)
+                ? remaining <= 0n
+                  ? ('budget_exhausted' as const)
+                  : ('budget_exceeded' as const)
                 : ('budget_ok' as const);
           return {
             allow: reasonCode === 'budget_ok',
@@ -79,9 +98,13 @@ export class X402Service {
       merchantUrl: input.merchantUrl ?? null,
     });
 
-    const status = budgetEval && !budgetEval.allow ? 'refused' : 'initiated';
+    const status = !budgetEval || !budgetEval.allow ? 'refused' : 'initiated';
     const refusalReason =
-      budgetEval && !budgetEval.allow ? budgetEval.reasonCode : null;
+      budgetEval && !budgetEval.allow
+        ? budgetEval.reasonCode
+        : !budgetEval
+          ? 'budget_missing'
+          : null;
 
     const result = await this.db.query<PaymentRow>(
       `INSERT INTO x402_payments (
@@ -145,7 +168,8 @@ export class X402Service {
     if (payment.status === 'refused') {
       throw new BadRequestException({
         code: ErrorCodes.VALIDATION_ERROR,
-        message: 'Payment was refused at initiation; cannot execute',
+        message: budgetRefusalMessage(payment.refusal_reason),
+        refusalReason: payment.refusal_reason,
       });
     }
     if (payment.status === 'settled') {

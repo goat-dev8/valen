@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Bot, ChevronDown } from 'lucide-react';
 import { AssetIcon } from '@/lib/asset-icons';
+import { formatAgentDisplayName } from '@/lib/agent-display';
 import { ChainBadge } from '@/components/app/chain-badge';
 import { chainName } from '@/lib/constants';
 import type { CommandExecutionPlan } from '@/lib/command-agent/types';
@@ -67,7 +68,11 @@ export function CommandPreviewCard({
           <Bot className="mt-0.5 h-4 w-4 shrink-0 text-[#0066FF]" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-medium uppercase tracking-wide text-[#8B98A5]">Agent</p>
-            {displayAgentName ? (
+            {displayAgentName && agent ? (
+              <p className="text-sm font-medium text-[#1A2332]">
+                {formatAgentDisplayName(displayAgentName, agent.id)}
+              </p>
+            ) : displayAgentName ? (
               <p className="text-sm font-medium text-[#1A2332]">{displayAgentName}</p>
             ) : plan?.parsed.kind === 'agent' ? (
               <p className="text-sm font-medium text-[#5E6C7B]">None — new agent will be created on execute</p>
@@ -86,7 +91,7 @@ export function CommandPreviewCard({
                   <option value="">Choose matching agent…</option>
                   {candidates.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.name}
+                      {formatAgentDisplayName(item.name, item.id)}
                       {item.policyName ? ` · ${item.policyName}` : ''}
                     </option>
                   ))}
@@ -143,7 +148,11 @@ export function CommandPlanCard({ plan }: { plan: CommandExecutionPlan }) {
           <dd>
             {plan.parsed.kind === 'agent'
               ? 'None — creating new agent'
-              : plan.agent?.name ?? (plan.requiresAgentSelection ? 'Selection required' : 'None matched')}
+              : plan.agent
+                ? formatAgentDisplayName(plan.agent.name, plan.agent.id)
+                : plan.requiresAgentSelection
+                  ? 'Selection required'
+                  : 'None matched'}
           </dd>
         </div>
         <div>
@@ -156,7 +165,7 @@ export function CommandPlanCard({ plan }: { plan: CommandExecutionPlan }) {
         </div>
         <div>
           <dt>Budget</dt>
-          <dd>{budgetLabel}</dd>
+          <dd>{plan.budgetMessage ?? budgetLabel}</dd>
         </div>
         <div>
           <dt>Authority</dt>

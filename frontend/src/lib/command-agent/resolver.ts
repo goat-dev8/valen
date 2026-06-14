@@ -1,4 +1,6 @@
 import { agentTemplateById } from '@/lib/agent-templates';
+import { parseUsdcBaseUnits } from '@/lib/token-amount';
+import { evaluateAgentBudget } from '@/lib/agent-budget-validation';
 import { intentTemplateById } from '@/lib/intent-templates';
 import {
   bestMandateEvaluation,
@@ -10,7 +12,7 @@ import {
 import { resolvePolicyTemplateByPolicyId } from '@/lib/policy-mandate-config';
 import { policyRiskDisplay } from '@/lib/policy-mandate-config';
 import type { ParsedCommand } from '@/lib/command-parser';
-import type { AgentDto, MandateDto, PolicyDto } from '@/types/api';
+import type { AgentDto, BudgetDto, MandateDto, PolicyDto } from '@/types/api';
 import type { AgentCandidate } from './types';
 
 function templateContext(parsed: ParsedCommand) {
@@ -45,6 +47,8 @@ export function resolveAgentCandidates(
   agents: AgentDto[],
   mandates: MandateDto[],
   policies: PolicyDto[],
+  budgetsByAgentId?: Map<string, BudgetDto>,
+  paymentAmount?: string | null,
 ): AgentCandidate[] {
   if (parsed.kind === 'agent' || parsed.kind === 'identity') return [];
 
@@ -76,7 +80,34 @@ export function resolveAgentCandidates(
     });
   }
 
-  return candidates.sort((a, b) => b.score - a.score);
+  const needsBudget =
+    parsed.kind === 'x402' ||
+    parsed.templateId?.includes('usdc') ||
+    parsed.label.toLowerCase().includes('usdc');
+
+  return candidates.sort((a, b) => {
+    const aEligible = a.score >= 100;
+    const bEligible = b.score >= 100;
+    if (aEligible !== bEligible) return aEligible ? -1 : 1;
+
+    const aBudget = budgetsByAgentId?.get(a.id);
+    const bBudget = budgetsByAgentId?.get(b.id);
+    const aCheck = needsBudget
+      ? evaluateAgentBudget({ budget: aBudget, amountHuman: paymentAmount ?? '1', required: true })
+      : null;
+    const bCheck = needsBudget
+      ? evaluateAgentBudget({ budget: bBudget, amountHuman: paymentAmount ?? '1', required: true })
+      : null;
+    const aFunded = !needsBudget || (aCheck?.allow ?? false);
+    const bFunded = !needsBudget || (bCheck?.allow ?? false);
+    if (aFunded !== bFunded) return aFunded ? -1 : 1;
+
+    const aRem = aCheck?.remainingBaseUnits ?? parseUsdcBaseUnits(aBudget?.remaining) ?? BigInt(0);
+    const bRem = bCheck?.remainingBaseUnits ?? parseUsdcBaseUnits(bBudget?.remaining) ?? BigInt(0);
+    if (aRem !== bRem) return aRem > bRem ? -1 : 1;
+
+    return b.score - a.score;
+  });
 }
 
 export function pickAgentCandidate(

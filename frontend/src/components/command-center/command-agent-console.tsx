@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { ArrowRight, Bot, RotateCcw, Sparkles, User, X } from 'lucide-react';
 import {
   CommandGateBanner,
@@ -25,9 +26,12 @@ import type {
 import { initialLifecycle } from '@/lib/command-agent/types';
 import { parseCommand, type ParsedCommand } from '@/lib/command-parser';
 import type { CommandGate } from '@/lib/command-gates';
+import { evaluateAgentBudget } from '@/lib/agent-budget-validation';
+import { formatAgentDisplayName } from '@/lib/agent-display';
 import { useConnectedWalletAddress } from '@/hooks/use-connected-wallet-address';
 import { useCreateAgent, useCreateExecution, useX402Execute, useX402Initiate } from '@/hooks/use-valen-api';
-import type { AgentDto, DashboardSummaryDto, MandateDto, PolicyDto } from '@/types/api';
+import { api } from '@/lib/api';
+import type { AgentDto, BudgetDto, DashboardSummaryDto, MandateDto, PolicyDto } from '@/types/api';
 import { formatApiErrorMessage } from '@/lib/utils';
 
 const SUGGESTIONS = [
@@ -104,6 +108,27 @@ export function CommandAgentConsole({
   const [verifyOpen, setVerifyOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const budgetQueries = useQueries({
+    queries: agents.map((agent) => ({
+      queryKey: ['budget', orgId, agent.id],
+      queryFn: () => api.budget.get(token!, orgId!, agent.id),
+      enabled: Boolean(token && orgId),
+      staleTime: 30_000,
+    })),
+  });
+
+  const budgetsByAgentId = useMemo(() => {
+    const map = new Map<string, BudgetDto>();
+    agents.forEach((agent, index) => {
+      const row = budgetQueries[index]?.data;
+      if (row) map.set(agent.id, row);
+    });
+    return map;
+  }, [agents, budgetQueries]);
+
+  const resolvedAgentId = selectedAgentId ?? plan?.agent?.id ?? null;
+  const selectedAgentBudget = resolvedAgentId ? budgetsByAgentId.get(resolvedAgentId) ?? null : null;
+
   const pushEntry = useCallback((entry: ChatEntry) => {
     setEntries((current) => [...current, entry]);
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }));
@@ -120,19 +145,21 @@ export function CommandAgentConsole({
 
   const rebuildPlan = useCallback(
     (parsed: ParsedCommand, agentId: string | null) => {
+      const agentBudget = agentId ? budgetsByAgentId.get(agentId) ?? null : null;
       const nextPlan = buildCommandExecutionPlan({
         parsed,
         agents,
         mandates,
         policies,
-        summary,
         selectedAgentId: agentId,
+        agentBudget,
+        budgetsByAgentId,
       });
       setPlan(nextPlan);
       setSessionState(nextPlan.readiness === 'ready' ? 'ready' : 'planned');
       return nextPlan;
     },
-    [agents, mandates, policies, summary],
+    [agents, mandates, policies, budgetsByAgentId],
   );
 
   const planCommand = useCallback(
@@ -167,7 +194,9 @@ export function CommandAgentConsole({
       pushEntry({
         id: `valen-agent-${Date.now()}`,
         role: 'valen',
-        text: `Agent set to ${nextPlan.agent?.name ?? agentId}. ${nextPlan.readiness === 'ready' ? 'Ready to execute.' : 'Complete remaining setup steps below.'}`,
+        text: `Agent set to ${nextPlan.agent ? formatAgentDisplayName(nextPlan.agent.name, nextPlan.agent.id) : agentId}. ${
+          nextPlan.readiness === 'ready' ? 'Ready to execute.' : nextPlan.budgetMessage ?? 'Complete remaining setup steps below.'
+        }`,
         plan: nextPlan,
       });
     },
@@ -191,7 +220,7 @@ export function CommandAgentConsole({
         pushEntry({
           id: `valen-fix-${Date.now()}`,
           role: 'valen',
-          text: `USDC budget is not funded. Remaining: ${summary?.budget.remaining ?? '—'} ${summary?.budget.assetSymbol ?? 'USDC'}. Top up the agent budget cap to unblock USDC payments.`,
+          text: plan?.budgetMessage ?? gate.detail ?? 'Budget exhausted — top up the selected agent USDC budget.',
           links: [{ href: '/dashboard/budgets', label: 'Open budgets (optional)' }],
         });
         return;
@@ -216,7 +245,7 @@ export function CommandAgentConsole({
         links: [{ href: gate.href, label: `${gate.fixLabel} (optional)` }],
       });
     },
-    [plan?.agent?.id, plan?.agent?.name, pushEntry, summary?.budget],
+    [plan?.agent?.id, plan?.agent?.name, plan?.budgetMessage, pushEntry],
   );
 
   const pushResult = useCallback(
@@ -287,11 +316,18 @@ export function CommandAgentConsole({
     if (activeParsed.kind === 'x402') {
       setSessionState('executing');
       setLifecycle(plan.lifecyclePreview);
+      const budgetValidation = evaluateAgentBudget({
+        budget: selectedAgentBudget,
+        amountHuman: activeParsed.amount ?? '1',
+        required: true,
+      });
       const result = await executeX402InConsole({
         plan,
         amount: activeParsed.amount ?? '1',
         recipient: connectedWallet ?? undefined,
         mandates,
+        agentBudget: selectedAgentBudget,
+        budgetValidation,
         x402Initiate: (body) => x402Initiate.mutateAsync(body),
         x402Execute: (paymentId) => x402Execute.mutateAsync(paymentId),
         onStepUpdate: setLifecycle,
@@ -348,9 +384,9 @@ export function CommandAgentConsole({
     setLifecycle(plan.lifecyclePreview);
     const result = await executeGovernedCommand({
       plan,
-      summary,
       agents,
       mandates,
+      agentBudget: selectedAgentBudget,
       connectedWallet: connectedWallet ?? undefined,
       createExecution: (body) => createExecution.mutateAsync(body),
       onStepUpdate: setLifecycle,
@@ -363,7 +399,6 @@ export function CommandAgentConsole({
     activeParsed,
     onX402Open,
     pushResult,
-    summary,
     connectedWallet,
     createExecution,
     createAgent,
@@ -374,6 +409,7 @@ export function CommandAgentConsole({
     orgId,
     x402Initiate,
     x402Execute,
+    selectedAgentBudget,
   ]);
 
   const canExecute = useMemo(() => {

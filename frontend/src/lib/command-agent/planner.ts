@@ -1,4 +1,5 @@
 import { evaluateCommandGates } from '@/lib/command-gates';
+import { formatAgentDisplayName } from '@/lib/agent-display';
 import { chainName } from '@/lib/constants';
 import { intentTemplateById } from '@/lib/intent-templates';
 import type { ParsedCommand } from '@/lib/command-parser';
@@ -23,19 +24,32 @@ export function buildCommandExecutionPlan(input: {
   policies: PolicyDto[];
   summary?: DashboardSummaryDto | null;
   selectedAgentId?: string | null;
+  agentBudget?: import('@/types/api').BudgetDto | null;
+  budgetsByAgentId?: Map<string, import('@/types/api').BudgetDto>;
 }): CommandExecutionPlan {
-  const { parsed, agents, mandates, policies, summary, selectedAgentId } = input;
+  const { parsed, agents, mandates, policies, selectedAgentId, agentBudget, budgetsByAgentId } = input;
   const isAgentCreate = parsed.kind === 'agent';
-  const candidates = resolveAgentCandidates(parsed, agents, mandates, policies);
+  const candidates = resolveAgentCandidates(
+    parsed,
+    agents,
+    mandates,
+    policies,
+    budgetsByAgentId,
+    parsed.amount,
+  );
   const { agent, requiresSelection } = isAgentCreate
     ? { agent: null, requiresSelection: false }
     : pickAgentCandidate(candidates, selectedAgentId);
   const chainId = chainIdForParsed(parsed);
   const template = parsed.templateId ? intentTemplateById(parsed.templateId) : null;
-  const gateState = evaluateCommandGates(parsed, summary, {
+  const resolvedBudget =
+    agentBudget ?? (agent?.id ? budgetsByAgentId?.get(agent.id) ?? null : null);
+  const gateState = evaluateCommandGates(parsed, null, {
     agentId: agent?.id ?? null,
     agents,
     mandates,
+    agentBudget: resolvedBudget,
+    paymentAmount: parsed.amount ?? '1',
   });
 
   const budgetGate = gateState.gates.find((g) => g.id === 'budget');
@@ -115,6 +129,7 @@ export function buildCommandExecutionPlan(input: {
     riskLevel: isAgentCreate ? 'Low' : riskLevelForAgent(agent, policies),
     chainId,
     budgetStatus: isAgentCreate ? 'not_required' : needsBudget ? gateStatus(budgetGate?.passed) : 'not_required',
+    budgetMessage: gateState.budgetValidation?.message ?? budgetGate?.detail ?? null,
     authorityStatus: isAgentCreate ? 'not_required' : gateStatus(mandateGate?.passed && policyGate?.passed),
     authorityRequirements,
     budgetRequirements,
@@ -135,7 +150,7 @@ export function buildPlanResponse(plan: CommandExecutionPlan): string {
   }
 
   const agentLine = plan.agent
-    ? `Resolved agent ${plan.agent.name} (${plan.agent.capabilityMatch}).`
+    ? `Resolved agent ${formatAgentDisplayName(plan.agent.name, plan.agent.id)} (${plan.agent.capabilityMatch}).`
     : plan.requiresAgentSelection
       ? `${plan.agentCandidates.length} capable agents match — select one below.`
       : 'No capable agent with matching mandate found.';

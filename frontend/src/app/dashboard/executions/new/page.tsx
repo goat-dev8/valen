@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { useWallets } from '@privy-io/react-auth';
 import { keccak256, toHex } from 'viem';
 import { PageHeader } from '@/components/app/page-header';
@@ -14,9 +15,15 @@ import { IntentRequirementsPanel } from '@/components/execution/intent-requireme
 import { IntentReviewCard } from '@/components/execution/intent-review-card';
 import { IntentTemplatePicker } from '@/components/execution/intent-template-picker';
 import { IntentWizardNav } from '@/components/execution/intent-wizard-nav';
+import { useAuth } from '@/contexts/auth-context';
+import { useOrganization } from '@/contexts/org-context';
 import { useAgents, useCreateExecution, useMandates, usePolicies } from '@/hooks/use-valen-api';
 import { useWalletBalanceForChain } from '@/hooks/use-wallet-balances';
 import { compareAmountToBalance } from '@/components/app/selected-asset-balance';
+import { evaluateAgentBudget } from '@/lib/agent-budget-validation';
+import { eligibilityFailureLabel, isAgentRunnable } from '@/lib/eligibility-failure-label';
+import { formatAgentDisplayName } from '@/lib/agent-display';
+import { api } from '@/lib/api';
 import { INTENT_TEMPLATES, intentTemplateById, type IntentTemplate } from '@/lib/intent-templates';
 import { knownAssetForMandateValue, knownAssetsForChain, settlementLabelForAsset } from '@/lib/known-assets';
 import {
@@ -62,6 +69,8 @@ export default function SubmitIntentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { wallets } = useWallets();
+  const { token } = useAuth();
+  const { orgId } = useOrganization();
   const connectedWallet = wallets[0]?.address;
   const { data: agents, isLoading: agentsLoading } = useAgents({ limit: 100, status: 'active' });
   const { data: mandates } = useMandates();
@@ -157,19 +166,68 @@ export default function SubmitIntentPage() {
       ),
     [agents?.items, agentEvaluations],
   );
-  const matchingAgentIds = useMemo(() => new Set(matchingAgents.map((a) => a.id)), [matchingAgents]);
+
+  const budgetQueries = useQueries({
+    queries: (agents?.items ?? []).map((agent) => ({
+      queryKey: ['budget', orgId, agent.id],
+      queryFn: () => api.budget.get(token!, orgId!, agent.id),
+      enabled: Boolean(token && orgId),
+      staleTime: 30_000,
+    })),
+  });
+
+  const budgetsByAgentId = useMemo(() => {
+    const map = new Map<string, import('@/types/api').BudgetDto>();
+    (agents?.items ?? []).forEach((agent, index) => {
+      const row = budgetQueries[index]?.data;
+      if (row) map.set(agent.id, row);
+    });
+    return map;
+  }, [agents?.items, budgetQueries]);
+
+  const policyNamesByAgentId = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const agent of agents?.items ?? []) {
+      map.set(agent.id, policies?.find((p) => p.id === agent.defaultPolicyId)?.name ?? null);
+    }
+    return map;
+  }, [agents?.items, policies]);
+
+  const runnableAgents = useMemo(
+    () =>
+      (agents?.items ?? []).filter((agent) => {
+        const evaluation = agentEvaluations.get(agent.id);
+        if (!evaluation) return false;
+        const budgetCheck = showUsdcBudget
+          ? evaluateAgentBudget({
+              budget: budgetsByAgentId.get(agent.id),
+              amountHuman: amount,
+              required: true,
+            })
+          : null;
+        return isAgentRunnable(evaluation, budgetCheck, showUsdcBudget);
+      }),
+    [agents?.items, agentEvaluations, budgetsByAgentId, showUsdcBudget, amount],
+  );
 
   const selectedEvaluation = agentId ? agentEvaluations.get(agentId) : undefined;
+  const selectedBudgetCheck = showUsdcBudget
+    ? evaluateAgentBudget({
+        budget: agentId ? budgetsByAgentId.get(agentId) : undefined,
+        amountHuman: amount,
+        required: true,
+      })
+    : null;
+  const selectedRunnable = selectedEvaluation
+    ? isAgentRunnable(selectedEvaluation, selectedBudgetCheck, showUsdcBudget)
+    : false;
 
   const submitBlockedReason = !selectedAgent
     ? 'Select an active agent.'
     : !selectedAgent.defaultPolicyId
       ? 'Selected agent needs an assigned policy.'
-      : !selectedMandate
-        ? selectedEvaluation?.failureReason ??
-          (matchingAgents.length
-            ? `Select an eligible agent — ${matchingAgents[0]?.name} has a matching mandate snapshot.`
-            : 'No agent has an active mandate snapshot matching this intent.')
+      : !selectedRunnable
+        ? eligibilityFailureLabel(selectedEvaluation!, selectedBudgetCheck)
         : null;
 
   const { data: chainBalance } = useWalletBalanceForChain(connectedWallet, selectedTemplate.targetChainId);
@@ -196,6 +254,15 @@ export default function SubmitIntentPage() {
       href: selectedAgent ? `/dashboard/agents/${selectedAgent.id}` : '/dashboard/agents',
     },
     { label: 'Mandate snapshot match', complete: Boolean(selectedMandate), href: '/dashboard/authority' },
+    ...(showUsdcBudget
+      ? [
+          {
+            label: 'USDC budget available',
+            complete: selectedBudgetCheck?.allow ?? false,
+            href: '/dashboard/budgets',
+          },
+        ]
+      : []),
   ];
 
   useEffect(() => {
@@ -236,11 +303,11 @@ export default function SubmitIntentPage() {
       if (agentId !== preferred) setAgentId(preferred);
       return;
     }
-    if (agentId && agentEvaluations.get(agentId)?.eligible) {
+    if (agentId && selectedRunnable) {
       return;
     }
-    if (matchingAgents[0] && matchingAgents[0].id !== agentId) {
-      setAgentId(matchingAgents[0].id);
+    if (runnableAgents[0] && runnableAgents[0].id !== agentId) {
+      setAgentId(runnableAgents[0].id);
     }
   }, [
     templateId,
@@ -248,8 +315,9 @@ export default function SubmitIntentPage() {
     agents?.items,
     targetAddress,
     resolvedSubmitAsset,
-    matchingAgents,
+    runnableAgents,
     agentId,
+    selectedRunnable,
     searchParams,
     selectedTemplate,
   ]);
@@ -269,7 +337,7 @@ export default function SubmitIntentPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    if (submitBlockedReason || !selectedAgent || !selectedMandate) {
+    if (submitBlockedReason || !selectedAgent || !selectedMandate || !selectedRunnable) {
       setError(submitBlockedReason ?? 'Intent is not ready to submit.');
       return;
     }
@@ -361,8 +429,12 @@ export default function SubmitIntentPage() {
                   <IntentAgentPicker
                     agents={agents.items}
                     evaluations={agentEvaluations}
+                    budgetsByAgentId={budgetsByAgentId}
                     selectedId={agentId || selectedAgent?.id || ''}
                     templateName={selectedTemplate.name}
+                    paymentAmount={amount}
+                    requiresBudget={showUsdcBudget}
+                    policyNamesByAgentId={policyNamesByAgentId}
                     onSelect={setAgentId}
                     onBack={() => goToStep(1)}
                     onContinue={() => goToStep(3)}
@@ -400,7 +472,7 @@ export default function SubmitIntentPage() {
                   </div>
 
                   <IntentReviewCard
-                    agentName={selectedAgent.name}
+                    agentName={formatAgentDisplayName(selectedAgent.name, selectedAgent.id)}
                     templateName={selectedTemplate.name}
                     actionType={selectedTemplate.actionType}
                     chainId={selectedTemplate.targetChainId}
