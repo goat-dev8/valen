@@ -12,7 +12,11 @@ import {
 } from '@/lib/x402-constants';
 import { formatApiErrorMessage } from '@/lib/utils';
 
-export function useX402PaymentFlow(initialAmount = '0.01') {
+export function useX402PaymentFlow(
+  initialAmount = '0.01',
+  options?: { merchantUrl?: string },
+) {
+  const merchantUrl = options?.merchantUrl ?? X402_MERCHANT_URL;
   const { wallets } = useWallets();
   const connectedWallet = wallets[0]?.address;
   const { data: agents } = useAgents({ limit: 100, status: 'active' });
@@ -115,7 +119,7 @@ export function useX402PaymentFlow(initialAmount = '0.01') {
         recipient,
         amount,
         chainId: X402_CHAIN_ID,
-        merchantUrl: X402_MERCHANT_URL,
+        merchantUrl,
       });
       setPaymentId(result.paymentId);
       setStatusMessage(`Payment initiated — status ${result.status}`);
