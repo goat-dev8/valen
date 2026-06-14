@@ -1,11 +1,11 @@
 'use client';
 
 import {
-  AGENT_ACTION_OPTIONS,
   AGENT_ASSET_OPTIONS,
   AGENT_NETWORKS,
   allSupportedAssetSymbols,
 } from '@/lib/agent-scope';
+import { MANDATE_ACTION_OPTIONS } from '@/lib/policy-mandate-config';
 
 type MandateScopeFieldsProps = {
   allowedChains: number[];
@@ -16,6 +16,7 @@ type MandateScopeFieldsProps = {
   onAllowedActionsChange: (actions: string[]) => void;
   allAssets: boolean;
   onAllAssetsChange: (value: boolean) => void;
+  actionOptions?: ReadonlyArray<{ value: string; label: string }>;
 };
 
 export function MandateScopeFields({
@@ -27,6 +28,7 @@ export function MandateScopeFields({
   onAllowedActionsChange,
   allAssets,
   onAllAssetsChange,
+  actionOptions = MANDATE_ACTION_OPTIONS,
 }: MandateScopeFieldsProps) {
   const toggleChain = (chainId: number) => {
     onAllowedChainsChange(
@@ -106,7 +108,7 @@ export function MandateScopeFields({
       <div className="app-form-group">
         <span className="mb-2 block text-sm font-medium">Allowed actions</span>
         <div className="flex flex-wrap gap-2">
-          {AGENT_ACTION_OPTIONS.map((action) => (
+          {actionOptions.map((action) => (
             <label
               key={action.value}
               className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#E8ECF0] bg-white px-3 py-2 text-sm"

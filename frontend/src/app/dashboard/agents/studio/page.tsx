@@ -17,6 +17,10 @@ import { useAuth } from '@/contexts/auth-context';
 import { useOrganization } from '@/contexts/org-context';
 import { ensurePolicyCatalog } from '@/lib/ensure-policy-catalog';
 import {
+  mandateDefaultsFromPolicyId,
+  resolvePolicyTemplateByPolicyId,
+} from '@/lib/policy-mandate-config';
+import {
   AGENT_CAPABILITY_OPTIONS,
   AGENT_TYPE_OPTIONS,
   type AgentCapability,
@@ -42,6 +46,7 @@ import {
   useWalletVerifications,
 } from '@/hooks/use-valen-api';
 import { formatApiErrorMessage } from '@/lib/utils';
+import { PolicyGovernanceCards } from '@/components/policies/policy-governance-cards';
 
 const STUDIO_STEPS = ['Identity', 'Rules', 'Authority', 'Budget', 'Summary', 'Publish'] as const;
 const TYPE_ICONS = { hosted: Bot, external: Globe, service: Server, experimental: FlaskConical } as const;
@@ -90,6 +95,13 @@ export default function AgentStudioPage() {
   const mandateSigned = agentMandates.length > 0;
   const activeMandate = agentMandates[0];
   const policyName = policies?.find((p) => p.id === (agent?.defaultPolicyId ?? selectedPolicyId))?.name;
+  const activePolicyId = agent?.defaultPolicyId ?? selectedPolicyId;
+  const policyTemplate = activePolicyId
+    ? resolvePolicyTemplateByPolicyId(activePolicies, activePolicyId)
+    : null;
+  const policyGovernanceDefaults = activePolicyId
+    ? mandateDefaultsFromPolicyId(activePolicies, activePolicyId)
+    : null;
 
   useEffect(() => {
     if (agentIdParam) setAgentId(agentIdParam);
@@ -112,6 +124,13 @@ export default function AgentStudioPage() {
 
   const handlePolicySelect = async (policyId: string) => {
     setSelectedPolicyId(policyId);
+    const defaults = mandateDefaultsFromPolicyId(activePolicies, policyId);
+    if (defaults) {
+      setSupportedNetworks(defaults.allowedChains);
+      setSupportedAssets(defaults.allowedAssets);
+      setSupportedActions(defaults.allowedActions);
+      setAllAssets(false);
+    }
     if (!agentId) return;
     setError(null);
     try {
@@ -126,7 +145,16 @@ export default function AgentStudioPage() {
 
   useEffect(() => {
     if (!agent) return;
-    if (agent.defaultPolicyId) setSelectedPolicyId(agent.defaultPolicyId);
+    if (agent.defaultPolicyId) {
+      setSelectedPolicyId(agent.defaultPolicyId);
+      const defaults = mandateDefaultsFromPolicyId(activePolicies, agent.defaultPolicyId);
+      if (defaults) {
+        setSupportedNetworks(defaults.allowedChains);
+        setSupportedAssets(defaults.allowedAssets);
+        setSupportedActions(defaults.allowedActions);
+        setAllAssets(false);
+      }
+    }
     if (agent.agentType) {
       setAgentType(agent.agentType as AgentTypeValue);
       setCapabilities(
@@ -139,7 +167,7 @@ export default function AgentStudioPage() {
     setSupportedNetworks(scope.supportedNetworks);
     setSupportedAssets(scope.supportedAssets);
     setSupportedActions(scope.supportedActions);
-  }, [agent]);
+  }, [agent, activePolicies]);
 
   const goToStep = (next: number, id = agentId) => {
     const clamped = Math.min(Math.max(next, 1), MAX_STEP);
@@ -383,9 +411,9 @@ export default function AgentStudioPage() {
               agentId={agentId}
               agentName={agent?.name}
               defaultPolicyId={agent?.defaultPolicyId ?? selectedPolicyId}
-              initialNetworks={supportedNetworks}
-              initialAssets={allAssets ? DEFAULT_SUPPORTED_ASSETS : supportedAssets}
-              initialActions={supportedActions}
+              initialNetworks={policyGovernanceDefaults?.allowedChains ?? supportedNetworks}
+              initialAssets={policyGovernanceDefaults?.allowedAssets ?? (allAssets ? DEFAULT_SUPPORTED_ASSETS : supportedAssets)}
+              initialActions={policyGovernanceDefaults?.allowedActions ?? supportedActions}
               verifyComplete={ownerWalletVerified}
               mandateComplete={mandateSigned}
               onSetupChange={() => { void refetchMandates(); void refetchWalletVerifications(); }}
@@ -413,14 +441,19 @@ export default function AgentStudioPage() {
         {step === 5 && agentId && (
           <div className="app-panel-floating app-card max-w-none space-y-4">
             <h3 className="text-lg font-semibold text-[#1A2332]">Agent summary</h3>
+            <PolicyGovernanceCards
+              defaults={policyGovernanceDefaults}
+              template={policyTemplate}
+              fallbackPolicyName={policyName}
+            />
             <dl className="app-detail-list">
               <div><dt>Name</dt><dd>{agent?.name}</dd></div>
               <div><dt>Type</dt><dd>{agentTypeLabel(agent?.agentType ?? agentType)}</dd></div>
               <div><dt>Policy</dt><dd>{policyName ?? '—'}</dd></div>
               <div><dt>Budget</dt><dd>{budget?.remaining != null ? `${budget.remaining} USDC remaining` : 'Not funded'}</dd></div>
               <div><dt>Chains</dt><dd className="flex flex-wrap gap-1">{supportedNetworks.map((id) => <ChainBadge key={id} chainId={id} />)}</dd></div>
-              <div><dt>Assets</dt><dd>{(allAssets ? DEFAULT_SUPPORTED_ASSETS : supportedAssets).join(', ')}</dd></div>
-              <div><dt>Actions</dt><dd>{supportedActions.join(', ')}</dd></div>
+              <div><dt>Assets</dt><dd>{(policyGovernanceDefaults?.allowedAssets ?? (allAssets ? DEFAULT_SUPPORTED_ASSETS : supportedAssets)).join(', ')}</dd></div>
+              <div><dt>Actions</dt><dd>{(policyGovernanceDefaults?.allowedActions ?? supportedActions).map((action) => action.replace(/_/g, ' ')).join(', ')}</dd></div>
               <div><dt>Owner wallet</dt><dd className="font-mono text-xs">{ownerWallet?.walletAddress ?? 'Not verified'}</dd></div>
               <div><dt>Capabilities</dt><dd>{capabilities.map((c) => c.replace(/_/g, ' ')).join(', ')}</dd></div>
               {activeMandate && (

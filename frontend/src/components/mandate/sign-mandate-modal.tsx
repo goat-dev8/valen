@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { MandateScopeFields } from '@/components/mandate/mandate-scope-fields';
 import { useAuthoritySetup } from '@/hooks/use-authority-setup';
@@ -11,6 +11,10 @@ import {
 } from '@/lib/agent-scope';
 import { walletChainBannerMessage } from '@/lib/wallet-chain';
 import { chainName } from '@/lib/constants';
+import {
+  mandateDefaultsFromPolicyId,
+  type PolicyMandateDefaults,
+} from '@/lib/policy-mandate-config';
 
 type SignMandateModalProps = {
   open: boolean;
@@ -24,6 +28,31 @@ type SignMandateModalProps = {
   initialActions?: string[];
 };
 
+function applyDefaultsToForm(
+  defaults: PolicyMandateDefaults,
+  setters: {
+    setAllowedChains: (value: number[]) => void;
+    setAllowedAssets: (value: string[]) => void;
+    setAllowedActions: (value: string[]) => void;
+    setAllAssets: (value: boolean) => void;
+    setMaxPerTransaction: (value: string) => void;
+    setMaxTotal: (value: string) => void;
+    setApprovalThreshold: (value: string) => void;
+    setValidDays: (value: number) => void;
+    setAllowedTargets: (value: string) => void;
+  },
+) {
+  setters.setAllowedChains(defaults.allowedChains);
+  setters.setAllowedAssets(defaults.allowedAssets);
+  setters.setAllowedActions(defaults.allowedActions);
+  setters.setAllAssets(false);
+  setters.setMaxPerTransaction(defaults.maxPerTransaction);
+  setters.setMaxTotal(defaults.maxTotal);
+  setters.setApprovalThreshold(defaults.approvalThreshold);
+  setters.setValidDays(defaults.expiresInDays);
+  setters.setAllowedTargets(defaults.allowedTargets.join(','));
+}
+
 export function SignMandateModal({
   open,
   onClose,
@@ -36,14 +65,63 @@ export function SignMandateModal({
   initialActions = DEFAULT_SUPPORTED_ACTIONS,
 }: SignMandateModalProps) {
   const setup = useAuthoritySetup(initialNetworks[0] ?? 421614);
+  const [selectedPolicyId, setSelectedPolicyId] = useState(defaultPolicyId ?? '');
   const [allowedChains, setAllowedChains] = useState(initialNetworks);
   const [allowedAssets, setAllowedAssets] = useState(initialAssets);
   const [allowedActions, setAllowedActions] = useState(initialActions);
   const [allAssets, setAllAssets] = useState(false);
+  const [maxPerTransaction, setMaxPerTransaction] = useState('');
+  const [maxTotal, setMaxTotal] = useState('');
+  const [approvalThreshold, setApprovalThreshold] = useState('');
+  const [validDays, setValidDays] = useState(30);
+  const [allowedTargets, setAllowedTargets] = useState('*');
+
+  const setters = {
+    setAllowedChains,
+    setAllowedAssets,
+    setAllowedActions,
+    setAllAssets,
+    setMaxPerTransaction,
+    setMaxTotal,
+    setApprovalThreshold,
+    setValidDays,
+    setAllowedTargets,
+  };
+
+  const applyPolicyDefaults = useCallback(
+    (policyId: string) => {
+      const defaults = mandateDefaultsFromPolicyId(setup.policies, policyId);
+      if (defaults) {
+        applyDefaultsToForm(defaults, setters);
+        return;
+      }
+      setAllowedChains(initialNetworks);
+      setAllowedAssets(initialAssets);
+      setAllowedActions(initialActions);
+      setAllAssets(false);
+      setMaxPerTransaction('');
+      setMaxTotal('');
+      setApprovalThreshold('');
+      setValidDays(30);
+      setAllowedTargets('*');
+    },
+    [setup.policies, initialNetworks, initialAssets, initialActions],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectedPolicyId(defaultPolicyId ?? '');
+    if (defaultPolicyId) {
+      applyPolicyDefaults(defaultPolicyId);
+    }
+  }, [open, defaultPolicyId, applyPolicyDefaults]);
 
   if (!open) return null;
 
   const signingChainId = allowedChains[0] ?? 421614;
+  const activeDefaults = selectedPolicyId
+    ? mandateDefaultsFromPolicyId(setup.policies, selectedPolicyId)
+    : null;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     if (!allowedChains.length) {
@@ -89,8 +167,8 @@ export function SignMandateModal({
 
         <div className="space-y-5 p-6">
           <p className="text-sm leading-6 text-[#5E6C7B]">
-            Multi-chain mandate — select allowed networks, assets, and actions. Signing uses{' '}
-            {chainName(signingChainId)}.
+            Mandate limits, assets, and approval rules are generated from the selected policy. You can expand scope
+            manually before signing.
           </p>
 
           {setup.walletNeedsChainSwitch && (
@@ -113,7 +191,19 @@ export function SignMandateModal({
 
             <div className="app-form-group">
               <label htmlFor="mandate-policyId">Policy</label>
-              <select id="mandate-policyId" name="policyId" className="app-input" defaultValue={defaultPolicyId ?? ''}>
+              <select
+                id="mandate-policyId"
+                name="policyId"
+                className="app-input"
+                value={selectedPolicyId}
+                onChange={(e) => {
+                  const policyId = e.target.value;
+                  setSelectedPolicyId(policyId);
+                  if (policyId) {
+                    applyPolicyDefaults(policyId);
+                  }
+                }}
+              >
                 <option value="">Agent default policy</option>
                 {setup.policies.map((policy) => (
                   <option key={policy.id} value={policy.id}>
@@ -122,6 +212,16 @@ export function SignMandateModal({
                 ))}
               </select>
             </div>
+
+            {activeDefaults && (
+              <div className="rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] px-4 py-3 text-sm text-[#012b54]">
+                <p className="font-semibold">{activeDefaults.policyName}</p>
+                <p className="mt-1 text-[#5E6C7B]">
+                  Max {activeDefaults.maxPerTransaction} · Total {activeDefaults.maxTotal} · Expires in{' '}
+                  {activeDefaults.expiresInDays} days
+                </p>
+              </div>
+            )}
 
             <MandateScopeFields
               allowedChains={allowedChains}
@@ -136,21 +236,47 @@ export function SignMandateModal({
 
             <div className="app-form-group">
               <label htmlFor="allowedTargets">Allowed targets</label>
-              <input id="allowedTargets" name="allowedTargets" className="app-input" defaultValue="*" />
+              <input
+                id="allowedTargets"
+                name="allowedTargets"
+                className="app-input"
+                value={allowedTargets}
+                onChange={(e) => setAllowedTargets(e.target.value)}
+              />
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
               <div className="app-form-group">
                 <label htmlFor="maxPerTransaction">Max / tx</label>
-                <input id="maxPerTransaction" name="maxPerTransaction" className="app-input" placeholder="0.1 ETH" />
+                <input
+                  id="maxPerTransaction"
+                  name="maxPerTransaction"
+                  className="app-input"
+                  value={maxPerTransaction}
+                  onChange={(e) => setMaxPerTransaction(e.target.value)}
+                />
               </div>
               <div className="app-form-group">
                 <label htmlFor="maxTotal">Max total</label>
-                <input id="maxTotal" name="maxTotal" className="app-input" placeholder="1 ETH" />
+                <input
+                  id="maxTotal"
+                  name="maxTotal"
+                  className="app-input"
+                  value={maxTotal}
+                  onChange={(e) => setMaxTotal(e.target.value)}
+                />
               </div>
               <div className="app-form-group">
                 <label htmlFor="validDays">Valid days</label>
-                <input id="validDays" name="validDays" className="app-input" type="number" min={1} defaultValue={30} />
+                <input
+                  id="validDays"
+                  name="validDays"
+                  className="app-input"
+                  type="number"
+                  min={1}
+                  value={validDays}
+                  onChange={(e) => setValidDays(Math.max(1, Number(e.target.value) || 1))}
+                />
               </div>
             </div>
 
@@ -160,7 +286,8 @@ export function SignMandateModal({
                 id="approvalThreshold"
                 name="approvalThreshold"
                 className="app-input"
-                placeholder="risk > 70 or amount > 0.5 ETH"
+                value={approvalThreshold}
+                onChange={(e) => setApprovalThreshold(e.target.value)}
               />
             </div>
 

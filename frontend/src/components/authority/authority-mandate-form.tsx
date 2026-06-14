@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { chainName } from '@/lib/constants';
+import { mandateDefaultsFromPolicyId } from '@/lib/policy-mandate-config';
 import type { AgentDto, PolicyDto } from '@/types/api';
 
 type AuthorityMandateFormProps = {
@@ -11,6 +13,7 @@ type AuthorityMandateFormProps = {
   walletNeedsChainSwitch: boolean;
   isSubmitting: boolean;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  defaultPolicyId?: string | null;
 };
 
 export function AuthorityMandateForm({
@@ -21,8 +24,37 @@ export function AuthorityMandateForm({
   walletNeedsChainSwitch,
   isSubmitting,
   onSubmit,
+  defaultPolicyId,
 }: AuthorityMandateFormProps) {
   const activeAgents = agents.filter((agent) => agent.status === 'active');
+  const [selectedPolicyId, setSelectedPolicyId] = useState(defaultPolicyId ?? '');
+  const [allowedActions, setAllowedActions] = useState('transfer');
+  const [allowedAssets, setAllowedAssets] = useState('USDC');
+  const [allowedTargets, setAllowedTargets] = useState('*');
+  const [maxPerTransaction, setMaxPerTransaction] = useState('');
+  const [maxTotal, setMaxTotal] = useState('');
+  const [approvalThreshold, setApprovalThreshold] = useState('');
+  const [validDays, setValidDays] = useState(30);
+
+  const applyPolicyDefaults = (policyId: string) => {
+    const defaults = mandateDefaultsFromPolicyId(policies, policyId);
+    if (!defaults) return;
+    setAllowedActions(defaults.allowedActions.join(','));
+    setAllowedAssets(defaults.allowedAssets.join(','));
+    setAllowedTargets(defaults.allowedTargets.join(','));
+    setMaxPerTransaction(defaults.maxPerTransaction);
+    setMaxTotal(defaults.maxTotal);
+    setApprovalThreshold(defaults.approvalThreshold);
+    setValidDays(defaults.expiresInDays);
+  };
+
+  useEffect(() => {
+    if (defaultPolicyId) {
+      setSelectedPolicyId(defaultPolicyId);
+      applyPolicyDefaults(defaultPolicyId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once from default policy
+  }, [defaultPolicyId, policies]);
 
   return (
     <form onSubmit={onSubmit} className="authority-mandate-form space-y-4">
@@ -40,7 +72,17 @@ export function AuthorityMandateForm({
 
       <div className="app-form-group">
         <label htmlFor="policyId">Policy</label>
-        <select id="policyId" name="policyId" className="app-input">
+        <select
+          id="policyId"
+          name="policyId"
+          className="app-input"
+          value={selectedPolicyId}
+          onChange={(e) => {
+            const policyId = e.target.value;
+            setSelectedPolicyId(policyId);
+            if (policyId) applyPolicyDefaults(policyId);
+          }}
+        >
           <option value="">Agent default policy</option>
           {policies.map((policy) => (
             <option key={policy.id} value={policy.id}>
@@ -52,7 +94,15 @@ export function AuthorityMandateForm({
 
       <div className="app-form-group">
         <label htmlFor="validDays">Valid for (days)</label>
-        <input id="validDays" name="validDays" className="app-input" type="number" min={1} defaultValue={30} />
+        <input
+          id="validDays"
+          name="validDays"
+          className="app-input"
+          type="number"
+          min={1}
+          value={validDays}
+          onChange={(e) => setValidDays(Math.max(1, Number(e.target.value) || 1))}
+        />
       </div>
 
       <details className="authority-mandate-form__advanced">
@@ -61,25 +111,55 @@ export function AuthorityMandateForm({
           <div className="grid gap-3 md:grid-cols-2">
             <div className="app-form-group">
               <label htmlFor="allowedActions">Allowed actions</label>
-              <input id="allowedActions" name="allowedActions" className="app-input" defaultValue="transfer" />
+              <input
+                id="allowedActions"
+                name="allowedActions"
+                className="app-input"
+                value={allowedActions}
+                onChange={(e) => setAllowedActions(e.target.value)}
+              />
             </div>
             <div className="app-form-group">
               <label htmlFor="allowedAssets">Allowed assets</label>
-              <input id="allowedAssets" name="allowedAssets" className="app-input" defaultValue="USDC,USDG,TSLA" />
+              <input
+                id="allowedAssets"
+                name="allowedAssets"
+                className="app-input"
+                value={allowedAssets}
+                onChange={(e) => setAllowedAssets(e.target.value)}
+              />
             </div>
           </div>
           <div className="app-form-group">
             <label htmlFor="allowedTargets">Allowed targets</label>
-            <input id="allowedTargets" name="allowedTargets" className="app-input" defaultValue="*" />
+            <input
+              id="allowedTargets"
+              name="allowedTargets"
+              className="app-input"
+              value={allowedTargets}
+              onChange={(e) => setAllowedTargets(e.target.value)}
+            />
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="app-form-group">
               <label htmlFor="maxPerTransaction">Max per transaction</label>
-              <input id="maxPerTransaction" name="maxPerTransaction" className="app-input" placeholder="0.1 ETH" />
+              <input
+                id="maxPerTransaction"
+                name="maxPerTransaction"
+                className="app-input"
+                value={maxPerTransaction}
+                onChange={(e) => setMaxPerTransaction(e.target.value)}
+              />
             </div>
             <div className="app-form-group">
               <label htmlFor="maxTotal">Max total</label>
-              <input id="maxTotal" name="maxTotal" className="app-input" placeholder="1 ETH" />
+              <input
+                id="maxTotal"
+                name="maxTotal"
+                className="app-input"
+                value={maxTotal}
+                onChange={(e) => setMaxTotal(e.target.value)}
+              />
             </div>
           </div>
           <div className="app-form-group">
@@ -88,7 +168,8 @@ export function AuthorityMandateForm({
               id="approvalThreshold"
               name="approvalThreshold"
               className="app-input"
-              placeholder="risk_score >= 60"
+              value={approvalThreshold}
+              onChange={(e) => setApprovalThreshold(e.target.value)}
             />
           </div>
         </div>

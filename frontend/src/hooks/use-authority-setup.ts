@@ -33,6 +33,7 @@ import {
 } from '@/lib/wallet-chain';
 import { formatApiErrorMessage, normalizeEvmAddressInput } from '@/lib/utils';
 import { DEFAULT_SUPPORTED_ASSETS, mandateAssetValues } from '@/lib/agent-scope';
+import { mandateDefaultsFromPolicyId } from '@/lib/policy-mandate-config';
 
 export function useAuthoritySetup(initialChainId?: number) {
   const { wallets, ready } = useWallets();
@@ -186,7 +187,12 @@ export function useAuthoritySetup(initialChainId?: number) {
     }
 
     const form = new FormData(e.currentTarget);
-    const validDays = Math.max(1, Number(form.get('validDays') ?? 30));
+    const policyId = String(form.get('policyId') || '') || undefined;
+    const policyDefaults = policyId ? mandateDefaultsFromPolicyId(policies ?? [], policyId) : null;
+    const validDays = Math.max(
+      1,
+      Number(form.get('validDays') ?? policyDefaults?.expiresInDays ?? 30),
+    );
     const validUntil = new Date(Date.now() + validDays * 24 * 60 * 60 * 1000).toISOString();
     const allowedChains =
       scope?.allowedChains ??
@@ -198,18 +204,22 @@ export function useAuthoritySetup(initialChainId?: number) {
     const actionValues = form.getAll('allowedActions').map(String).filter(Boolean);
     const body = {
       agentId: String(form.get('agentId')),
-      policyId: String(form.get('policyId') || '') || undefined,
+      policyId,
       signerAddress: walletAddress,
       chainId: signingChainId,
-      allowedChains: allowedChains.length ? allowedChains : [signingChainId],
-      allowedActions: actionValues.length ? actionValues : commaList(form.get('allowedActions'), ['transfer']),
+      allowedChains: allowedChains.length ? allowedChains : policyDefaults?.allowedChains ?? [signingChainId],
+      allowedActions: actionValues.length
+        ? actionValues
+        : policyDefaults?.allowedActions ?? commaList(form.get('allowedActions'), ['transfer']),
       allowedAssets: assetSymbols.length
         ? mandateAssetValues(assetSymbols)
-        : mandateAssetValues(DEFAULT_SUPPORTED_ASSETS),
-      allowedTargets: commaList(form.get('allowedTargets'), ['*']),
-      maxPerTransaction: String(form.get('maxPerTransaction') || '') || undefined,
-      maxTotal: String(form.get('maxTotal') || '') || undefined,
-      approvalThreshold: String(form.get('approvalThreshold') || '') || undefined,
+        : mandateAssetValues(policyDefaults?.allowedAssets ?? DEFAULT_SUPPORTED_ASSETS),
+      allowedTargets: commaList(form.get('allowedTargets'), policyDefaults?.allowedTargets ?? ['*']),
+      maxPerTransaction:
+        String(form.get('maxPerTransaction') || '') || policyDefaults?.maxPerTransaction || undefined,
+      maxTotal: String(form.get('maxTotal') || '') || policyDefaults?.maxTotal || undefined,
+      approvalThreshold:
+        String(form.get('approvalThreshold') || '') || policyDefaults?.approvalThreshold || undefined,
       validUntil,
     };
 

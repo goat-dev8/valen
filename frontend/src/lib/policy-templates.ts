@@ -10,6 +10,8 @@ export type PolicyTemplate = {
   riskLevel: PolicyRiskLevel;
   icon: string;
   supportedAssets: string[];
+  /** Assets preselected when this policy is bound to an agent or mandate. */
+  defaultAssets: string[];
   supportedChains: number[];
   approvalMode: string;
   budgetControls: string;
@@ -34,6 +36,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     riskLevel: 'low',
     icon: '🛡',
     supportedAssets: ['USDC', 'ETH'],
+    defaultAssets: ['USDC', 'ETH'],
     supportedChains: [421614, 46630],
     approvalMode: 'Human approval above threshold',
     budgetControls: 'Per-transaction and rolling 24h caps',
@@ -45,7 +48,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
       permissions: {
         allowedChains: [421614, 46630],
         allowedActions: ['transfer'],
-        allowedAssets: ['USDC', 'native'],
+        allowedAssets: ['USDC', 'ETH'],
         allowedTargets: ['*'],
         amountLimits: { maxPerTransaction: '100 USDC', maxTotal: '1000 USDC' },
         approvalThreshold: 'risk_score >= 60 OR amount > 50 USDC',
@@ -65,6 +68,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     riskLevel: 'low',
     icon: '⚡',
     supportedAssets: ['USDC'],
+    defaultAssets: ['USDC'],
     supportedChains: [421614],
     approvalMode: 'Auto-approved within budget',
     budgetControls: 'Agent USDC budget with 24h reset',
@@ -78,9 +82,9 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
         allowedActions: ['transfer', 'x402_payment'],
         allowedAssets: ['USDC'],
         allowedTargets: ['*'],
-        amountLimits: { maxPerTransaction: '1 USDC', maxTotal: '10 USDC' },
-        approvalThreshold: 'auto within budget; human above cap',
-        expiresInDays: 30,
+        amountLimits: { maxPerTransaction: '1 USDC', maxTotal: '100 USDC' },
+        approvalThreshold: 'Auto approved within budget',
+        expiresInDays: 7,
       },
       compliance: { mode: 'fail_closed', requireSanctionsCheck: false },
       risk: { maxAutoAllowScore: 75, requireApprovalAbove: 76, rejectAbove: 90 },
@@ -96,6 +100,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     riskLevel: 'medium',
     icon: '📈',
     supportedAssets: ['TSLA', 'AMZN', 'PLTR', 'NFLX', 'AMD', 'USDG'],
+    defaultAssets: ['USDG', 'TSLA', 'AMZN', 'NFLX', 'PLTR', 'AMD'],
     supportedChains: [46630],
     approvalMode: 'Human approval above demo limits',
     budgetControls: 'Per-asset position caps',
@@ -106,12 +111,12 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
       templateId: 'robinhood-tsla-demo',
       permissions: {
         allowedChains: [46630],
-        allowedActions: ['demo_trade', 'transfer'],
+        allowedActions: ['transfer', 'demo_trade'],
         allowedAssets: ['TSLA', 'AMZN', 'PLTR', 'NFLX', 'AMD', 'USDG'],
         allowedTargets: ['robinhood-demo', '*'],
-        amountLimits: { maxPerTransaction: '100 shares', maxTotal: '500 shares' },
-        approvalThreshold: 'risk_score >= 70 OR target outside demo allowlist',
-        expiresInDays: 14,
+        amountLimits: { maxPerTransaction: '100 USDG', maxTotal: '1000 USDG' },
+        approvalThreshold: 'Human review when stock transfer exceeds configured threshold',
+        expiresInDays: 30,
       },
       compliance: { mode: 'fail_closed', demoRefusals: ['unsupported_chain', 'blocked_subject', 'amount_above_limit'] },
       risk: { maxAutoAllowScore: 69, requireApprovalAbove: 70, rejectAbove: 90 },
@@ -127,6 +132,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     riskLevel: 'high',
     icon: '🏛',
     supportedAssets: ['USDC', 'USDG', 'ETH'],
+    defaultAssets: ['USDC', 'USDG', 'ETH'],
     supportedChains: [421614, 46630],
     approvalMode: 'Dual approval above moderate risk',
     budgetControls: 'Hard caps with evidence hashes',
@@ -138,7 +144,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
       permissions: {
         allowedChains: [421614, 46630],
         allowedActions: ['transfer'],
-        allowedAssets: ['USDC', 'USDG', 'native'],
+        allowedAssets: ['USDC', 'USDG', 'ETH'],
         allowedTargets: ['allowlist'],
         amountLimits: { maxPerTransaction: '50 USDC', maxTotal: '500 USDC' },
         approvalThreshold: 'risk_score >= 40 OR amount > 25 USDC',
@@ -158,6 +164,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     riskLevel: 'medium',
     icon: '🔗',
     supportedAssets: ['USDC', 'USDG', 'TSLA', 'ETH'],
+    defaultAssets: ['USDC', 'USDG', 'TSLA'],
     supportedChains: [421614, 46630],
     approvalMode: 'Chain-aware approval routing',
     budgetControls: 'Per-chain budget envelopes',
@@ -169,7 +176,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
       permissions: {
         allowedChains: [421614, 46630],
         allowedActions: ['transfer', 'x402_payment', 'demo_trade'],
-        allowedAssets: ['USDC', 'USDG', 'TSLA', 'native'],
+        allowedAssets: ['USDC', 'USDG', 'TSLA', 'ETH'],
         allowedTargets: ['*'],
         amountLimits: { maxPerTransaction: '250 USDC equivalent', maxTotal: '2500 USDC equivalent' },
         approvalThreshold: 'risk_score >= 65 OR cross_chain_flag',
@@ -189,6 +196,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     riskLevel: 'high',
     icon: '🔒',
     supportedAssets: ['USDC', 'USDG'],
+    defaultAssets: ['USDC', 'USDG'],
     supportedChains: [421614, 46630],
     approvalMode: 'Human approval for all material amounts',
     budgetControls: 'Strict daily caps with pause on breach',
@@ -220,6 +228,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     riskLevel: 'medium',
     icon: '📊',
     supportedAssets: ['TSLA', 'AMZN', 'PLTR', 'NFLX', 'AMD', 'USDG', 'USDC'],
+    defaultAssets: ['TSLA', 'AMZN', 'PLTR', 'NFLX', 'AMD', 'USDG', 'USDC'],
     supportedChains: [46630, 421614],
     approvalMode: 'Auto within band; human above band',
     budgetControls: 'Rolling volume caps per asset',
@@ -251,6 +260,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     riskLevel: 'low',
     icon: '🧪',
     supportedAssets: ['USDC', 'USDG', 'TSLA', 'ETH'],
+    defaultAssets: ['USDC', 'USDG', 'TSLA', 'ETH'],
     supportedChains: [421614, 46630],
     approvalMode: 'Mostly auto-approved with proof',
     budgetControls: 'Generous demo caps',
@@ -262,7 +272,7 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
       permissions: {
         allowedChains: [421614, 46630],
         allowedActions: ['transfer', 'x402_payment', 'demo_trade'],
-        allowedAssets: ['USDC', 'USDG', 'TSLA', 'native'],
+        allowedAssets: ['USDC', 'USDG', 'TSLA', 'ETH'],
         allowedTargets: ['*'],
         amountLimits: { maxPerTransaction: '1000 USDC equivalent', maxTotal: '10000 USDC equivalent' },
         approvalThreshold: 'risk_score >= 90 only',
