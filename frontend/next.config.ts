@@ -49,6 +49,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   outputFileTracingRoot: monorepoRoot,
+  eslint: {
+    ignoreDuringBuilds: process.env.VALEN_BUILD_FAST === '1',
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
   env: {
     NEXT_PUBLIC_API_URL: apiUrl,
     NEXT_PUBLIC_PRIVY_APP_ID: privyAppId,

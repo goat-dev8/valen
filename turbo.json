@@ -1,17 +1,27 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": [".nvmrc"],
+  "globalDependencies": [".nvmrc", "pnpm-lock.yaml"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "artifacts/**", "typechain-types/**"]
+      "inputs": [
+        "src/**",
+        "public/**",
+        "package.json",
+        "tsconfig*.json",
+        "next.config.*",
+        "nest-cli.json",
+        ".swcrc"
+      ],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "artifacts/**", "typechain-types/**"]
     },
     "test": {
       "dependsOn": ["build"],
       "outputs": ["coverage/**"]
     },
     "lint": {
-      "outputs": []
+      "outputs": [],
+      "cache": true
     },
     "dev": {
       "cache": false,
